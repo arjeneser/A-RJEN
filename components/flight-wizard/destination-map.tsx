@@ -36,7 +36,7 @@ export function DestinationMap({
       )
     );
     const span = maxDist / 111;
-    return Math.max(150, Math.min(900, 7000 / (span + 5)));
+    return Math.max(200, Math.min(1800, 18000 / (span + 5)));
   }, [departure, destinations]);
 
   // Çember yarıçapları (km → SVG piksel: km / 6371 * scale)
