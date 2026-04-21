@@ -157,13 +157,13 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
 
         {/* Uçak */}
         <Marker coordinates={[planePos.lng, planePos.lat]}>
-          <g transform={`rotate(${bearing})`}
-            style={{ filter: "drop-shadow(0 0 12px rgba(255,255,255,0.5))" }}>
+          <g transform={`rotate(${bearing})`}>
+            {/* Gri arka planı sakla */}
+            <circle r={34} fill="#1C3A2A"/>
             <image
               href="/airplane-top.png"
               x={-32} y={-32}
               width={64} height={64}
-              style={{ mixBlendMode: "screen" } as React.CSSProperties}
             />
           </g>
         </Marker>
