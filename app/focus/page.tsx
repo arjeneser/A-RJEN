@@ -100,7 +100,6 @@ export default function FocusPage() {
 
   const { departure, destination, durationMs, seat } = session;
   const percent = Math.round(progress * 100);
-  const remainingMs = Math.max(0, durationMs - elapsedMs);
 
   function handleAbandon() {
     if (!confirm("Bu uçuşu terk etmek istiyor musunuz? İlerlemeniz kaybolacak.")) return;
