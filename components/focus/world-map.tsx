@@ -40,22 +40,32 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
       style: {
         version: 8,
         sources: {
-          "carto-dark": {
+          "esri-satellite": {
             type: "raster",
             tiles: [
-              "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-              "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-              "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+              "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
             ],
             tileSize: 256,
-            attribution: "© OpenStreetMap contributors © CARTO",
+            attribution: "© Esri, Maxar, Earthstar Geographics",
+          },
+          "esri-labels": {
+            type: "raster",
+            tiles: [
+              "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+            ],
+            tileSize: 256,
           },
         },
         layers: [
           {
-            id: "carto-dark-layer",
+            id: "esri-satellite-layer",
             type: "raster",
-            source: "carto-dark",
+            source: "esri-satellite",
+          },
+          {
+            id: "esri-labels-layer",
+            type: "raster",
+            source: "esri-labels",
           },
         ],
       },
@@ -84,7 +94,7 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
         type: "line",
         source: "route-full",
         paint: {
-          "line-color": "rgba(255,255,255,0.25)",
+          "line-color": "rgba(255,255,255,0.4)",
           "line-width": 1.5,
           "line-dasharray": [4, 6],
         },
@@ -106,7 +116,7 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
         paint: {
           "line-color": "#60C8FF",
           "line-width": 2.5,
-          "line-opacity": 0.85,
+          "line-opacity": 0.9,
         },
       });
 

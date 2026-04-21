@@ -5,7 +5,6 @@ import { ComposableMap, Geographies, Geography, Marker, Sphere, Graticule } from
 import { useMemo } from "react";
 import type { City } from "@/types";
 import { flagEmoji, haversineKm } from "@/data/cities";
-import { WORLD_CITIES } from "@/data/world-cities";
 
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
@@ -37,12 +36,6 @@ export function DestinationMap({
     const span = maxDist / 111;
     return Math.max(80, Math.min(500, 3600 / (span + 5)));
   }, [departure, destinations]);
-
-  // Destination id seti — dünya şehirleri bu listedeyse ikinci kez gösterme
-  const destinationIds = useMemo(
-    () => new Set(destinations.map((d) => d.name.toLowerCase())),
-    [destinations]
-  );
 
   return (
     <div
@@ -76,42 +69,6 @@ export function DestinationMap({
             ))
           }
         </Geographies>
-
-        {/* ── Dünya şehirleri (arka plan etiketleri) ────────────────────────── */}
-        {WORLD_CITIES.filter(
-          (wc) => !destinationIds.has(wc.name.toLowerCase())
-        ).map((wc) => {
-          const dotR = wc.pop === "xl" ? 3 : wc.pop === "lg" ? 2.5 : 2;
-          const fs   = wc.pop === "xl" ? 11 : wc.pop === "lg" ? 9 : 8;
-          const fill = wc.pop === "xl"
-            ? "rgba(203,213,225,0.85)"
-            : wc.pop === "lg"
-            ? "rgba(148,163,184,0.75)"
-            : "rgba(100,116,139,0.65)";
-          const dot  = wc.pop === "xl"
-            ? "rgba(148,163,184,0.8)"
-            : "rgba(100,116,139,0.65)";
-
-          return (
-            <Marker key={wc.name} coordinates={[wc.lng, wc.lat]}>
-              <circle r={dotR} fill={dot} />
-              <text
-                textAnchor="middle"
-                y={-6}
-                style={{
-                  fontSize: fs,
-                  fontWeight: wc.pop === "xl" ? 600 : 400,
-                  fill,
-                  pointerEvents: "none",
-                  fontFamily: "system-ui, sans-serif",
-                  textShadow: "0 1px 4px rgba(0,0,0,0.9)",
-                }}
-              >
-                {wc.name}
-              </text>
-            </Marker>
-          );
-        })}
 
         {/* ── Destination markers (gidilebilecek şehirler) ──────────────────── */}
         {destinations.map((city) => {
