@@ -105,11 +105,11 @@ export function DestinationMap({
         {/* ── Destination markers ──────────────────────────────────────────────── */}
         {destinations.map((city) => {
           const isSel = selected?.id === city.id;
-          const labelW = 130;
-          const labelH = isSel ? 34 : 30;
-          const labelY = isSel ? -68 : -60;
-          const flagW  = 24;
-          const flagH  = 17;
+          const labelW = 82;
+          const labelH = isSel ? 20 : 18;
+          const labelY = isSel ? -42 : -36;
+          const flagW  = 16;
+          const flagH  = 12;
 
           return (
             <Marker
@@ -168,7 +168,7 @@ export function DestinationMap({
                 y={labelY + labelH / 2 + 1}
                 dominantBaseline="middle"
                 style={{
-                  fontSize: isSel ? 22 : 18,
+                  fontSize: isSel ? 11 : 9,
                   fontWeight: isSel ? 700 : 600,
                   fill: isSel ? "#FCD34D" : "#E2E8F0",
                   pointerEvents: "none",
