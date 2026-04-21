@@ -5,9 +5,11 @@ import { useEffect, useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useActiveSession } from "@/store/flight-store";
+import { useAuthStore } from "@/store/auth-store";
 import { useTimer } from "@/hooks/use-timer";
 import { formatDuration, formatMinutes } from "@/lib/utils";
 import { flagEmoji } from "@/data/cities";
+import { broadcastFlight, clearFlight, subscribeToFlights, type LiveFlight } from "@/lib/flight-sync";
 
 // ── Map is client-only ────────────────────────────────────────────────────────
 const WorldMap = dynamic(
@@ -22,8 +24,10 @@ const WorldMap = dynamic(
 export default function FocusPage() {
   const router = useRouter();
   const { session, abandonSession } = useActiveSession();
+  const { currentUsername } = useAuthStore();
   const hasCompletedRef = useRef(false);
   const [mounted, setMounted] = useState(false);
+  const [otherFlights, setOtherFlights] = useState<LiveFlight[]>([]);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -36,6 +40,22 @@ export default function FocusPage() {
 
   const { elapsedMs, remainingMs, progress, isPaused, pause, resume } =
     useTimer(onComplete);
+
+  // ── Firebase: kendi konumunu yayınla ─────────────────────────────────────
+  useEffect(() => {
+    if (!session || !currentUsername) return;
+    broadcastFlight(currentUsername, session.departure, session.destination, progress);
+  }, [progress, session, currentUsername]);
+
+  // ── Firebase: diğer kullanıcıları dinle ──────────────────────────────────
+  useEffect(() => {
+    if (!currentUsername) return;
+    const unsub = subscribeToFlights(currentUsername, setOtherFlights);
+    return () => {
+      unsub();
+      if (currentUsername) clearFlight(currentUsername);
+    };
+  }, [currentUsername]);
 
   // ── Guards ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -74,6 +94,7 @@ export default function FocusPage() {
             departure={departure}
             destination={destination}
             progress={progress}
+            otherFlights={otherFlights}
           />
         </div>
 

@@ -4,7 +4,7 @@
 import { ComposableMap, Geographies, Geography, Marker, Sphere, Graticule } from "react-simple-maps";
 import { useMemo } from "react";
 import type { City } from "@/types";
-import { flagEmoji, haversineKm } from "@/data/cities";
+import { haversineKm } from "@/data/cities";
 
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
@@ -70,9 +70,15 @@ export function DestinationMap({
           }
         </Geographies>
 
-        {/* ── Destination markers (gidilebilecek şehirler) ──────────────────── */}
+        {/* ── Destination markers ──────────────────────────────────────────────── */}
         {destinations.map((city) => {
           const isSel = selected?.id === city.id;
+          const labelW = 64;
+          const labelH = isSel ? 18 : 16;
+          const labelY = isSel ? -38 : -33;
+          const flagW  = 16;
+          const flagH  = 11;
+
           return (
             <Marker
               key={city.id}
@@ -103,35 +109,47 @@ export function DestinationMap({
 
               {/* Etiket arka planı */}
               <rect
-                x={-28}
-                y={isSel ? -32 : -28}
-                width={56}
-                height={isSel ? 16 : 14}
+                x={-labelW / 2}
+                y={labelY}
+                width={labelW}
+                height={labelH}
                 rx={4}
-                fill={isSel ? "rgba(30,20,0,0.88)" : "rgba(8,13,28,0.85)"}
-                stroke={isSel ? "rgba(245,158,11,0.5)" : "rgba(14,165,233,0.4)"}
+                fill={isSel ? "rgba(30,20,0,0.92)" : "rgba(8,13,28,0.88)"}
+                stroke={isSel ? "rgba(245,158,11,0.6)" : "rgba(14,165,233,0.4)"}
                 strokeWidth={0.8}
                 style={{ pointerEvents: "none" }}
               />
 
+              {/* Bayrak PNG (flagcdn.com — tüm platformlarda çalışır) */}
+              <image
+                href={`https://flagcdn.com/${flagW}x${flagH}/${city.countryCode.toLowerCase()}.png`}
+                x={-labelW / 2 + 3}
+                y={labelY + (labelH - flagH) / 2}
+                width={flagW}
+                height={flagH}
+                style={{ pointerEvents: "none" }}
+              />
+
+              {/* Şehir adı */}
               <text
-                textAnchor="middle"
-                y={isSel ? -20 : -17}
+                x={-labelW / 2 + flagW + 5}
+                y={labelY + labelH / 2 + 1}
+                dominantBaseline="middle"
                 style={{
-                  fontSize: isSel ? 11 : 9,
+                  fontSize: isSel ? 10 : 9,
                   fontWeight: isSel ? 700 : 600,
                   fill: isSel ? "#FCD34D" : "#E2E8F0",
                   pointerEvents: "none",
                   fontFamily: "system-ui, sans-serif",
                 }}
               >
-                {flagEmoji(city.countryCode)} {city.name}
+                {city.name}
               </text>
             </Marker>
           );
         })}
 
-        {/* ── Kalkış noktası ─────────────────────────────────────────────────── */}
+        {/* ── Kalkış noktası ──────────────────────────────────────────────────── */}
         <Marker coordinates={[departure.lng, departure.lat]}>
           <circle
             r={8}
