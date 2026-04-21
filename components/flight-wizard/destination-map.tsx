@@ -152,9 +152,9 @@ export function DestinationMap({
                 style={{ pointerEvents: "none" }}
               />
 
-              {/* Bayrak PNG */}
+              {/* Bayrak PNG — w40 formatı her ülkede çalışır */}
               <image
-                href={`https://flagcdn.com/${flagW}x${flagH}/${city.countryCode.toLowerCase()}.png`}
+                href={`https://flagcdn.com/w40/${city.countryCode.toLowerCase()}.png`}
                 x={-labelW / 2 + 3}
                 y={labelY + (labelH - flagH) / 2}
                 width={flagW}
