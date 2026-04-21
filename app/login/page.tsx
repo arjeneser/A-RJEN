@@ -16,6 +16,13 @@ export default function LoginPage() {
   const [confirm, setConfirm]   = useState("");
   const [error, setError]       = useState("");
   const [loading, setLoading]   = useState(false);
+  const [remember, setRemember] = useState(false);
+
+  // Kayıtlı kullanıcı adını yükle
+  useEffect(() => {
+    const saved = localStorage.getItem("airjen-remember");
+    if (saved) { setUsername(saved); setRemember(true); }
+  }, []);
 
   // Already logged in → go home
   useEffect(() => {
@@ -47,6 +54,8 @@ export default function LoginPage() {
       setLoading(false);
       if (res === "not_found")     { setError("Kullanıcı bulunamadı."); return; }
       if (res === "wrong_password") { setError("Şifre hatalı."); return; }
+      if (remember) localStorage.setItem("airjen-remember", u);
+      else localStorage.removeItem("airjen-remember");
       router.replace("/");
     }, 300);
   }
@@ -182,6 +191,32 @@ export default function LoginPage() {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* Beni Hatırla — sadece giriş modunda */}
+            {mode === "login" && (
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <div
+                  onClick={() => setRemember(!remember)}
+                  className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-all"
+                  style={{
+                    background: remember
+                      ? "linear-gradient(135deg,#3B82F6,#1D4ED8)"
+                      : "rgba(255,255,255,0.06)",
+                    border: remember
+                      ? "1px solid #3B82F6"
+                      : "1px solid rgba(255,255,255,0.15)",
+                    boxShadow: remember ? "0 0 8px rgba(59,130,246,0.4)" : undefined,
+                  }}
+                >
+                  {remember && (
+                    <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                      <path d="M1 4.5L4 7.5L10 1.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </div>
+                <span className="text-xs text-slate-400">Beni Hatırla</span>
+              </label>
+            )}
 
             {/* Error */}
             <AnimatePresence>

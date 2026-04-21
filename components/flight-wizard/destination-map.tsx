@@ -81,27 +81,30 @@ export function DestinationMap({
         {WORLD_CITIES.filter(
           (wc) => !destinationIds.has(wc.name.toLowerCase())
         ).map((wc) => {
-          const dotR  = wc.pop === "xl" ? 2.5 : wc.pop === "lg" ? 2 : 1.5;
-          const fs    = wc.pop === "xl" ? 8   : wc.pop === "lg" ? 7 : 6;
-          const fill  = wc.pop === "xl"
-            ? "rgba(148,163,184,0.7)"
-            : "rgba(100,116,139,0.55)";
-          const dot   = wc.pop === "xl"
-            ? "rgba(148,163,184,0.6)"
-            : "rgba(71,85,105,0.5)";
+          const dotR = wc.pop === "xl" ? 3 : wc.pop === "lg" ? 2.5 : 2;
+          const fs   = wc.pop === "xl" ? 11 : wc.pop === "lg" ? 9 : 8;
+          const fill = wc.pop === "xl"
+            ? "rgba(203,213,225,0.85)"
+            : wc.pop === "lg"
+            ? "rgba(148,163,184,0.75)"
+            : "rgba(100,116,139,0.65)";
+          const dot  = wc.pop === "xl"
+            ? "rgba(148,163,184,0.8)"
+            : "rgba(100,116,139,0.65)";
 
           return (
             <Marker key={wc.name} coordinates={[wc.lng, wc.lat]}>
               <circle r={dotR} fill={dot} />
               <text
                 textAnchor="middle"
-                y={-5}
+                y={-6}
                 style={{
                   fontSize: fs,
-                  fontWeight: 400,
+                  fontWeight: wc.pop === "xl" ? 600 : 400,
                   fill,
                   pointerEvents: "none",
                   fontFamily: "system-ui, sans-serif",
+                  textShadow: "0 1px 4px rgba(0,0,0,0.9)",
                 }}
               >
                 {wc.name}

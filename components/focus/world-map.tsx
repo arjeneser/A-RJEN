@@ -108,24 +108,30 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
 
         {/* ── Arka plan dünya şehirleri ──────────────────────────────────────── */}
         {visibleCities.map((wc) => {
-          const dotR = wc.pop === "xl" ? 2 : 1.5;
-          const fs   = wc.pop === "xl" ? 8 : 7;
+          const dotR = wc.pop === "xl" ? 3 : wc.pop === "lg" ? 2.5 : 2;
+          const fs   = wc.pop === "xl" ? 12 : wc.pop === "lg" ? 10 : 9;
           const fill = wc.pop === "xl"
-            ? "rgba(148,163,184,0.55)"
-            : "rgba(100,116,139,0.4)";
+            ? "rgba(203,213,225,0.9)"
+            : wc.pop === "lg"
+            ? "rgba(148,163,184,0.8)"
+            : "rgba(100,116,139,0.7)";
+          const dotFill = wc.pop === "xl"
+            ? "rgba(148,163,184,0.85)"
+            : "rgba(100,116,139,0.7)";
 
           return (
             <Marker key={wc.name} coordinates={[wc.lng, wc.lat]}>
-              <circle r={dotR} fill={fill} />
+              <circle r={dotR} fill={dotFill} />
               <text
                 textAnchor="middle"
-                y={-5}
+                y={-6}
                 style={{
                   fontSize: fs,
-                  fontWeight: 400,
+                  fontWeight: wc.pop === "xl" ? 600 : 400,
                   fill,
                   pointerEvents: "none",
                   fontFamily: "system-ui, sans-serif",
+                  textShadow: "0 1px 4px rgba(0,0,0,0.9)",
                 }}
               >
                 {wc.name}
