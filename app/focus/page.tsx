@@ -41,6 +41,24 @@ export default function FocusPage() {
   const { elapsedMs, remainingMs, progress, isPaused, pause, resume } =
     useTimer(onComplete);
 
+  // ── Sekme başlığında geri sayım ──────────────────────────────────────────
+  useEffect(() => {
+    if (session?.status === "completed") {
+      document.title = "✅ TAMAMLANDI — AIRJEN";
+      return;
+    }
+    if (!session || session.status === "abandoned") {
+      document.title = "AIRJEN";
+      return;
+    }
+    document.title = `⏱ ${formatDuration(remainingMs)} — AIRJEN`;
+  }, [remainingMs, session]);
+
+  // Sayfa kapanınca başlığı sıfırla
+  useEffect(() => {
+    return () => { document.title = "AIRJEN"; };
+  }, []);
+
   // ── Firebase: kendi konumunu yayınla (her progress değişiminde + 5s interval)
   useEffect(() => {
     if (!session || !currentUsername) return;
@@ -82,6 +100,7 @@ export default function FocusPage() {
 
   const { departure, destination, durationMs, seat } = session;
   const percent = Math.round(progress * 100);
+  const remainingMs = Math.max(0, durationMs - elapsedMs);
 
   function handleAbandon() {
     if (!confirm("Bu uçuşu terk etmek istiyor musunuz? İlerlemeniz kaybolacak.")) return;
