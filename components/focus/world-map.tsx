@@ -147,17 +147,18 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
       // Uçak marker — dış kapsayıcı MapLibre'nin marker'ı
       // İç div sadece rotasyon için (MapLibre'nin kendi transform'unu bozmaz)
       const outerEl = document.createElement("div");
-      outerEl.style.cssText = "width:64px;height:64px;";
+      outerEl.style.cssText = "width:72px;height:72px;background:transparent;";
 
       const innerEl = document.createElement("div");
       innerEl.style.cssText = `
-        width:64px;
-        height:64px;
+        width:72px;
+        height:72px;
+        background:transparent;
         transform:rotate(${bearing}deg);
         transition:transform 0.4s ease;
-        filter:drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+        filter:drop-shadow(0 2px 8px rgba(0,0,0,0.7)) drop-shadow(0 0 4px rgba(0,0,0,0.5));
       `;
-      innerEl.innerHTML = `<img src="/airplane-top.png" style="width:100%;height:100%;object-fit:contain" />`;
+      innerEl.innerHTML = `<img src="/airplane-top.png" style="width:100%;height:100%;object-fit:contain;background:transparent;display:block;" />`;
 
       outerEl.appendChild(innerEl);
       planeElRef.current = innerEl;
