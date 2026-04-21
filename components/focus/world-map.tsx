@@ -68,17 +68,23 @@ export function WorldMap({ departure, destination, progress, otherFlights = [] }
         existing.innerEl.style.transform = `rotate(${brng + 45}deg)`;
       } else {
         const outer = document.createElement("div");
-        outer.style.cssText = "display:flex;flex-direction:column;align-items:center;background:transparent;";
+        outer.style.cssText = "display:flex;flex-direction:column;align-items:center;background:transparent;position:relative;";
 
+        // Kullanıcı adı etiketi
         const label = document.createElement("div");
-        label.style.cssText = `background:${color};color:white;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-bottom:2px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.5);font-family:system-ui,sans-serif;`;
+        label.style.cssText = `background:${color};color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-bottom:3px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.6);font-family:system-ui,sans-serif;`;
         label.textContent = flight.username;
 
+        // Renkli halka (uçağın altında, ayırt edici)
+        const ring = document.createElement("div");
+        ring.style.cssText = `position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:72px;height:72px;border-radius:50%;border:3px solid ${color};box-shadow:0 0 12px ${color}, inset 0 0 12px ${color}33;pointer-events:none;`;
+
         const inner = document.createElement("div");
-        inner.style.cssText = `width:40px;height:40px;background:transparent;transform:rotate(${brng + 45}deg);transition:transform 0.4s ease;filter:drop-shadow(0 0 8px ${color});`;
+        inner.style.cssText = `width:72px;height:72px;background:transparent;transform:rotate(${brng + 45}deg);transition:transform 0.4s ease;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.7));position:relative;z-index:1;`;
         inner.innerHTML = `<img src="/airplane-top.png" style="width:100%;height:100%;object-fit:contain;display:block;mix-blend-mode:multiply;" />`;
 
         outer.appendChild(label);
+        outer.appendChild(ring);
         outer.appendChild(inner);
 
         const marker = new maplibregl.Marker({ element: outer, anchor: "center" })
