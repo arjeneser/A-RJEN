@@ -56,6 +56,28 @@ export default function SuccessPage() {
     }
   }, [session, recordFlight]);
 
+  // ── Landing sound ────────────────────────────────────────────────────────
+  useEffect(() => {
+    try {
+      const ctx = new AudioContext();
+      const notes = [523, 659, 784, 1047]; // C E G C (iniş akoru)
+      notes.forEach((freq, i) => {
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        osc.type = "sine";
+        const t = ctx.currentTime + i * 0.18;
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.22, t + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+        osc.start(t);
+        osc.stop(t + 0.7);
+      });
+    } catch { /* ses desteklenmiyorsa sessizce geç */ }
+  }, []);
+
   // Confetti
   useEffect(() => {
     if (confettiRef.current) return;

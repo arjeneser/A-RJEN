@@ -21,26 +21,32 @@ export function DestinationMap({
   departure,
   destinations,
   selected,
+  minDistanceKm,
+  maxDistanceKm,
   onSelect,
 }: DestinationMapProps) {
   const center: [number, number] = [departure.lng, departure.lat];
 
   // Dinamik zoom: destinasyonların maksimum uzaklığına göre
   const scale = useMemo(() => {
-    if (destinations.length === 0) return 180;
+    if (destinations.length === 0) return 200;
     const maxDist = Math.max(
       ...destinations.map((d) =>
         haversineKm(departure.lat, departure.lng, d.lat, d.lng)
       )
     );
     const span = maxDist / 111;
-    return Math.max(80, Math.min(500, 3600 / (span + 5)));
+    return Math.max(100, Math.min(600, 4200 / (span + 5)));
   }, [departure, destinations]);
+
+  // Çember yarıçapları (km → SVG piksel: km / 6371 * scale)
+  const maxR = (maxDistanceKm / 6371) * scale;
+  const minR = minDistanceKm > 0 ? (minDistanceKm / 6371) * scale : 0;
 
   return (
     <div
       className="w-full rounded-2xl overflow-hidden"
-      style={{ background: "#080D1C", height: 340 }}
+      style={{ background: "#080D1C", height: 360 }}
     >
       <ComposableMap
         projection="geoMercator"
@@ -69,6 +75,30 @@ export function DestinationMap({
             ))
           }
         </Geographies>
+
+        {/* ── Ulaşım menzili çemberleri ──────────────────────────────────────── */}
+        <Marker coordinates={[departure.lng, departure.lat]}>
+          {/* Maksimum menzil */}
+          <circle
+            r={maxR}
+            fill="rgba(14,165,233,0.04)"
+            stroke="rgba(14,165,233,0.35)"
+            strokeWidth={1}
+            strokeDasharray="6 4"
+            style={{ pointerEvents: "none" }}
+          />
+          {/* Minimum menzil */}
+          {minR > 4 && (
+            <circle
+              r={minR}
+              fill="rgba(0,0,0,0.15)"
+              stroke="rgba(100,116,139,0.3)"
+              strokeWidth={0.8}
+              strokeDasharray="4 3"
+              style={{ pointerEvents: "none" }}
+            />
+          )}
+        </Marker>
 
         {/* ── Destination markers ──────────────────────────────────────────────── */}
         {destinations.map((city) => {
@@ -120,7 +150,7 @@ export function DestinationMap({
                 style={{ pointerEvents: "none" }}
               />
 
-              {/* Bayrak PNG (flagcdn.com — tüm platformlarda çalışır) */}
+              {/* Bayrak PNG */}
               <image
                 href={`https://flagcdn.com/${flagW}x${flagH}/${city.countryCode.toLowerCase()}.png`}
                 x={-labelW / 2 + 3}
@@ -159,25 +189,17 @@ export function DestinationMap({
             style={{ filter: "drop-shadow(0 0 8px rgba(59,130,246,0.9))" }}
           />
           <rect
-            x={-32}
-            y={-36}
-            width={64}
-            height={16}
-            rx={4}
+            x={-32} y={-36} width={64} height={16} rx={4}
             fill="rgba(10,20,50,0.92)"
             stroke="rgba(59,130,246,0.6)"
             strokeWidth={1}
             style={{ pointerEvents: "none" }}
           />
           <text
-            textAnchor="middle"
-            y={-23}
+            textAnchor="middle" y={-23}
             style={{
-              fontSize: 12,
-              fontWeight: 800,
-              fill: "white",
-              pointerEvents: "none",
-              fontFamily: "system-ui, sans-serif",
+              fontSize: 12, fontWeight: 800, fill: "white",
+              pointerEvents: "none", fontFamily: "system-ui, sans-serif",
             }}
           >
             ✈ {departure.name}

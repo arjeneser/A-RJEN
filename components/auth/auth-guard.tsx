@@ -6,16 +6,23 @@ import { useAuthStore } from "@/store/auth-store";
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const currentUsername = useAuthStore((s) => s.currentUsername);
-  const [checked, setChecked] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  // Zustand persist async rehydration'ı bekle
+  useEffect(() => {
+    if (useAuthStore.persist.hasHydrated()) {
+      setHydrated(true);
+      return;
+    }
+    const unsub = useAuthStore.persist.onFinishHydration(() => setHydrated(true));
+    return unsub;
+  }, []);
 
   useEffect(() => {
-    // Wait one tick for Zustand persist to rehydrate
-    setChecked(true);
-    if (!currentUsername) {
-      router.replace("/login");
-    }
-  }, [currentUsername, router]);
+    if (!hydrated) return;
+    if (!currentUsername) router.replace("/login");
+  }, [hydrated, currentUsername, router]);
 
-  if (!checked || !currentUsername) return null;
+  if (!hydrated || !currentUsername) return null;
   return <>{children}</>;
 }

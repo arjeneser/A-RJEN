@@ -43,7 +43,7 @@ export function subscribeToFlights(
   const db = getDb();
   if (!db) return () => {};
 
-  const STALE_MS = 10_000;
+  const STALE_MS = 60_000; // 60 saniye
   const flightsRef = ref(db, "flights");
 
   onValue(flightsRef, (snapshot) => {

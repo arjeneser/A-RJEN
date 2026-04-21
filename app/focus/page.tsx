@@ -41,11 +41,20 @@ export default function FocusPage() {
   const { elapsedMs, remainingMs, progress, isPaused, pause, resume } =
     useTimer(onComplete);
 
-  // ── Firebase: kendi konumunu yayınla ─────────────────────────────────────
+  // ── Firebase: kendi konumunu yayınla (her progress değişiminde + 5s interval)
   useEffect(() => {
     if (!session || !currentUsername) return;
     broadcastFlight(currentUsername, session.departure, session.destination, progress);
   }, [progress, session, currentUsername]);
+
+  useEffect(() => {
+    if (!session || !currentUsername) return;
+    const id = setInterval(() => {
+      const prog = session ? Math.min(1, (Date.now() - session.startTime) / session.durationMs) : 0;
+      broadcastFlight(currentUsername, session.departure, session.destination, prog);
+    }, 5000);
+    return () => clearInterval(id);
+  }, [session, currentUsername]);
 
   // ── Firebase: diğer kullanıcıları dinle ──────────────────────────────────
   useEffect(() => {

@@ -2,10 +2,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useUserStore, getLevel } from "@/store/user-store";
 import { useActiveSession } from "@/store/flight-store";
 import { useAuthStore } from "@/store/auth-store";
+import { formatDuration } from "@/lib/utils";
 
 const NAV_LINKS = [
   { href: "/", label: "Ana Sayfa" },
@@ -17,17 +19,35 @@ export function Navbar() {
   const pathname = usePathname();
   const router   = useRouter();
   const { profile } = useUserStore();
-  const { session } = useActiveSession();
+  const { session, getElapsedMs } = useActiveSession();
   const { currentUsername, logout } = useAuthStore();
   const level = getLevel(profile.totalFlights);
+
+  const [remainingMs, setRemainingMs] = useState(0);
+
+  const isFlightActive =
+    session?.status === "running" || session?.status === "paused";
+  const isCompleted = session?.status === "completed";
+
+  // Kalan süreyi her saniye güncelle (focus dışı sayfalarda)
+  useEffect(() => {
+    if (!session || (!isFlightActive && !isCompleted)) return;
+    const update = () => {
+      const elapsed = getElapsedMs();
+      setRemainingMs(Math.max(0, session.durationMs - elapsed));
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [session, isFlightActive, isCompleted, getElapsedMs]);
 
   function handleLogout() {
     logout();
     router.push("/login");
   }
 
-  const isFlightActive =
-    session?.status === "running" || session?.status === "paused";
+  // Focus sayfasındayken timer gösterme (zaten orada var)
+  const showTimer = (isFlightActive || isCompleted) && pathname !== "/focus";
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50">
@@ -74,19 +94,60 @@ export function Navbar() {
 
           {/* Right side */}
           <div className="flex items-center gap-3">
-            {/* Active flight indicator */}
-            {isFlightActive && (
+
+            {/* ── Uçuş timer / TAMAMLANDI ────────────────────────────── */}
+            {showTimer && (
               <Link href="/focus">
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-sky/10 border border-brand-sky/30 text-brand-sky text-xs font-medium cursor-pointer hover:bg-brand-sky/20 transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold cursor-pointer transition-colors"
+                  style={
+                    isCompleted
+                      ? {
+                          background: "rgba(34,197,94,0.15)",
+                          borderColor: "rgba(34,197,94,0.4)",
+                          color: "#22C55E",
+                        }
+                      : session?.status === "paused"
+                      ? {
+                          background: "rgba(245,158,11,0.1)",
+                          borderColor: "rgba(245,158,11,0.35)",
+                          color: "#F59E0B",
+                        }
+                      : {
+                          background: "rgba(14,165,233,0.1)",
+                          borderColor: "rgba(14,165,233,0.3)",
+                          color: "#38BDF8",
+                        }
+                  }
                 >
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-sky opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-sky" />
-                  </span>
-                  Uçuş Aktif
+                  {isCompleted ? (
+                    <>
+                      <span>🛬</span>
+                      <span
+                        className="tracking-widest"
+                        style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 11 }}
+                      >
+                        TAMAMLANDI
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="relative flex h-2 w-2">
+                        {session?.status === "running" && (
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
+                        )}
+                        <span
+                          className="relative inline-flex rounded-full h-2 w-2"
+                          style={{ background: session?.status === "paused" ? "#F59E0B" : "#38BDF8" }}
+                        />
+                      </span>
+                      <span style={{ fontFamily: "Space Grotesk, sans-serif", letterSpacing: 1 }}>
+                        {formatDuration(remainingMs)}
+                      </span>
+                    </>
+                  )}
                 </motion.div>
               </Link>
             )}
@@ -99,10 +160,7 @@ export function Navbar() {
                   <span className="text-xs font-medium text-slate-300">
                     {currentUsername}
                   </span>
-                  <span
-                    className="text-xs font-semibold"
-                    style={{ color: level.color }}
-                  >
+                  <span className="text-xs font-semibold" style={{ color: level.color }}>
                     {level.name}
                   </span>
                 </div>
