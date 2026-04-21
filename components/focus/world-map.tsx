@@ -154,7 +154,7 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
         width:72px;
         height:72px;
         background:transparent;
-        transform:rotate(${bearing - 90}deg);
+        transform:rotate(${bearing - 45}deg);
         transition:transform 0.4s ease;
         filter:drop-shadow(0 2px 8px rgba(0,0,0,0.7)) drop-shadow(0 0 4px rgba(0,0,0,0.5));
       `;
@@ -188,7 +188,7 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
       markerRef.current.setLngLat([planePos.lng, planePos.lat]);
     }
     if (planeElRef.current) {
-      planeElRef.current.style.transform = `rotate(${bearing - 90}deg)`;
+      planeElRef.current.style.transform = `rotate(${bearing - 45}deg)`;
     }
 
     // Haritayı uçağın üzerine ortalı tut
