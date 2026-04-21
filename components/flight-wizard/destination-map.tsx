@@ -27,16 +27,18 @@ export function DestinationMap({
 }: DestinationMapProps) {
   const center: [number, number] = [departure.lng, departure.lat];
 
-  // Dinamik zoom: destinasyonların maksimum uzaklığına göre
+  // Dinamik zoom: maxDist'e göre direkt piksel hesabı
   const scale = useMemo(() => {
-    if (destinations.length === 0) return 200;
+    if (destinations.length === 0) return 400;
     const maxDist = Math.max(
       ...destinations.map((d) =>
         haversineKm(departure.lat, departure.lng, d.lat, d.lng)
       )
     );
-    const span = maxDist / 111;
-    return Math.max(200, Math.min(1800, 18000 / (span + 5)));
+    // SVG ~800px genişlik, %65'ini dolduracak şekilde scale hesapla
+    // scale = (800 * 0.65 * 6371) / (2 * maxDist)
+    const computed = (800 * 0.65 * 6371) / (2 * maxDist);
+    return Math.max(300, Math.min(4000, computed));
   }, [departure, destinations]);
 
   // Çember yarıçapları (km → SVG piksel: km / 6371 * scale)
@@ -46,7 +48,7 @@ export function DestinationMap({
   return (
     <div
       className="w-full rounded-2xl overflow-hidden"
-      style={{ background: "#080D1C", height: 360 }}
+      style={{ background: "#080D1C", height: 420 }}
     >
       <ComposableMap
         projection="geoMercator"
