@@ -7,7 +7,7 @@ import type { City } from "@/types";
 import { greatCircleInterpolate, greatCirclePoints, calculateBearing } from "@/lib/geo";
 import { WORLD_CITIES } from "@/data/world-cities";
 
-const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
 
 interface WorldMapProps {
   departure: City;
@@ -34,31 +34,15 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
   // Harita merkezi: uçağın anlık konumu
   const center: [number, number] = [planePos.lng, planePos.lat];
 
-  // Zoom: kısa mesafede daha yakın, uzunda biraz daha uzak ama her zaman yüksek
-  const routeKm = useMemo(() => {
-    const R = 6371;
-    const dLat = ((destination.lat - departure.lat) * Math.PI) / 180;
-    const dLng = ((destination.lng - departure.lng) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos((departure.lat * Math.PI) / 180) *
-        Math.cos((destination.lat * Math.PI) / 180) *
-        Math.sin(dLng / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  }, [departure, destination]);
+  // Çok yakın zoom — uçak her zaman merkezdedir
+  const scale = 2400;
 
-  const scale = routeKm < 1500 ? 700
-              : routeKm < 3000 ? 550
-              : routeKm < 6000 ? 420
-              : routeKm < 9000 ? 340
-              : 280;
-
-  // Görünen alan tahmini (~görüntü penceresi genişliği / scale)
-  const viewSpan = 18000 / scale; // derece cinsinden yaklaşık
+  // Görünen alan (scale 2400 → ~6 derece wide)
+  const viewSpan = 5;
   const lngMin = planePos.lng - viewSpan;
   const lngMax = planePos.lng + viewSpan;
-  const latMin = planePos.lat - viewSpan * 0.6;
-  const latMax = planePos.lat + viewSpan * 0.6;
+  const latMin = planePos.lat - viewSpan;
+  const latMax = planePos.lat + viewSpan;
 
   const visibleCities = useMemo(
     () =>
@@ -77,13 +61,13 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
   );
 
   return (
-    <div className="w-full h-full" style={{ background: "#070918" }}>
+    <div className="w-full h-full" style={{ background: "#0A1F14" }}>
       <ComposableMap
         projection="geoMercator"
         projectionConfig={{ center, scale }}
         style={{ width: "100%", height: "100%" }}
       >
-        <Sphere id="rsm-sphere" fill="#070918" stroke="rgba(255,255,255,0.04)" strokeWidth={0.5} />
+        <Sphere id="rsm-sphere" fill="#0A2A3A" stroke="rgba(255,255,255,0.04)" strokeWidth={0.5} />
         <Graticule stroke="rgba(255,255,255,0.025)" strokeWidth={0.3} />
 
         {/* Countries */}
@@ -93,9 +77,9 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
               <Geography
                 key={geo.rsmKey}
                 geography={geo}
-                fill="#0F1A30"
-                stroke="#091020"
-                strokeWidth={0.5}
+                fill="#1C3A2A"
+                stroke="#0A2018"
+                strokeWidth={0.3}
                 style={{
                   default: { outline: "none" },
                   hover:   { outline: "none" },
@@ -144,10 +128,10 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
         <Line
           from={[departure.lng, departure.lat]}
           to={[destination.lng, destination.lat]}
-          stroke="rgba(255,255,255,0.2)"
-          strokeWidth={1.2}
+          stroke="rgba(255,255,255,0.35)"
+          strokeWidth={0.6}
           strokeLinecap="round"
-          strokeDasharray="5 7"
+          strokeDasharray="3 5"
         />
 
         {/* Tamamlanan iz */}
@@ -156,9 +140,9 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
             from={[departure.lng, departure.lat]}
             to={[planePos.lng, planePos.lat]}
             stroke="#60C8FF"
-            strokeWidth={2}
+            strokeWidth={1.2}
             strokeLinecap="round"
-            strokeOpacity={0.85}
+            strokeOpacity={0.7}
           />
         )}
 
@@ -187,11 +171,11 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
         {/* Uçak */}
         <Marker coordinates={[planePos.lng, planePos.lat]}>
           <g transform={`rotate(${bearing})`}
-            style={{ filter: "drop-shadow(0 0 10px rgba(14,165,233,0.9))" }}>
+            style={{ filter: "drop-shadow(0 0 14px rgba(255,255,255,0.7))" }}>
             <image
               href="/airplane-top.svg"
-              x={-18} y={-18}
-              width={36} height={36}
+              x={-28} y={-28}
+              width={56} height={56}
             />
           </g>
         </Marker>
