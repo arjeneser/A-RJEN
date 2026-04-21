@@ -37,8 +37,8 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
   // Çok yakın zoom — uçak her zaman merkezdedir
   const scale = 2400;
 
-  // Görünen alan (scale 2400 → ~6 derece wide)
-  const viewSpan = 5;
+  // Görünen alan (scale 2400, geniş tutarak tüm şehirleri kapsa)
+  const viewSpan = 14;
   const lngMin = planePos.lng - viewSpan;
   const lngMax = planePos.lng + viewSpan;
   const latMin = planePos.lat - viewSpan;
