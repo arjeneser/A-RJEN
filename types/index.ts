@@ -58,11 +58,11 @@ export interface FlightSession {
 // ─── User / Gamification ──────────────────────────────────────────────────────
 
 export type AirjenLevel =
-  | "Trainee"
-  | "Cadet"
+  | "Stajyer"
+  | "Öğrenci"
   | "Pilot"
-  | "Captain"
-  | "Legend";
+  | "Kaptan"
+  | "Efsane";
 
 export interface AirjenLevelInfo {
   name: AirjenLevel;
