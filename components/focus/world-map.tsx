@@ -37,27 +37,14 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
   // Çok yakın zoom — uçak her zaman merkezdedir
   const scale = 2400;
 
-  // Görünen alan (scale 2400, geniş tutarak tüm şehirleri kapsa)
-  const viewSpan = 14;
-  const lngMin = planePos.lng - viewSpan;
-  const lngMax = planePos.lng + viewSpan;
-  const latMin = planePos.lat - viewSpan;
-  const latMax = planePos.lat + viewSpan;
-
   const visibleCities = useMemo(
     () =>
       WORLD_CITIES.filter(
         (wc) =>
-          wc.lng >= lngMin &&
-          wc.lng <= lngMax &&
-          wc.lat >= latMin &&
-          wc.lat <= latMax &&
-          // kalkış/varış adlarını çakıştırma
           wc.name.toLowerCase() !== departure.name.toLowerCase() &&
           wc.name.toLowerCase() !== destination.name.toLowerCase()
       ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [departure.name, destination.name, lngMin, lngMax, latMin, latMax]
+    [departure.name, destination.name]
   );
 
   return (
