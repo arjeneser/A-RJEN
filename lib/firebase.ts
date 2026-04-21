@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getDatabase } from "firebase/database";
+import { getDatabase, type Database } from "firebase/database";
 
 const firebaseConfig = {
   apiKey:            process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -11,6 +11,18 @@ const firebaseConfig = {
   appId:             process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+let _db: Database | null = null;
 
-export const db = getDatabase(app);
+/** Sadece client-side'da çalışır — SSR/build sırasında null döner */
+export function getDb(): Database | null {
+  if (typeof window === "undefined") return null;
+  if (_db) return _db;
+  try {
+    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+    _db = getDatabase(app);
+  } catch {
+    // env var eksikse sessizce geç
+    return null;
+  }
+  return _db;
+}

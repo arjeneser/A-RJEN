@@ -1,5 +1,5 @@
-import { db } from "./firebase";
-import { ref, set, remove, onValue, off, serverTimestamp } from "firebase/database";
+import { ref, set, remove, onValue, off } from "firebase/database";
+import { getDb } from "./firebase";
 import type { City } from "@/types";
 
 export interface LiveFlight {
@@ -17,8 +17,9 @@ export function broadcastFlight(
   destination: City,
   progress: number
 ) {
-  const flightRef = ref(db, `flights/${username}`);
-  set(flightRef, {
+  const db = getDb();
+  if (!db) return;
+  set(ref(db, `flights/${username}`), {
     username,
     departure,
     destination,
@@ -29,6 +30,8 @@ export function broadcastFlight(
 
 /** Uçuş bittinde / terk edilince Firebase'den sil */
 export function clearFlight(username: string) {
+  const db = getDb();
+  if (!db) return;
   remove(ref(db, `flights/${username}`));
 }
 
@@ -37,18 +40,18 @@ export function subscribeToFlights(
   ownUsername: string,
   callback: (flights: LiveFlight[]) => void
 ): () => void {
+  const db = getDb();
+  if (!db) return () => {};
+
+  const STALE_MS = 10_000;
   const flightsRef = ref(db, "flights");
-  const STALE_MS = 10_000; // 10 saniyedir güncellenmemişse gösterme
 
   onValue(flightsRef, (snapshot) => {
     const data = snapshot.val() as Record<string, LiveFlight> | null;
     if (!data) { callback([]); return; }
-
     const now = Date.now();
     const flights = Object.values(data).filter(
-      (f) =>
-        f.username !== ownUsername &&
-        now - f.lastUpdate < STALE_MS
+      (f) => f.username !== ownUsername && now - f.lastUpdate < STALE_MS
     );
     callback(flights);
   });
