@@ -2,17 +2,15 @@ import { initializeApp, getApps } from "firebase/app";
 import { getDatabase } from "firebase/database";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyB6rsnYkxTBnqBpqKq3YQl6Z6e-YF1LGQU",
-  authDomain: "air-jen.firebaseapp.com",
-  databaseURL: "https://air-jen-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "air-jen",
-  storageBucket: "air-jen.firebasestorage.app",
-  messagingSenderId: "52012600847",
-  appId: "1:52012600847:web:8aa04b7016389f81265d7a",
-  measurementId: "G-Q4ZHHZBS1H",
+  apiKey:            process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain:        process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  databaseURL:       process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+  projectId:         process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket:     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId:             process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Prevent duplicate initialization in Next.js dev mode
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
 export const db = getDatabase(app);
