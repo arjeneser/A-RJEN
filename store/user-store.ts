@@ -13,11 +13,11 @@ import { generateId, todayISO, isConsecutiveDay } from "@/lib/utils";
 // ─── Level Config ─────────────────────────────────────────────────────────────
 
 export const LEVEL_CONFIG: AirjenLevelInfo[] = [
-  { name: "Trainee",  emoji: "✈️",  requiredFlights: 0,   color: "#94A3B8" },
-  { name: "Cadet",    emoji: "🎖️",  requiredFlights: 10,  color: "#60A5FA" },
+  { name: "Stajyer",  emoji: "✈️",  requiredFlights: 0,   color: "#94A3B8" },
+  { name: "Öğrenci",  emoji: "🎖️",  requiredFlights: 10,  color: "#60A5FA" },
   { name: "Pilot",    emoji: "👨‍✈️", requiredFlights: 25,  color: "#A78BFA" },
-  { name: "Captain",  emoji: "⭐",   requiredFlights: 50,  color: "#F59E0B" },
-  { name: "Legend",   emoji: "🏆",   requiredFlights: 100, color: "#EF4444" },
+  { name: "Kaptan",   emoji: "⭐",   requiredFlights: 50,  color: "#F59E0B" },
+  { name: "Efsane",   emoji: "🏆",   requiredFlights: 100, color: "#EF4444" },
 ];
 
 // ─── Level helpers (exported for use in components) ───────────────────────────

@@ -1,13 +1,22 @@
 "use client";
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useFlightSetup } from "@/store/flight-store";
+import { useAuthStore } from "@/store/auth-store";
 import { flagEmoji } from "@/data/cities";
 import { generateFlightNumber } from "@/lib/utils";
 
 export function StepBoardingPass() {
   const { departure, destination, duration, seat, passengerName, setPassengerName } =
     useFlightSetup();
+  const { currentUsername } = useAuthStore();
+
+  // Kullanıcı adını otomatik doldur
+  useEffect(() => {
+    if (currentUsername && (!passengerName || passengerName === "FOCUS PILOT")) {
+      setPassengerName(currentUsername.toUpperCase());
+    }
+  }, [currentUsername, passengerName, setPassengerName]);
 
   const flightNumber = useMemo(() => generateFlightNumber(), []);
   const now = new Date();
