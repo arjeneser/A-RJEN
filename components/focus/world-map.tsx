@@ -61,7 +61,7 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
         ],
       },
       center: [planePos.lng, planePos.lat],
-      zoom: 5,
+      zoom: 8,
       bearing: 0,
       pitch: 0,
       interactive: false,
