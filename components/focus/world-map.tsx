@@ -15,6 +15,7 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef       = useRef<maplibregl.Map | null>(null);
   const markerRef    = useRef<maplibregl.Marker | null>(null);
+  const planeElRef   = useRef<HTMLDivElement | null>(null);
   const initRef      = useRef(false);
 
   const t        = Math.max(0, Math.min(1, progress));
@@ -40,37 +41,27 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
       style: {
         version: 8,
         sources: {
-          "esri-satellite": {
+          "carto-voyager": {
             type: "raster",
             tiles: [
-              "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+              "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+              "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+              "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
             ],
             tileSize: 256,
-            attribution: "© Esri, Maxar, Earthstar Geographics",
-          },
-          "esri-labels": {
-            type: "raster",
-            tiles: [
-              "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-            ],
-            tileSize: 256,
+            attribution: "© OpenStreetMap contributors © CARTO",
           },
         },
         layers: [
           {
-            id: "esri-satellite-layer",
+            id: "carto-voyager-layer",
             type: "raster",
-            source: "esri-satellite",
-          },
-          {
-            id: "esri-labels-layer",
-            type: "raster",
-            source: "esri-labels",
+            source: "carto-voyager",
           },
         ],
       },
       center: [planePos.lng, planePos.lat],
-      zoom: 6,
+      zoom: 5,
       bearing: 0,
       pitch: 0,
       interactive: false,
@@ -94,8 +85,8 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
         type: "line",
         source: "route-full",
         paint: {
-          "line-color": "rgba(255,255,255,0.4)",
-          "line-width": 1.5,
+          "line-color": "rgba(30,30,30,0.5)",
+          "line-width": 2,
           "line-dasharray": [4, 6],
         },
       });
@@ -106,7 +97,12 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
         data: {
           type: "Feature",
           properties: {},
-          geometry: { type: "LineString", coordinates: trailCoords.length > 1 ? trailCoords : [[planePos.lng, planePos.lat], [planePos.lng, planePos.lat]] },
+          geometry: {
+            type: "LineString",
+            coordinates: trailCoords.length > 1
+              ? trailCoords
+              : [[planePos.lng, planePos.lat], [planePos.lng, planePos.lat]],
+          },
         },
       });
       map.addLayer({
@@ -114,8 +110,8 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
         type: "line",
         source: "trail",
         paint: {
-          "line-color": "#60C8FF",
-          "line-width": 2.5,
+          "line-color": "#2563EB",
+          "line-width": 3,
           "line-opacity": 0.9,
         },
       });
@@ -127,8 +123,11 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
       `;
       new maplibregl.Marker({ element: depEl, anchor: "center" })
         .setLngLat([departure.lng, departure.lat])
-        .setPopup(new maplibregl.Popup({ closeButton: false, offset: 12 })
-          .setHTML(`<div style="color:white;font-weight:700;font-size:12px;background:rgba(20,30,60,0.95);padding:4px 8px;border-radius:6px;border:1px solid rgba(59,130,246,0.5)">${departure.name}</div>`))
+        .setPopup(
+          new maplibregl.Popup({ closeButton: false, offset: 12 }).setHTML(
+            `<div style="color:white;font-weight:700;font-size:12px;background:rgba(20,30,60,0.95);padding:4px 8px;border-radius:6px;border:1px solid rgba(59,130,246,0.5)">${departure.name}</div>`
+          )
+        )
         .addTo(map);
 
       // Varış marker
@@ -138,15 +137,32 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
       `;
       new maplibregl.Marker({ element: dstEl, anchor: "center" })
         .setLngLat([destination.lng, destination.lat])
-        .setPopup(new maplibregl.Popup({ closeButton: false, offset: 12 })
-          .setHTML(`<div style="color:white;font-weight:700;font-size:12px;background:rgba(20,30,60,0.95);padding:4px 8px;border-radius:6px;border:1px solid rgba(245,158,11,0.5)">${destination.name}</div>`))
+        .setPopup(
+          new maplibregl.Popup({ closeButton: false, offset: 12 }).setHTML(
+            `<div style="color:white;font-weight:700;font-size:12px;background:rgba(20,30,60,0.95);padding:4px 8px;border-radius:6px;border:1px solid rgba(245,158,11,0.5)">${destination.name}</div>`
+          )
+        )
         .addTo(map);
 
-      // Uçak marker
-      const planeEl = document.createElement("div");
-      planeEl.style.cssText = `width:64px;height:64px;transform:rotate(${bearing}deg);filter:drop-shadow(0 0 8px rgba(255,255,255,0.6))`;
-      planeEl.innerHTML = `<img src="/airplane-top.png" style="width:100%;height:100%;object-fit:contain" />`;
-      markerRef.current = new maplibregl.Marker({ element: planeEl, anchor: "center" })
+      // Uçak marker — dış kapsayıcı MapLibre'nin marker'ı
+      // İç div sadece rotasyon için (MapLibre'nin kendi transform'unu bozmaz)
+      const outerEl = document.createElement("div");
+      outerEl.style.cssText = "width:64px;height:64px;";
+
+      const innerEl = document.createElement("div");
+      innerEl.style.cssText = `
+        width:64px;
+        height:64px;
+        transform:rotate(${bearing}deg);
+        transition:transform 0.4s ease;
+        filter:drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+      `;
+      innerEl.innerHTML = `<img src="/airplane-top.png" style="width:100%;height:100%;object-fit:contain" />`;
+
+      outerEl.appendChild(innerEl);
+      planeElRef.current = innerEl;
+
+      markerRef.current = new maplibregl.Marker({ element: outerEl, anchor: "center" })
         .setLngLat([planePos.lng, planePos.lat])
         .addTo(map);
     });
@@ -166,11 +182,12 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
     const map = mapRef.current;
     if (!map || !map.loaded()) return;
 
-    // Uçağı hareket ettir
+    // Uçağı hareket ettir + döndür (sadece iç div döner, MapLibre wrapper'ı değil)
     if (markerRef.current) {
-      const el = markerRef.current.getElement() as HTMLDivElement;
-      el.style.transform = `rotate(${bearing}deg)`;
       markerRef.current.setLngLat([planePos.lng, planePos.lat]);
+    }
+    if (planeElRef.current) {
+      planeElRef.current.style.transform = `rotate(${bearing}deg)`;
     }
 
     // Haritayı uçağın üzerine ortalı tut
@@ -184,7 +201,9 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
         properties: {},
         geometry: {
           type: "LineString",
-          coordinates: trailCoords.length > 1 ? trailCoords : [[planePos.lng, planePos.lat], [planePos.lng, planePos.lat]],
+          coordinates: trailCoords.length > 1
+            ? trailCoords
+            : [[planePos.lng, planePos.lat], [planePos.lng, planePos.lat]],
         },
       });
     }
@@ -194,7 +213,6 @@ export function WorldMap({ departure, destination, progress }: WorldMapProps) {
     <div
       ref={containerRef}
       className="w-full h-full"
-      style={{ background: "#0a0f1e" }}
     />
   );
 }
