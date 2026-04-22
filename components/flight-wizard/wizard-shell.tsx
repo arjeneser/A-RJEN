@@ -22,7 +22,7 @@ export function WizardShell() {
   const {
     step, setStep,
     departure, duration, destination, seat, passengerName,
-    isContinuation, journeyLeg, journeyCities,
+    isContinuation, lockedDestination, journeyLeg, journeyCities,
   } = useFlightSetup();
   const { startSession } = useActiveSession();
 
@@ -59,6 +59,26 @@ export function WizardShell() {
 
   return (
     <div className="max-w-2xl mx-auto">
+
+      {/* ── Join flight banner ─────────────────────────────────────── */}
+      {lockedDestination && departure && destination && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-5 px-4 py-3 rounded-2xl flex items-center gap-2 flex-wrap"
+          style={{
+            background: "rgba(168,85,247,0.08)",
+            border: "1px solid rgba(168,85,247,0.25)",
+          }}
+        >
+          <span className="text-purple-400 text-xs font-semibold uppercase tracking-wider shrink-0">
+            👥 Arkadaşınla Uç
+          </span>
+          <span className="text-xs text-slate-400">
+            {departure.name} → {destination.name} güzergahı seçildi · Süre seç ve uçuşa katıl!
+          </span>
+        </motion.div>
+      )}
 
       {/* ── Journey breadcrumb (continuation mode) ─────────────────── */}
       {isContinuation && journeyCities.length > 0 && (

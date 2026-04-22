@@ -14,6 +14,7 @@ interface FlightSetupState {
   seat: string | null;
   passengerName: string;
   isContinuation: boolean; // true = coming from a previous flight
+  lockedDestination: boolean; // true = joining a friend's flight (destination pre-set)
   journeyLeg: number;      // 1 = first flight, 2 = second, ...
   journeyCities: City[];   // full route so far
 
@@ -25,6 +26,8 @@ interface FlightSetupState {
   setPassengerName: (name: string) => void;
   /** Continue journey from arrived destination — skips departure step */
   continueJourney: (fromCity: City, passengerName: string) => void;
+  /** Join a friend's flight — pre-fills departure + destination, goes to duration step */
+  joinFlight: (departure: City, destination: City) => void;
   reset: () => void;
 }
 
@@ -36,28 +39,48 @@ export const useFlightSetup = create<FlightSetupState>((set) => ({
   seat: null,
   passengerName: "FOCUS PILOT",
   isContinuation: false,
+  lockedDestination: false,
   journeyLeg: 1,
   journeyCities: [],
 
   setStep: (step) => set({ step }),
-  setDeparture: (city) => set({ departure: city, destination: null, step: 2 }),
-  setDuration: (duration) => set({ duration, destination: null, step: 3 }),
+  setDeparture: (city) => set({ departure: city, destination: null, lockedDestination: false, step: 2 }),
+  setDuration: (duration) =>
+    set((s) => ({
+      duration,
+      destination: s.lockedDestination ? s.destination : null,
+      step: s.lockedDestination ? 4 : 3,
+    })),
   setDestination: (city) => set({ destination: city, step: 4 }),
   setSeat: (seat) => set({ seat, step: 5 }),
   setPassengerName: (passengerName) => set({ passengerName }),
 
   continueJourney: (fromCity, passengerName) =>
     set((s) => ({
-      step: 2, // skip departure selection
+      step: 2,
       departure: fromCity,
       duration: null,
       destination: null,
       seat: null,
       passengerName,
       isContinuation: true,
+      lockedDestination: false,
       journeyLeg: s.journeyLeg + 1,
       journeyCities: [...s.journeyCities, fromCity],
     })),
+
+  joinFlight: (departure, destination) =>
+    set({
+      step: 2, // user picks duration, departure + destination pre-set
+      departure,
+      destination,
+      duration: null,
+      seat: null,
+      isContinuation: false,
+      lockedDestination: true,
+      journeyLeg: 1,
+      journeyCities: [],
+    }),
 
   reset: () =>
     set({
@@ -68,6 +91,7 @@ export const useFlightSetup = create<FlightSetupState>((set) => ({
       seat: null,
       passengerName: "FOCUS PILOT",
       isContinuation: false,
+      lockedDestination: false,
       journeyLeg: 1,
       journeyCities: [],
     }),

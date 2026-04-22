@@ -2,6 +2,7 @@
 import { useEffect, useRef } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { useUserStore } from "@/store/user-store";
+import { registerPresence } from "@/lib/friends";
 
 /**
  * AuthProvider
@@ -30,6 +31,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (loadedRef.current === currentUsername) return; // already loaded
     loadedRef.current = currentUsername;
+
+    // Register user presence in Firebase so others can find them
+    registerPresence(currentUsername);
 
     const snap = getSnapshot(currentUsername);
     if (snap) {

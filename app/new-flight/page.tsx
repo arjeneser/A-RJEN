@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { WizardShell } from "@/components/flight-wizard/wizard-shell";
+import { AuthGuard } from "@/components/auth/auth-guard";
 
 export const metadata: Metadata = {
   title: "New Flight",
@@ -7,6 +8,7 @@ export const metadata: Metadata = {
 
 export default function NewFlightPage() {
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-[#070918] pt-16">
       {/* Background glows */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
@@ -32,5 +34,6 @@ export default function NewFlightPage() {
         <WizardShell />
       </div>
     </div>
+    </AuthGuard>
   );
 }

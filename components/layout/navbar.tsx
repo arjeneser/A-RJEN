@@ -8,6 +8,7 @@ import { useUserStore, getLevel } from "@/store/user-store";
 import { useActiveSession } from "@/store/flight-store";
 import { useAuthStore } from "@/store/auth-store";
 import { formatDuration } from "@/lib/utils";
+import { FriendsPanel } from "@/components/friends/friends-panel";
 
 const NAV_LINKS = [
   { href: "/", label: "Ana Sayfa" },
@@ -24,6 +25,7 @@ export function Navbar() {
   const level = getLevel(profile.totalFlights);
 
   const [remainingMs, setRemainingMs] = useState(0);
+  const [friendsPanelOpen, setFriendsPanelOpen] = useState(false);
 
   const isFlightActive =
     session?.status === "running" || session?.status === "paused";
@@ -50,6 +52,7 @@ export function Navbar() {
   const showTimer = (isFlightActive || isCompleted) && pathname !== "/focus";
 
   return (
+    <>
     <header className="fixed top-0 left-0 right-0 z-50">
       <div className="glass border-b border-white/[0.06]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
@@ -167,6 +170,22 @@ export function Navbar() {
               </Link>
             )}
 
+            {/* Friends button */}
+            {currentUsername && (
+              <button
+                onClick={() => setFriendsPanelOpen(true)}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
+                style={{
+                  background: "rgba(168,85,247,0.08)",
+                  border: "1px solid rgba(168,85,247,0.2)",
+                  color: "#C084FC",
+                }}
+                title="Arkadaşlar"
+              >
+                👥
+              </button>
+            )}
+
             {/* Logout */}
             {currentUsername && (
               <button
@@ -185,5 +204,9 @@ export function Navbar() {
         </div>
       </div>
     </header>
+
+    {/* Friends panel (outside header so it overlays everything) */}
+    <FriendsPanel open={friendsPanelOpen} onClose={() => setFriendsPanelOpen(false)} />
+  </>
   );
 }

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AuthGuard } from "@/components/auth/auth-guard";
 import { motion } from "framer-motion";
 import { useActiveSession, useFlightSetup } from "@/store/flight-store";
 import { useUserStore } from "@/store/user-store";
@@ -138,6 +139,7 @@ export default function SuccessPage() {
   }
 
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-[#070918] pt-16 flex items-center justify-center">
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
@@ -362,5 +364,6 @@ export default function SuccessPage() {
         </motion.div>
       </div>
     </div>
+    </AuthGuard>
   );
 }

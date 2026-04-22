@@ -2,6 +2,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { AuthGuard } from "@/components/auth/auth-guard";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   useUserStore,
@@ -196,6 +197,7 @@ export default function PassportPage() {
   }
 
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-[#070918] pt-16">
       {/* Ambient bg */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
@@ -599,5 +601,6 @@ export default function PassportPage() {
         </div>
       </div>
     </div>
+    </AuthGuard>
   );
 }
