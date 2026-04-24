@@ -7,12 +7,14 @@ const ICONS: Record<AppToast["type"], string> = {
   message:         "💬",
   invite:          "✈",
   friend_accepted: "👥",
+  friend_request:  "🤝",
 };
 
 const COLORS: Record<AppToast["type"], { bg: string; border: string; accent: string }> = {
-  message:         { bg: "rgba(30,58,138,0.85)", border: "rgba(59,130,246,0.35)", accent: "#3B82F6" },
-  invite:          { bg: "rgba(46,16,101,0.85)", border: "rgba(124,58,237,0.35)", accent: "#7C3AED" },
-  friend_accepted: { bg: "rgba(5,46,22,0.85)",   border: "rgba(34,197,94,0.35)",  accent: "#22C55E" },
+  message:         { bg: "rgba(30,58,138,0.85)",  border: "rgba(59,130,246,0.35)",  accent: "#3B82F6" },
+  invite:          { bg: "rgba(46,16,101,0.85)",  border: "rgba(124,58,237,0.35)",  accent: "#7C3AED" },
+  friend_accepted: { bg: "rgba(5,46,22,0.85)",    border: "rgba(34,197,94,0.35)",   accent: "#22C55E" },
+  friend_request:  { bg: "rgba(120,53,15,0.85)",  border: "rgba(245,158,11,0.35)",  accent: "#F59E0B" },
 };
 
 function ToastCard({ toast }: { toast: AppToast }) {
