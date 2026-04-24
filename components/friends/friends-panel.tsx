@@ -15,7 +15,23 @@ import {
   type FriendRequest,
   type FriendInfo,
 } from "@/lib/friends";
-import { sendMessage, subscribeToMessages, type ChatMessage } from "@/lib/messages";
+import {
+  sendMessage,
+  subscribeToMessages,
+  markConversationRead,
+  subscribeToReadCursor,
+  conversationId,
+  type ChatMessage,
+} from "@/lib/messages";
+import {
+  createGroup,
+  sendGroupMessage,
+  subscribeToUserGroups,
+  subscribeToGroupMessages,
+  leaveGroup,
+  type Group,
+  type GroupMessage,
+} from "@/lib/groups";
 import {
   sendFlightInvite,
   removeFlightInvite,
@@ -31,7 +47,7 @@ import type { City, FlightDurationOption } from "@/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type View = "main" | "chat" | "propose" | "leaderboard";
+type View = "main" | "chat" | "propose" | "leaderboard" | "group" | "create-group";
 
 interface FriendsPanelProps {
   open: boolean;
@@ -70,10 +86,24 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
   const [flightInvites, setFlightInvites] = useState<FlightInvite[]>([]);
 
   // ── chat view state ──────────────────────────────────────────────────────────
-  const [messages, setMessages]   = useState<ChatMessage[]>([]);
-  const [msgInput, setMsgInput]   = useState("");
-  const chatEndRef                = useRef<HTMLDivElement>(null);
-  const msgInputRef               = useRef<HTMLInputElement>(null);
+  const [messages, setMessages]     = useState<ChatMessage[]>([]);
+  const [msgInput, setMsgInput]     = useState("");
+  const [partnerReadAt, setPartnerReadAt] = useState<number>(0);
+  const chatEndRef                  = useRef<HTMLDivElement>(null);
+  const msgInputRef                 = useRef<HTMLInputElement>(null);
+
+  // ── group state ───────────────────────────────────────────────────────────────
+  const [groups, setGroups]               = useState<Group[]>([]);
+  const [activeGroup, setActiveGroup]     = useState<Group | null>(null);
+  const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
+  const [groupMsgInput, setGroupMsgInput] = useState("");
+  const groupChatEndRef                   = useRef<HTMLDivElement>(null);
+  const groupMsgInputRef                  = useRef<HTMLInputElement>(null);
+
+  // ── create-group state ────────────────────────────────────────────────────────
+  const [newGroupName, setNewGroupName]         = useState("");
+  const [selectedGroupMembers, setSelectedGroupMembers] = useState<string[]>([]);
+  const [creatingGroup, setCreatingGroup]       = useState(false);
 
   // ── propose view state ───────────────────────────────────────────────────────
   const departureCities            = getDepartureCities();
@@ -95,7 +125,8 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
     const u1 = subscribeToIncomingRequests(currentUsername, setIncomingReqs);
     const u2 = subscribeToFriends(currentUsername, setFriends);
     const u3 = subscribeToFlightInvites(currentUsername, setFlightInvites);
-    return () => { u1(); u2(); u3(); };
+    const u4 = subscribeToUserGroups(currentUsername, setGroups);
+    return () => { u1(); u2(); u3(); u4(); };
   }, [currentUsername, open]);
 
   // ── Notify parent of badge count ─────────────────────────────────────────────
@@ -103,12 +134,40 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
     onNotificationCount?.(incomingReqs.length + flightInvites.length);
   }, [incomingReqs, flightInvites, onNotificationCount]);
 
-  // ── Chat subscription ─────────────────────────────────────────────────────────
+  // ── Chat subscription + okundu bilgisi ───────────────────────────────────────
   useEffect(() => {
     if (!currentUsername || !activeFriend || view !== "chat") return;
-    const unsub = subscribeToMessages(currentUsername, activeFriend, setMessages);
-    return unsub;
+    const cId = conversationId(currentUsername, activeFriend);
+    markConversationRead(cId, currentUsername);
+    const u1 = subscribeToMessages(currentUsername, activeFriend, setMessages);
+    const u2 = subscribeToReadCursor(cId, activeFriend, setPartnerReadAt);
+    return () => { u1(); u2(); };
   }, [currentUsername, activeFriend, view]);
+
+  // Yeni mesaj gelince okundu imlecini güncelle (chat açıkken)
+  useEffect(() => {
+    if (view === "chat" && currentUsername && activeFriend && messages.length > 0) {
+      const cId = conversationId(currentUsername, activeFriend);
+      markConversationRead(cId, currentUsername);
+    }
+  }, [messages, view]);
+
+  // ── Group message subscription ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!activeGroup || view !== "group") return;
+    const unsub = subscribeToGroupMessages(activeGroup.id, setGroupMessages);
+    return unsub;
+  }, [activeGroup, view]);
+
+  // ── Auto-scroll group chat ────────────────────────────────────────────────────
+  useEffect(() => {
+    groupChatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [groupMessages]);
+
+  // ── Focus group input when group chat opens ───────────────────────────────────
+  useEffect(() => {
+    if (view === "group") setTimeout(() => groupMsgInputRef.current?.focus(), 150);
+  }, [view]);
 
   // ── Auto-scroll chat to bottom ────────────────────────────────────────────────
   useEffect(() => {
@@ -122,7 +181,14 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
 
   // ── Reset to main when panel closes ─────────────────────────────────────────
   useEffect(() => {
-    if (!open) { setView("main"); setActiveFriend(null); }
+    if (!open) {
+      setView("main");
+      setActiveFriend(null);
+      setActiveGroup(null);
+      setPartnerReadAt(0);
+      setNewGroupName("");
+      setSelectedGroupMembers([]);
+    }
   }, [open]);
 
   // ─── Actions ──────────────────────────────────────────────────────────────────
@@ -198,6 +264,42 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
     onClose();
   }
 
+  function openGroup(group: Group) {
+    setActiveGroup(group);
+    setGroupMessages([]);
+    setView("group");
+  }
+
+  async function handleSendGroupMessage() {
+    if (!currentUsername || !activeGroup || !groupMsgInput.trim()) return;
+    const text = groupMsgInput.trim();
+    setGroupMsgInput("");
+    await sendGroupMessage(activeGroup.id, currentUsername, text);
+  }
+
+  async function handleCreateGroup() {
+    if (!currentUsername || !newGroupName.trim() || selectedGroupMembers.length === 0 || creatingGroup) return;
+    setCreatingGroup(true);
+    const groupId = await createGroup(newGroupName.trim(), selectedGroupMembers, currentUsername);
+    setCreatingGroup(false);
+    if (groupId) {
+      const newGroup: Group = {
+        id: groupId,
+        name: newGroupName.trim(),
+        members: Object.fromEntries(
+          [...selectedGroupMembers, currentUsername].map((m) => [m, true as const])
+        ),
+        createdBy: currentUsername,
+        createdAt: Date.now(),
+      };
+      setNewGroupName("");
+      setSelectedGroupMembers([]);
+      setActiveGroup(newGroup);
+      setGroupMessages([]);
+      setView("group");
+    }
+  }
+
   // ─── Derived ─────────────────────────────────────────────────────────────────
 
   const flyingFriends   = friends.filter((f) => f.isFlying);
@@ -254,21 +356,22 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
               )}
 
               <div className="flex-1 flex items-center gap-2 min-w-0">
-                {view === "main"        && <span className="text-base">👥</span>}
-                {view === "chat"        && <span className="text-base">💬</span>}
-                {view === "propose"     && <span className="text-base">✈</span>}
-                {view === "leaderboard" && <span className="text-base">🏆</span>}
+                {view === "main"          && <span className="text-base">👥</span>}
+                {view === "chat"          && <span className="text-base">💬</span>}
+                {view === "propose"       && <span className="text-base">✈</span>}
+                {view === "leaderboard"   && <span className="text-base">🏆</span>}
+                {view === "group"         && <span className="text-base">👥</span>}
+                {view === "create-group"  && <span className="text-base">➕</span>}
 
                 <span
                   className="font-bold text-white text-sm truncate"
                   style={{ fontFamily: "Space Grotesk, sans-serif" }}
                 >
-                  {view === "main"
-                    ? "Arkadaşlar"
-                    : view === "chat"
-                    ? activeFriend
-                    : view === "leaderboard"
-                    ? "Sıralama"
+                  {view === "main"         ? "Arkadaşlar"
+                    : view === "chat"      ? activeFriend
+                    : view === "leaderboard" ? "Sıralama"
+                    : view === "group"     ? (activeGroup?.name ?? "Grup")
+                    : view === "create-group" ? "Grup Oluştur"
                     : `${activeFriend}'a Uçuş Teklif Et`}
                 </span>
 
@@ -294,6 +397,18 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                 >
                   ✈ Teklif Et
                 </button>
+              )}
+              {view === "group" && activeGroup && (
+                <div
+                  className="text-[10px] px-2 py-1 rounded-full shrink-0"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.09)",
+                    color: "#64748B",
+                  }}
+                >
+                  {Object.keys(activeGroup.members).length} üye
+                </div>
               )}
 
               <button
@@ -599,6 +714,66 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                     </div>
                   )}
 
+                  {/* ── Gruplar ────────────────────────────────────── */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">
+                        Gruplar {groups.length > 0 && `(${groups.length})`}
+                      </div>
+                      <button
+                        onClick={() => { setNewGroupName(""); setSelectedGroupMembers([]); setView("create-group"); }}
+                        disabled={friends.length === 0}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all hover:opacity-80 disabled:opacity-30"
+                        style={{
+                          background: "rgba(99,102,241,0.12)",
+                          border: "1px solid rgba(99,102,241,0.25)",
+                          color: "#818CF8",
+                        }}
+                      >
+                        ➕ Yeni Grup
+                      </button>
+                    </div>
+                    {groups.length === 0 ? (
+                      <div className="text-xs text-slate-700 text-center py-3">
+                        Henüz grup yok — arkadaşlarınla bir tane oluştur!
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        {groups.map((g) => (
+                          <div
+                            key={g.id}
+                            onClick={() => openGroup(g)}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-white/[0.03] transition-colors"
+                            style={{ border: "1px solid rgba(255,255,255,0.05)" }}
+                          >
+                            <div
+                              className="w-8 h-8 rounded-xl flex items-center justify-center text-sm shrink-0 font-bold"
+                              style={{
+                                background: "rgba(99,102,241,0.12)",
+                                border: "1px solid rgba(99,102,241,0.2)",
+                                color: "#818CF8",
+                              }}
+                            >
+                              {g.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-slate-200 truncate">{g.name}</div>
+                              {g.lastMessage ? (
+                                <div className="text-xs text-slate-600 truncate">
+                                  {g.lastMessage.from}: {g.lastMessage.text}
+                                </div>
+                              ) : (
+                                <div className="text-xs text-slate-700">
+                                  {Object.keys(g.members).length} üye
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   {/* ── Empty state ─────────────────────────────────── */}
                   {friends.length === 0 && incomingReqs.length === 0 && flightInvites.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-14 text-slate-600">
@@ -679,10 +854,23 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                             }
                           >
                             {msg.text}
-                            <div
-                              className="text-[9px] mt-0.5 opacity-50 text-right"
-                            >
-                              {timeAgo(msg.timestamp)}
+                            <div className="flex items-center justify-end gap-1 mt-0.5">
+                              <span className="text-[9px] opacity-50">
+                                {timeAgo(msg.timestamp)}
+                              </span>
+                              {/* Okundu bilgisi — sadece kendi mesajlarında */}
+                              {isOwn && (
+                                <span
+                                  className="text-[10px] font-bold leading-none"
+                                  style={{
+                                    color: partnerReadAt >= msg.timestamp
+                                      ? "#60A5FA"
+                                      : "rgba(255,255,255,0.3)",
+                                  }}
+                                >
+                                  {partnerReadAt >= msg.timestamp ? "✓✓" : "✓"}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -934,6 +1122,237 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                   )}
                 </motion.div>
               )}
+              {/* ════════════ GROUP CHAT VIEW ════════════ */}
+              {view === "group" && activeGroup && (
+                <motion.div
+                  key="group"
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 12 }}
+                  transition={{ duration: 0.18 }}
+                  className="flex-1 flex flex-col min-h-0"
+                >
+                  {/* Member chips */}
+                  <div
+                    className="px-3 pt-2 pb-2 flex flex-wrap gap-1 shrink-0"
+                    style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
+                  >
+                    {Object.keys(activeGroup.members).map((m) => (
+                      <span
+                        key={m}
+                        className="text-[10px] px-2 py-0.5 rounded-full"
+                        style={{
+                          background: m === currentUsername
+                            ? "rgba(99,102,241,0.2)"
+                            : "rgba(255,255,255,0.05)",
+                          border: m === currentUsername
+                            ? "1px solid rgba(99,102,241,0.35)"
+                            : "1px solid rgba(255,255,255,0.08)",
+                          color: m === currentUsername ? "#818CF8" : "#64748B",
+                        }}
+                      >
+                        {m === currentUsername ? "Sen" : m}
+                      </span>
+                    ))}
+                    <button
+                      onClick={() => leaveGroup(activeGroup.id, currentUsername!)}
+                      className="text-[10px] px-2 py-0.5 rounded-full ml-auto"
+                      style={{
+                        background: "rgba(239,68,68,0.08)",
+                        border: "1px solid rgba(239,68,68,0.2)",
+                        color: "#F87171",
+                      }}
+                    >
+                      Ayrıl
+                    </button>
+                  </div>
+
+                  {/* Messages */}
+                  <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5">
+                    {groupMessages.length === 0 && (
+                      <div className="flex flex-col items-center justify-center h-full text-slate-700 py-12">
+                        <span className="text-3xl mb-2">💬</span>
+                        <p className="text-xs text-center">
+                          Henüz mesaj yok.<br />İlk mesajı sen at!
+                        </p>
+                      </div>
+                    )}
+                    {groupMessages.map((msg) => {
+                      const isOwn = msg.from === currentUsername;
+                      return (
+                        <div key={msg.id} className={`flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
+                          {/* Sender label for others */}
+                          {!isOwn && (
+                            <span className="text-[10px] text-slate-600 px-1 mb-0.5">{msg.from}</span>
+                          )}
+                          <div
+                            className="max-w-[78%] px-3 py-2 rounded-2xl text-sm leading-snug"
+                            style={
+                              isOwn
+                                ? {
+                                    background: "linear-gradient(135deg, #4F46E5, #6366F1)",
+                                    color: "white",
+                                    borderBottomRightRadius: 4,
+                                  }
+                                : {
+                                    background: "rgba(255,255,255,0.07)",
+                                    border: "1px solid rgba(255,255,255,0.09)",
+                                    color: "#CBD5E1",
+                                    borderBottomLeftRadius: 4,
+                                  }
+                            }
+                          >
+                            {msg.text}
+                            <div className="text-[9px] mt-0.5 opacity-50 text-right">
+                              {timeAgo(msg.timestamp)}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div ref={groupChatEndRef} />
+                  </div>
+
+                  {/* Input */}
+                  <div
+                    className="px-3 py-3 flex gap-2 shrink-0"
+                    style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+                  >
+                    <input
+                      ref={groupMsgInputRef}
+                      value={groupMsgInput}
+                      onChange={(e) => setGroupMsgInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendGroupMessage()}
+                      placeholder="Gruba mesaj yaz..."
+                      className="flex-1 px-3 py-2 rounded-xl text-sm text-white placeholder-slate-600 outline-none focus:ring-1 focus:ring-indigo-500/40"
+                      style={{
+                        background: "rgba(255,255,255,0.05)",
+                        border: "1px solid rgba(255,255,255,0.09)",
+                      }}
+                    />
+                    <button
+                      onClick={handleSendGroupMessage}
+                      disabled={!groupMsgInput.trim()}
+                      className="px-3.5 py-2 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-30 active:scale-95"
+                      style={{ background: "linear-gradient(135deg, #4F46E5, #6366F1)" }}
+                    >
+                      ➤
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ════════════ CREATE GROUP VIEW ════════════ */}
+              {view === "create-group" && (
+                <motion.div
+                  key="create-group"
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 12 }}
+                  transition={{ duration: 0.18 }}
+                  className="flex-1 overflow-y-auto px-4 py-4 space-y-5"
+                >
+                  {/* Group name */}
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+                      Grup Adı
+                    </div>
+                    <input
+                      autoFocus
+                      value={newGroupName}
+                      onChange={(e) => setNewGroupName(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleCreateGroup()}
+                      placeholder="Örn: Odak Takımı ✈"
+                      maxLength={30}
+                      className="w-full px-3 py-2.5 rounded-xl text-sm text-white placeholder-slate-600 outline-none focus:ring-1 focus:ring-indigo-500/40"
+                      style={{
+                        background: "rgba(255,255,255,0.05)",
+                        border: "1px solid rgba(255,255,255,0.09)",
+                      }}
+                    />
+                  </div>
+
+                  {/* Member selection */}
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+                      Üyeler Seç ({selectedGroupMembers.length} seçildi)
+                    </div>
+                    {friends.length === 0 ? (
+                      <p className="text-xs text-slate-600">Grup için önce arkadaş ekle.</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {friends.map((f) => {
+                          const selected = selectedGroupMembers.includes(f.username);
+                          return (
+                            <button
+                              key={f.username}
+                              onClick={() =>
+                                setSelectedGroupMembers((prev) =>
+                                  selected
+                                    ? prev.filter((u) => u !== f.username)
+                                    : [...prev, f.username]
+                                )
+                              }
+                              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
+                              style={
+                                selected
+                                  ? {
+                                      background: "rgba(99,102,241,0.12)",
+                                      border: "1px solid rgba(99,102,241,0.35)",
+                                    }
+                                  : {
+                                      background: "rgba(255,255,255,0.03)",
+                                      border: "1px solid rgba(255,255,255,0.07)",
+                                    }
+                              }
+                            >
+                              <div
+                                className="w-5 h-5 rounded-md flex items-center justify-center text-xs shrink-0 transition-all"
+                                style={
+                                  selected
+                                    ? { background: "#6366F1", border: "none", color: "white" }
+                                    : { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "transparent" }
+                                }
+                              >
+                                {selected && "✓"}
+                              </div>
+                              <div
+                                className="w-7 h-7 rounded-full flex items-center justify-center text-xs shrink-0"
+                                style={{
+                                  background: f.isFlying ? "rgba(14,165,233,0.2)" : "rgba(255,255,255,0.05)",
+                                  border: f.isFlying ? "1px solid rgba(14,165,233,0.4)" : "1px solid rgba(255,255,255,0.08)",
+                                }}
+                              >
+                                {f.isFlying ? "✈" : "👤"}
+                              </div>
+                              <span className="text-sm text-slate-200">{f.username}</span>
+                              {f.isFlying && (
+                                <span className="text-[9px] text-sky-400 ml-auto">uçuyor</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Create button */}
+                  <button
+                    onClick={handleCreateGroup}
+                    disabled={!newGroupName.trim() || selectedGroupMembers.length === 0 || creatingGroup}
+                    className="w-full py-3 rounded-2xl font-bold text-white transition-all active:scale-[0.98] disabled:opacity-40"
+                    style={{
+                      background: "linear-gradient(135deg, #4F46E5, #6366F1)",
+                      boxShadow: "0 4px 20px rgba(99,102,241,0.35)",
+                    }}
+                  >
+                    {creatingGroup
+                      ? "Oluşturuluyor…"
+                      : `👥 ${newGroupName.trim() || "Grup"} Oluştur (${selectedGroupMembers.length + 1} kişi)`}
+                  </button>
+                </motion.div>
+              )}
+
               {/* ════════════ LEADERBOARD VIEW ════════════ */}
               {view === "leaderboard" && (
                 <motion.div

@@ -12,6 +12,7 @@ import { useToastStore } from "@/store/toast-store";
 import { subscribeToFriends } from "@/lib/friends";
 import { subscribeToMessages } from "@/lib/messages";
 import { subscribeToFlightInvites } from "@/lib/flight-invites";
+import { subscribeToUserGroups, subscribeToGroupMessages } from "@/lib/groups";
 import { requestNotificationPermission, showBrowserNotification } from "@/lib/notifications";
 
 export function NotificationHub() {
@@ -27,6 +28,9 @@ export function NotificationHub() {
 
   // Mesaj dinleyicileri: arkadaş → unsub fonksiyonu
   const msgSubsRef = useRef<Map<string, () => void>>(new Map());
+  // Grup mesaj dinleyicileri: groupId → unsub
+  const groupSubsRef = useRef<Map<string, () => void>>(new Map());
+  const seenGroupMsgIdsRef = useRef<Set<string>>(new Set());
 
   // Bildirimlere izin iste
   useEffect(() => {
@@ -113,6 +117,50 @@ export function NotificationHub() {
     });
 
     return unsubInvites;
+  }, [currentUsername, add]);
+
+  // Grup mesajlarını dinle
+  useEffect(() => {
+    if (!currentUsername) return;
+
+    const unsubGroups = subscribeToUserGroups(currentUsername, (groups) => {
+      const groupIds = groups.map((g) => g.id);
+
+      // Eski grupların aboneliklerini kapat
+      groupSubsRef.current.forEach((unsub, id) => {
+        if (!groupIds.includes(id)) { unsub(); groupSubsRef.current.delete(id); }
+      });
+
+      // Yeni gruplar için abone ol
+      groups.forEach((group) => {
+        if (groupSubsRef.current.has(group.id)) return;
+
+        const unsub = subscribeToGroupMessages(group.id, (msgs) => {
+          msgs.forEach((msg) => {
+            if (msg.from === currentUsername) return;
+            if (msg.timestamp < mountedAtRef.current + 2000) return;
+            if (seenGroupMsgIdsRef.current.has(msg.id)) return;
+            seenGroupMsgIdsRef.current.add(msg.id);
+
+            add({
+              type: "message",
+              from: `${group.name} › ${msg.from}`,
+              preview: msg.text,
+              timestamp: msg.timestamp,
+            });
+            showBrowserNotification(`👥 ${group.name}`, `${msg.from}: ${msg.text}`);
+          });
+        });
+
+        groupSubsRef.current.set(group.id, unsub);
+      });
+    });
+
+    return () => {
+      unsubGroups();
+      groupSubsRef.current.forEach((unsub) => unsub());
+      groupSubsRef.current.clear();
+    };
   }, [currentUsername, add]);
 
   return null; // Görsel çıktı yok
