@@ -98,6 +98,7 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
   const [activeGroup, setActiveGroup]     = useState<Group | null>(null);
   const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
   const [groupMsgInput, setGroupMsgInput] = useState("");
+  const [leaveConfirm, setLeaveConfirm]   = useState(false);
   const groupChatEndRef                   = useRef<HTMLDivElement>(null);
   const groupMsgInputRef                  = useRef<HTMLInputElement>(null);
 
@@ -197,6 +198,7 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
       setPartnerReadAt(0);
       setNewGroupName("");
       setSelectedGroupMembers([]);
+      setLeaveConfirm(false);
     }
   }, [open]);
 
@@ -1269,7 +1271,7 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                       </span>
                     ))}
                     <button
-                      onClick={() => leaveGroup(activeGroup.id, currentUsername!)}
+                      onClick={() => setLeaveConfirm(true)}
                       className="text-[10px] px-2 py-0.5 rounded-full ml-auto"
                       style={{
                         background: "rgba(239,68,68,0.08)",
@@ -1280,6 +1282,62 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                       Ayrıl
                     </button>
                   </div>
+
+                  {/* ── Ayrıl onay dialog ────────────────────────────── */}
+                  <AnimatePresence>
+                    {leaveConfirm && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.15 }}
+                        className="mx-3 mt-2 mb-1 p-4 rounded-2xl shrink-0"
+                        style={{
+                          background: "rgba(239,68,68,0.08)",
+                          border: "1px solid rgba(239,68,68,0.25)",
+                        }}
+                      >
+                        <p className="text-sm font-semibold text-white mb-1">
+                          Gruptan çıkmak istiyor musunuz?
+                        </p>
+                        <p className="text-xs text-slate-400 mb-3">
+                          <span className="text-red-400 font-medium">{activeGroup?.name}</span> grubundan
+                          ayrılırsanız tekrar davet edilmeniz gerekir.
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={async () => {
+                              if (currentUsername && activeGroup) {
+                                await leaveGroup(activeGroup.id, currentUsername);
+                              }
+                              setLeaveConfirm(false);
+                              setActiveGroup(null);
+                              setGroupMessages([]);
+                              setView("main");
+                            }}
+                            className="flex-1 py-2 rounded-xl text-xs font-bold text-white transition-all active:scale-95"
+                            style={{
+                              background: "linear-gradient(135deg, #DC2626, #B91C1C)",
+                              boxShadow: "0 2px 8px rgba(220,38,38,0.35)",
+                            }}
+                          >
+                            Evet, ayrıl
+                          </button>
+                          <button
+                            onClick={() => setLeaveConfirm(false)}
+                            className="flex-1 py-2 rounded-xl text-xs font-medium transition-all active:scale-95"
+                            style={{
+                              background: "rgba(255,255,255,0.05)",
+                              border: "1px solid rgba(255,255,255,0.1)",
+                              color: "#94A3B8",
+                            }}
+                          >
+                            İptal
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   {/* Messages */}
                   <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5">
