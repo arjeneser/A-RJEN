@@ -6,6 +6,8 @@ import { AuthGuard } from "@/components/auth/auth-guard";
 import { motion } from "framer-motion";
 import { useActiveSession, useFlightSetup } from "@/store/flight-store";
 import { useUserStore } from "@/store/user-store";
+import { checkNewAchievements } from "@/data/achievements";
+import type { Achievement } from "@/types";
 import { flagEmoji } from "@/data/cities";
 import { formatMinutes } from "@/lib/utils";
 import {
@@ -13,15 +15,19 @@ import {
   getLevelProgress,
   flightsToNextLevel,
 } from "@/store/user-store";
+import { useAuthStore } from "@/store/auth-store";
+import { syncStats } from "@/lib/friends";
 
 export default function SuccessPage() {
   const router = useRouter();
   const { session, clearSession } = useActiveSession();
-  const { profile, recordFlight, addStamp } = useUserStore();
-  const { continueJourney, passengerName } = useFlightSetup();
+  const { profile, history, stamps, achievements, recordFlight, addStamp, addAchievements } = useUserStore();
+  const { continueJourney, passengerName, notes } = useFlightSetup();
+  const { currentUsername } = useAuthStore();
   const recordedRef = useRef(false);
   const confettiRef = useRef(false);
   const [mounted, setMounted] = useState(false);
+  const [newAchievements, setNewAchievements] = useState<Achievement[]>([]);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -40,11 +46,14 @@ export default function SuccessPage() {
       session.status === "running" // completed in bg, still "running" in store edge case
     ) {
       recordedRef.current = true;
+      const durationMinutes = Math.round(session.durationMs / 60000);
+      const xpEarned = Math.round(durationMinutes / 5);
       recordFlight({
         departureId: session.departure.id,
         destinationId: session.destination.id,
-        durationMinutes: Math.round(session.durationMs / 60000),
-        xpEarned: Math.round(session.durationMs / 60000 / 5),
+        durationMinutes,
+        xpEarned,
+        notes: notes || undefined,
       });
       // Passport stamp — only for international flights
       if (session.destination.countryCode !== "TR") {
@@ -54,6 +63,26 @@ export default function SuccessPage() {
           timestamp: Date.now(),
         });
       }
+      // Check new achievements + sync stats (after profile update settled on next tick)
+      setTimeout(() => {
+        const updatedProfile = useUserStore.getState().profile;
+        const updatedHistory = useUserStore.getState().history;
+        const updatedStamps  = useUserStore.getState().stamps;
+        const earnedIds      = useUserStore.getState().achievements.map((a) => a.id);
+        const newOnes = checkNewAchievements(updatedProfile, updatedHistory, updatedStamps, earnedIds);
+        if (newOnes.length > 0) {
+          addAchievements(newOnes);
+          setNewAchievements(newOnes);
+        }
+        // Push stats to Firebase for leaderboard
+        if (currentUsername) {
+          syncStats(currentUsername, {
+            totalXP:       updatedProfile.totalXP,
+            totalFlights:  updatedProfile.totalFlights,
+            currentStreak: updatedProfile.currentStreak,
+          });
+        }
+      }, 200);
     }
   }, [session, recordFlight]);
 
@@ -121,7 +150,7 @@ export default function SuccessPage() {
   if (!mounted || !session) return null;
 
   const { departure, destination, durationMs } = session;
-  const xpEarned = Math.round(durationMs / 60000 / 5);
+  const xpEarned = Math.round(durationMs / 60000 / 5); // display purposes
   const level = getLevel(profile.totalFlights);
   const levelProg = getLevelProgress(profile.totalFlights);
   const toNext = flightsToNextLevel(profile.totalFlights);
@@ -314,6 +343,42 @@ export default function SuccessPage() {
             />
           </div>
         </motion.div>
+
+        {/* ── Yeni başarımlar ────────────────────────────────────────── */}
+        {newAchievements.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ delay: 0.95, type: "spring", stiffness: 200 }}
+            className="rounded-2xl p-4 mb-4"
+            style={{
+              background: "linear-gradient(135deg, rgba(245,158,11,0.1), rgba(234,179,8,0.06))",
+              border: "1px solid rgba(245,158,11,0.3)",
+            }}
+          >
+            <div className="text-xs font-bold text-amber-400 uppercase tracking-widest mb-3">
+              🏅 Yeni Başarım{newAchievements.length > 1 ? "lar" : ""} Kazanıldı!
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {newAchievements.map((a) => (
+                <div
+                  key={a.id}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl"
+                  style={{
+                    background: "rgba(245,158,11,0.12)",
+                    border: "1px solid rgba(245,158,11,0.25)",
+                  }}
+                >
+                  <span className="text-lg">{a.emoji}</span>
+                  <div>
+                    <div className="text-xs font-bold text-white">{a.name}</div>
+                    <div className="text-[10px] text-slate-500">{a.description}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* CTAs */}
         <motion.div

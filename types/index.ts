@@ -90,6 +90,20 @@ export interface CompletedFlight {
   durationMinutes: number;
   completedAt: string; // ISO
   xpEarned: number;
+  notes?: string; // uçuş sırasında alınan notlar
+}
+
+// ─── Achievement ──────────────────────────────────────────────────────────────
+
+export type AchievementRarity = "common" | "rare" | "epic" | "legendary";
+
+export interface Achievement {
+  id: string;
+  emoji: string;
+  name: string;
+  description: string;
+  rarity: AchievementRarity;
+  unlockedAt?: number; // unix ms
 }
 
 // ─── Map ─────────────────────────────────────────────────────────────────────

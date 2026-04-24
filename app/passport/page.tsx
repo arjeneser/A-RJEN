@@ -13,6 +13,8 @@ import {
 } from "@/store/user-store";
 import { getCityById, flagEmoji } from "@/data/cities";
 import { formatMinutes } from "@/lib/utils";
+import { ALL_ACHIEVEMENTS } from "@/data/achievements";
+import type { AchievementRarity } from "@/types";
 
 const VisitedMap = dynamic(
   () => import("@/components/passport/visited-map").then((m) => m.VisitedMap),
@@ -177,12 +179,20 @@ function StampTile({
   );
 }
 
+// ── Rarity badge ──────────────────────────────────────────────────────────────
+const RARITY_STYLE: Record<AchievementRarity, { border: string; bg: string; color: string; label: string }> = {
+  common:    { border: "rgba(148,163,184,0.3)",  bg: "rgba(148,163,184,0.07)", color: "#94A3B8", label: "Yaygın"    },
+  rare:      { border: "rgba(96,165,250,0.35)",  bg: "rgba(96,165,250,0.08)",  color: "#60A5FA", label: "Nadir"     },
+  epic:      { border: "rgba(167,139,250,0.4)",  bg: "rgba(167,139,250,0.09)", color: "#A78BFA", label: "Epik"      },
+  legendary: { border: "rgba(245,158,11,0.45)",  bg: "rgba(245,158,11,0.1)",   color: "#F59E0B", label: "Efsanevi"  },
+};
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-type Tab = "stamps" | "history";
+type Tab = "stamps" | "history" | "achievements";
 
 export default function PassportPage() {
-  const { profile, history, stamps, updateName } = useUserStore();
+  const { profile, history, stamps, achievements: earnedAchievements, updateName } = useUserStore();
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(profile.name);
   const [tab, setTab] = useState<Tab>("stamps");
@@ -389,7 +399,7 @@ export default function PassportPage() {
               className="flex gap-1 p-1 rounded-2xl mb-4"
               style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
             >
-              {(["stamps", "history"] as Tab[]).map((t) => (
+              {(["stamps", "history", "achievements"] as Tab[]).map((t) => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
@@ -404,7 +414,11 @@ export default function PassportPage() {
                       : { color: "#64748B" }
                   }
                 >
-                  {t === "stamps" ? `📖 Damgalar (${stamps.length})` : `🛫 Uçuş Geçmişi (${history.length})`}
+                  {t === "stamps"
+                    ? `📖 Damgalar (${stamps.length})`
+                    : t === "history"
+                    ? `🛫 Geçmiş (${history.length})`
+                    : `🏅 Başarımlar (${earnedAchievements.length})`}
                 </button>
               ))}
             </div>
@@ -492,7 +506,7 @@ export default function PassportPage() {
                     </div>
                   )}
                 </motion.div>
-              ) : (
+              ) : tab === "history" ? (
                 <motion.div
                   key="history"
                   initial={{ opacity: 0, y: 8 }}
@@ -522,78 +536,205 @@ export default function PassportPage() {
                           initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: i * 0.03 }}
-                          className="flex items-center justify-between p-3.5 rounded-xl"
+                          className="rounded-xl overflow-hidden"
                           style={{
                             background: "rgba(255,255,255,0.025)",
                             border: "1px solid rgba(255,255,255,0.05)",
                           }}
                         >
-                          <div className="flex items-center gap-3">
-                            {/* Badge */}
+                          <div className="flex items-center justify-between p-3.5">
+                            <div className="flex items-center gap-3">
+                              {/* Badge */}
+                              <div
+                                className="w-8 h-8 rounded-xl flex items-center justify-center text-sm shrink-0"
+                                style={{
+                                  background: isIntl
+                                    ? "rgba(212,160,80,0.12)"
+                                    : "rgba(59,130,246,0.12)",
+                                  border: isIntl
+                                    ? "1px solid rgba(212,160,80,0.25)"
+                                    : "1px solid rgba(59,130,246,0.2)",
+                                }}
+                              >
+                                {isIntl ? "🌍" : "🇹🇷"}
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-slate-200">
+                                  {dep
+                                    ? `${flagEmoji(dep.countryCode)} ${dep.name}`
+                                    : flight.departureId}
+                                  {" → "}
+                                  {dst
+                                    ? `${flagEmoji(dst.countryCode)} ${dst.name}`
+                                    : flight.destinationId}
+                                </div>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-xs text-slate-600">
+                                    {formatMinutes(flight.durationMinutes)} ·{" "}
+                                    {new Date(flight.completedAt).toLocaleDateString("tr-TR")}
+                                  </span>
+                                  <span
+                                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                                    style={
+                                      isIntl
+                                        ? {
+                                            background: "rgba(212,160,80,0.1)",
+                                            border: "1px solid rgba(212,160,80,0.25)",
+                                            color: "#D4A050",
+                                          }
+                                        : {
+                                            background: "rgba(59,130,246,0.1)",
+                                            border: "1px solid rgba(59,130,246,0.2)",
+                                            color: "#60A5FA",
+                                          }
+                                    }
+                                  >
+                                    {isIntl ? "ULUSLARARASI" : "YURTİÇİ"}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
                             <div
-                              className="w-8 h-8 rounded-xl flex items-center justify-center text-sm shrink-0"
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0"
                               style={{
-                                background: isIntl
-                                  ? "rgba(212,160,80,0.12)"
-                                  : "rgba(59,130,246,0.12)",
-                                border: isIntl
-                                  ? "1px solid rgba(212,160,80,0.25)"
-                                  : "1px solid rgba(59,130,246,0.2)",
+                                background: "rgba(245,158,11,0.1)",
+                                border: "1px solid rgba(245,158,11,0.2)",
+                                color: "#F59E0B",
                               }}
                             >
-                              {isIntl ? "🌍" : "🇹🇷"}
-                            </div>
-                            <div>
-                              <div className="text-sm font-medium text-slate-200">
-                                {dep
-                                  ? `${flagEmoji(dep.countryCode)} ${dep.name}`
-                                  : flight.departureId}
-                                {" → "}
-                                {dst
-                                  ? `${flagEmoji(dst.countryCode)} ${dst.name}`
-                                  : flight.destinationId}
-                              </div>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-xs text-slate-600">
-                                  {formatMinutes(flight.durationMinutes)} ·{" "}
-                                  {new Date(flight.completedAt).toLocaleDateString("tr-TR")}
-                                </span>
-                                {/* Domestic / international label */}
-                                <span
-                                  className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                                  style={
-                                    isIntl
-                                      ? {
-                                          background: "rgba(212,160,80,0.1)",
-                                          border: "1px solid rgba(212,160,80,0.25)",
-                                          color: "#D4A050",
-                                        }
-                                      : {
-                                          background: "rgba(59,130,246,0.1)",
-                                          border: "1px solid rgba(59,130,246,0.2)",
-                                          color: "#60A5FA",
-                                        }
-                                  }
-                                >
-                                  {isIntl ? "ULUSLARARASI" : "YURTİÇİ"}
-                                </span>
-                              </div>
+                              +{flight.xpEarned} XP
                             </div>
                           </div>
-                          <div
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0"
-                            style={{
-                              background: "rgba(245,158,11,0.1)",
-                              border: "1px solid rgba(245,158,11,0.2)",
-                              color: "#F59E0B",
-                            }}
-                          >
-                            +{flight.xpEarned} XP
-                          </div>
+                          {/* Flight notes */}
+                          {flight.notes && (
+                            <div
+                              className="px-3.5 pb-3 flex items-start gap-2"
+                              style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
+                            >
+                              <span className="text-yellow-500/60 text-xs mt-0.5 shrink-0">📝</span>
+                              <p className="text-xs text-slate-500 leading-relaxed italic">
+                                {flight.notes}
+                              </p>
+                            </div>
+                          )}
                         </motion.div>
                       );
                     })
                   )}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="achievements"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.2 }}
+                  className="rounded-3xl p-6"
+                  style={{
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.07)",
+                    minHeight: 420,
+                  }}
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <div className="text-base font-bold text-white" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                        Başarım Rozetleri
+                      </div>
+                      <div className="text-xs text-slate-600 mt-0.5">
+                        {earnedAchievements.length} / {ALL_ACHIEVEMENTS.length} kazanıldı
+                      </div>
+                    </div>
+                    {/* Progress ring label */}
+                    <div
+                      className="px-3 py-1.5 rounded-full text-xs font-bold"
+                      style={{
+                        background: "rgba(245,158,11,0.1)",
+                        border: "1px solid rgba(245,158,11,0.2)",
+                        color: "#F59E0B",
+                      }}
+                    >
+                      🏅 {Math.round((earnedAchievements.length / ALL_ACHIEVEMENTS.length) * 100)}%
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="progress-track h-1.5 mb-6">
+                    <motion.div
+                      className="progress-fill"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(earnedAchievements.length / ALL_ACHIEVEMENTS.length) * 100}%` }}
+                      transition={{ duration: 1, delay: 0.2 }}
+                    />
+                  </div>
+
+                  {/* Achievement grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {ALL_ACHIEVEMENTS.map((ach, i) => {
+                      const earned = earnedAchievements.find((e) => e.id === ach.id);
+                      const rs = RARITY_STYLE[ach.rarity];
+                      return (
+                        <motion.div
+                          key={ach.id}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.025 }}
+                          className="flex items-center gap-3 p-3 rounded-xl"
+                          style={{
+                            background: earned ? rs.bg : "rgba(255,255,255,0.02)",
+                            border: `1px solid ${earned ? rs.border : "rgba(255,255,255,0.04)"}`,
+                            opacity: earned ? 1 : 0.45,
+                          }}
+                        >
+                          {/* Emoji with glow when earned */}
+                          <div
+                            className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0"
+                            style={{
+                              background: earned ? `${rs.bg}` : "rgba(255,255,255,0.03)",
+                              border: `1px solid ${earned ? rs.border : "rgba(255,255,255,0.06)"}`,
+                              filter: earned ? `drop-shadow(0 0 6px ${rs.color}60)` : "grayscale(1)",
+                            }}
+                          >
+                            {ach.emoji}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className="text-sm font-bold truncate"
+                                style={{
+                                  color: earned ? "#F1F5F9" : "#475569",
+                                  fontFamily: "Space Grotesk, sans-serif",
+                                }}
+                              >
+                                {ach.name}
+                              </span>
+                              <span
+                                className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+                                style={{
+                                  background: `${rs.bg}`,
+                                  border: `1px solid ${rs.border}`,
+                                  color: rs.color,
+                                }}
+                              >
+                                {rs.label.toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="text-xs text-slate-600 truncate">{ach.description}</div>
+                            {earned?.unlockedAt && (
+                              <div className="text-[10px] mt-0.5" style={{ color: rs.color + "99" }}>
+                                {new Date(earned.unlockedAt).toLocaleDateString("tr-TR")} tarihinde kazanıldı
+                              </div>
+                            )}
+                          </div>
+                          {/* Lock icon when not earned */}
+                          {!earned && (
+                            <div className="text-slate-700 text-base shrink-0">🔒</div>
+                          )}
+                        </motion.div>
+                      );
+                    })}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>

@@ -7,9 +7,16 @@ export interface FriendRequest {
   timestamp: number;
 }
 
+export interface FriendStats {
+  totalXP: number;
+  totalFlights: number;
+  currentStreak: number;
+}
+
 export interface FriendInfo {
   username: string;
   isFlying: boolean;
+  stats?: FriendStats;
   flight?: {
     departure: City;
     destination: City;
@@ -24,7 +31,16 @@ export async function registerPresence(username: string) {
   const db = getDb();
   if (!db) return;
   try {
-    await set(ref(db, `users/${username}`), { lastSeen: Date.now() });
+    await set(ref(db, `users/${username}/lastSeen`), Date.now());
+  } catch { /* ignore */ }
+}
+
+/** Kullanıcı istatistiklerini Firebase'e yaz (uçuş sonrası çağrılır) */
+export async function syncStats(username: string, stats: FriendStats) {
+  const db = getDb();
+  if (!db) return;
+  try {
+    await set(ref(db, `users/${username}/stats`), stats);
   } catch { /* ignore */ }
 }
 
@@ -91,7 +107,7 @@ export function subscribeToIncomingRequests(
   return () => off(r);
 }
 
-/** Arkadaş listesini + uçuş durumlarını dinle */
+/** Arkadaş listesini + uçuş durumlarını + istatistikleri dinle */
 export function subscribeToFriends(
   username: string,
   callback: (friends: FriendInfo[]) => void
@@ -101,15 +117,25 @@ export function subscribeToFriends(
 
   const listRef   = ref(db, `friendships/${username}/list`);
   const flightRef = ref(db, "flights");
+  const usersRef  = ref(db, "users");
 
   let friendUsernames: string[] = [];
   let flightData: Record<string, any> = {};
+  let usersData:  Record<string, any> = {};
 
   const merge = () => {
     const friends: FriendInfo[] = friendUsernames.map((u) => {
       const f = flightData[u];
       const isFlying = !!f && Date.now() - f.lastUpdate < 60_000;
-      return { username: u, isFlying, flight: isFlying ? f : undefined };
+      const rawStats = usersData[u]?.stats;
+      const stats: FriendStats | undefined = rawStats
+        ? {
+            totalXP:       rawStats.totalXP       ?? 0,
+            totalFlights:  rawStats.totalFlights  ?? 0,
+            currentStreak: rawStats.currentStreak ?? 0,
+          }
+        : undefined;
+      return { username: u, isFlying, stats, flight: isFlying ? f : undefined };
     });
     callback(friends);
   };
@@ -124,8 +150,14 @@ export function subscribeToFriends(
     merge();
   });
 
+  onValue(usersRef, (snap) => {
+    usersData = snap.val() || {};
+    merge();
+  });
+
   return () => {
     off(listRef);
     off(flightRef);
+    off(usersRef);
   };
 }

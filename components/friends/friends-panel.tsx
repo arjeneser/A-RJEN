@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { useFlightSetup } from "@/store/flight-store";
+import { useUserStore } from "@/store/user-store";
 import {
   sendFriendRequest,
   acceptFriendRequest,
@@ -30,7 +31,7 @@ import type { City, FlightDurationOption } from "@/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type View = "main" | "chat" | "propose";
+type View = "main" | "chat" | "propose" | "leaderboard";
 
 interface FriendsPanelProps {
   open: boolean;
@@ -53,6 +54,7 @@ function timeAgo(ts: number): string {
 export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPanelProps) {
   const { currentUsername } = useAuthStore();
   const { joinFlight, setDuration } = useFlightSetup();
+  const { profile: myProfile } = useUserStore();
   const router = useRouter();
 
   // ── views & selected friend ──────────────────────────────────────────────────
@@ -80,6 +82,8 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
   const [propDestination, setPropDestination] = useState<City | null>(null);
   const [propSending, setPropSending]     = useState(false);
   const [propSent, setPropSent]           = useState(false);
+  // Multi-invite: extra friends to send same invite to (besides activeFriend)
+  const [extraInvitees, setExtraInvitees] = useState<string[]>([]);
 
   const reachable = propDeparture && propDuration
     ? getReachableDestinations(propDeparture, propDuration)
@@ -159,13 +163,20 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
     setPropDuration(null);
     setPropDestination(null);
     setPropSent(false);
+    setExtraInvitees([]);
     setView("propose");
   }
 
   async function handleSendInvite() {
     if (!currentUsername || !activeFriend || !propDeparture || !propDuration || !propDestination) return;
     setPropSending(true);
-    await sendFlightInvite(currentUsername, activeFriend, propDeparture, propDestination, propDuration);
+    // Send to activeFriend + any extra group members
+    const allRecipients = [activeFriend, ...extraInvitees];
+    await Promise.all(
+      allRecipients.map((r) =>
+        sendFlightInvite(currentUsername, r, propDeparture, propDestination, propDuration)
+      )
+    );
     setPropSending(false);
     setPropSent(true);
     setTimeout(() => { setView("chat"); setPropSent(false); }, 1800);
@@ -243,9 +254,10 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
               )}
 
               <div className="flex-1 flex items-center gap-2 min-w-0">
-                {view === "main" && <span className="text-base">👥</span>}
-                {view === "chat" && <span className="text-base">💬</span>}
-                {view === "propose" && <span className="text-base">✈</span>}
+                {view === "main"        && <span className="text-base">👥</span>}
+                {view === "chat"        && <span className="text-base">💬</span>}
+                {view === "propose"     && <span className="text-base">✈</span>}
+                {view === "leaderboard" && <span className="text-base">🏆</span>}
 
                 <span
                   className="font-bold text-white text-sm truncate"
@@ -255,6 +267,8 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                     ? "Arkadaşlar"
                     : view === "chat"
                     ? activeFriend
+                    : view === "leaderboard"
+                    ? "Sıralama"
                     : `${activeFriend}'a Uçuş Teklif Et`}
                 </span>
 
@@ -304,11 +318,27 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                   transition={{ duration: 0.18 }}
                   className="flex-1 overflow-y-auto px-4 py-3 space-y-4"
                 >
-                  {/* ── Add Friend ─────────────────────────────────── */}
-                  <div>
-                    <div className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2">
+                  {/* ── Top actions row ────────────────────────────── */}
+                  <div className="flex justify-between items-center">
+                    <div className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">
                       Arkadaş Ekle
                     </div>
+                    <button
+                      onClick={() => setView("leaderboard")}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
+                      style={{
+                        background: "rgba(245,158,11,0.1)",
+                        border: "1px solid rgba(245,158,11,0.2)",
+                        color: "#F59E0B",
+                      }}
+                    >
+                      🏆 Sıralama
+                    </button>
+                  </div>
+
+                  {/* ── Add Friend ─────────────────────────────────── */}
+                  <div>
+                    <div className="sr-only">Arkadaş Ekle</div>
                     <div className="flex gap-2">
                       <input
                         value={searchInput}
@@ -818,6 +848,52 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                         </div>
                       )}
 
+                      {/* Group invite: select other friends */}
+                      {propDeparture && propDuration && propDestination && (() => {
+                        const otherFriends = friends.filter((f) => f.username !== activeFriend);
+                        if (otherFriends.length === 0) return null;
+                        return (
+                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+                              👥 Gruba Ekle (opsiyonel)
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {otherFriends.map((f) => {
+                                const selected = extraInvitees.includes(f.username);
+                                return (
+                                  <button
+                                    key={f.username}
+                                    onClick={() =>
+                                      setExtraInvitees((prev) =>
+                                        selected
+                                          ? prev.filter((u) => u !== f.username)
+                                          : [...prev, f.username]
+                                      )
+                                    }
+                                    className="px-2.5 py-1 rounded-full text-xs font-semibold transition-all"
+                                    style={
+                                      selected
+                                        ? {
+                                            background: "rgba(124,58,237,0.25)",
+                                            border: "1px solid rgba(124,58,237,0.5)",
+                                            color: "#C4B5FD",
+                                          }
+                                        : {
+                                            background: "rgba(255,255,255,0.04)",
+                                            border: "1px solid rgba(255,255,255,0.09)",
+                                            color: "#64748B",
+                                          }
+                                    }
+                                  >
+                                    {selected ? "✓ " : "+ "}{f.username}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </motion.div>
+                        );
+                      })()}
+
                       {/* Send button */}
                       {propDeparture && propDuration && propDestination && (
                         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
@@ -831,6 +907,11 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                             <div className="font-semibold text-purple-300 mb-1">Özet</div>
                             <div>{propDeparture.name} → {propDestination.name}</div>
                             <div className="text-slate-500">{propDuration.label} · +{propDuration.xpReward} XP</div>
+                            {extraInvitees.length > 0 && (
+                              <div className="mt-1 text-purple-400/70">
+                                👥 {[activeFriend, ...extraInvitees].join(", ")} kişiye gönderilecek
+                              </div>
+                            )}
                           </div>
                           <button
                             onClick={handleSendInvite}
@@ -841,7 +922,11 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                               boxShadow: "0 4px 20px rgba(124,58,237,0.4)",
                             }}
                           >
-                            {propSending ? "Gönderiliyor…" : `✈ ${activeFriend}'a Davet Gönder`}
+                            {propSending
+                              ? "Gönderiliyor…"
+                              : extraInvitees.length > 0
+                              ? `✈ ${1 + extraInvitees.length} Kişiye Davet Gönder`
+                              : `✈ ${activeFriend}'a Davet Gönder`}
                           </button>
                         </motion.div>
                       )}
@@ -849,6 +934,125 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                   )}
                 </motion.div>
               )}
+              {/* ════════════ LEADERBOARD VIEW ════════════ */}
+              {view === "leaderboard" && (
+                <motion.div
+                  key="leaderboard"
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 12 }}
+                  transition={{ duration: 0.18 }}
+                  className="flex-1 overflow-y-auto px-4 py-4"
+                >
+                  {/* Build combined list: self + friends with stats */}
+                  {(() => {
+                    const entries: { username: string; totalXP: number; totalFlights: number; currentStreak: number; isSelf: boolean }[] = [
+                      {
+                        username: currentUsername ?? "Sen",
+                        totalXP: myProfile.totalXP,
+                        totalFlights: myProfile.totalFlights,
+                        currentStreak: myProfile.currentStreak,
+                        isSelf: true,
+                      },
+                      ...friends
+                        .filter((f) => f.stats)
+                        .map((f) => ({
+                          username: f.username,
+                          totalXP: f.stats!.totalXP,
+                          totalFlights: f.stats!.totalFlights,
+                          currentStreak: f.stats!.currentStreak,
+                          isSelf: false,
+                        })),
+                    ];
+
+                    // Sort by XP descending
+                    entries.sort((a, b) => b.totalXP - a.totalXP);
+
+                    const medals = ["🥇", "🥈", "🥉"];
+
+                    return (
+                      <div className="space-y-2">
+                        <div className="text-[10px] font-bold text-amber-400/70 uppercase tracking-widest mb-3">
+                          XP Sıralaması
+                        </div>
+                        {entries.map((entry, i) => (
+                          <motion.div
+                            key={entry.username}
+                            initial={{ opacity: 0, x: 10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: i * 0.05 }}
+                            className="flex items-center gap-3 p-3 rounded-xl"
+                            style={{
+                              background: entry.isSelf
+                                ? "rgba(245,158,11,0.08)"
+                                : "rgba(255,255,255,0.025)",
+                              border: entry.isSelf
+                                ? "1px solid rgba(245,158,11,0.2)"
+                                : "1px solid rgba(255,255,255,0.05)",
+                            }}
+                          >
+                            {/* Rank */}
+                            <div
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                              style={{
+                                background: i < 3
+                                  ? "rgba(245,158,11,0.15)"
+                                  : "rgba(255,255,255,0.04)",
+                                border: i < 3
+                                  ? "1px solid rgba(245,158,11,0.3)"
+                                  : "1px solid rgba(255,255,255,0.07)",
+                                color: i < 3 ? "#F59E0B" : "#64748B",
+                              }}
+                            >
+                              {i < 3 ? medals[i] : `#${i + 1}`}
+                            </div>
+                            {/* Name */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  className="text-sm font-semibold truncate"
+                                  style={{ color: entry.isSelf ? "#F59E0B" : "#F1F5F9" }}
+                                >
+                                  {entry.username}
+                                </span>
+                                {entry.isSelf && (
+                                  <span
+                                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+                                    style={{
+                                      background: "rgba(245,158,11,0.15)",
+                                      border: "1px solid rgba(245,158,11,0.3)",
+                                      color: "#F59E0B",
+                                    }}
+                                  >
+                                    SEN
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-slate-600 mt-0.5">
+                                {entry.totalFlights} uçuş · 🔥 {entry.currentStreak} gün
+                              </div>
+                            </div>
+                            {/* XP */}
+                            <div
+                              className="text-sm font-bold shrink-0"
+                              style={{ color: "#F59E0B", fontFamily: "Space Grotesk, sans-serif" }}
+                            >
+                              {entry.totalXP.toLocaleString()} XP
+                            </div>
+                          </motion.div>
+                        ))}
+
+                        {friends.filter((f) => !f.stats).length > 0 && (
+                          <p className="text-center text-xs text-slate-700 pt-2">
+                            {friends.filter((f) => !f.stats).length} arkadaşın henüz uçuşu yok
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </motion.div>
+              )}
+
             </AnimatePresence>
           </motion.div>
         </>

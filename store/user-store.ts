@@ -7,6 +7,7 @@ import type {
   AirjenLevel,
   AirjenLevelInfo,
   Stamp,
+  Achievement,
 } from "@/types";
 import { generateId, todayISO, isConsecutiveDay } from "@/lib/utils";
 
@@ -66,12 +67,8 @@ export const DEFAULT_PROFILE: UserProfile = {
 interface UserState {
   profile: UserProfile;
   history: CompletedFlight[];
-
-  /**
-   * Passport stamps earned by completing flights.
-   * One stamp is added per completed flight (destination country).
-   */
   stamps: Stamp[];
+  achievements: Achievement[];
 
   // ── Actions ─────────────────────────────────────────────────────────────
   updateName: (name: string) => void;
@@ -81,21 +78,19 @@ interface UserState {
     destinationId: string;
     durationMinutes: number;
     xpEarned: number;
+    notes?: string;
   }) => void;
 
-  /**
-   * Add a passport stamp.  Typically called right after `recordFlight`.
-   * Duplicate stamps (same city on the same day) are silently ignored.
-   */
   addStamp: (stamp: Omit<Stamp, "id">) => void;
 
-  /** Load a saved snapshot (on login). */
-  loadSnapshot: (snap: { profile: UserProfile; history: CompletedFlight[]; stamps: Stamp[] }) => void;
+  /** Yeni başarımları kaydet */
+  addAchievements: (newOnes: Achievement[]) => void;
 
-  /** Export current state as a snapshot (for saving on logout/change). */
-  exportSnapshot: () => { profile: UserProfile; history: CompletedFlight[]; stamps: Stamp[] };
+  /** Uçuş notunu sonradan güncelle (history'deki son uçuşa) */
+  updateLastFlightNotes: (notes: string) => void;
 
-  /** Reset to blank defaults (on logout). */
+  loadSnapshot: (snap: { profile: UserProfile; history: CompletedFlight[]; stamps: Stamp[]; achievements?: Achievement[] }) => void;
+  exportSnapshot: () => { profile: UserProfile; history: CompletedFlight[]; stamps: Stamp[]; achievements: Achievement[] };
   resetToDefault: () => void;
 }
 
@@ -107,13 +102,32 @@ export const useUserStore = create<UserState>()(
       profile: DEFAULT_PROFILE,
       history: [],
       stamps: [],
+      achievements: [],
 
       // ── updateName ───────────────────────────────────────────────────────
       updateName: (name) =>
         set((s) => ({ profile: { ...s.profile, name } })),
 
+      // ── addAchievements ──────────────────────────────────────────────────
+      addAchievements: (newOnes) =>
+        set((s) => ({
+          achievements: [
+            ...s.achievements,
+            ...newOnes.map((a) => ({ ...a, unlockedAt: Date.now() })),
+          ],
+        })),
+
+      // ── updateLastFlightNotes ────────────────────────────────────────────
+      updateLastFlightNotes: (notes) =>
+        set((s) => {
+          if (s.history.length === 0) return s;
+          const updated = [...s.history];
+          updated[0] = { ...updated[0], notes };
+          return { history: updated };
+        }),
+
       // ── recordFlight ─────────────────────────────────────────────────────
-      recordFlight: ({ departureId, destinationId, durationMinutes, xpEarned }) => {
+      recordFlight: ({ departureId, destinationId, durationMinutes, xpEarned, notes }) => {
         set((s) => {
           const today = todayISO();
           const last = s.profile.lastFlightDate;
@@ -151,6 +165,7 @@ export const useUserStore = create<UserState>()(
             durationMinutes,
             completedAt: new Date().toISOString(),
             xpEarned,
+            ...(notes ? { notes } : {}),
           };
 
           return {
@@ -161,16 +176,21 @@ export const useUserStore = create<UserState>()(
       },
 
       // ── loadSnapshot ─────────────────────────────────────────────────────
-      loadSnapshot: (snap) => set({ profile: snap.profile, history: snap.history, stamps: snap.stamps }),
+      loadSnapshot: (snap) => set({
+        profile: snap.profile,
+        history: snap.history,
+        stamps: snap.stamps,
+        achievements: snap.achievements ?? [],
+      }),
 
       // ── exportSnapshot ────────────────────────────────────────────────────
       exportSnapshot: () => {
-        const { profile, history, stamps } = get();
-        return { profile, history, stamps };
+        const { profile, history, stamps, achievements } = get();
+        return { profile, history, stamps, achievements };
       },
 
       // ── resetToDefault ────────────────────────────────────────────────────
-      resetToDefault: () => set({ profile: DEFAULT_PROFILE, history: [], stamps: [] }),
+      resetToDefault: () => set({ profile: DEFAULT_PROFILE, history: [], stamps: [], achievements: [] }),
 
       // ── addStamp ─────────────────────────────────────────────────────────
       addStamp: ({ countryCode, city, timestamp }) => {
