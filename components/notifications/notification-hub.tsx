@@ -9,7 +9,7 @@
 import { useEffect, useRef } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { useToastStore } from "@/store/toast-store";
-import { subscribeToFriends } from "@/lib/friends";
+import { subscribeToFriends, subscribeToIncomingRequests } from "@/lib/friends";
 import { subscribeToMessages } from "@/lib/messages";
 import { subscribeToFlightInvites } from "@/lib/flight-invites";
 import { subscribeToUserGroups, subscribeToGroupMessages } from "@/lib/groups";
@@ -117,6 +117,28 @@ export function NotificationHub() {
     });
 
     return unsubInvites;
+  }, [currentUsername, add]);
+
+  // Arkadaşlık isteklerini dinle
+  useEffect(() => {
+    if (!currentUsername) return;
+    const seenReqsRef = new Set<string>();
+    const unsubReqs = subscribeToIncomingRequests(currentUsername, (reqs) => {
+      reqs.forEach((req) => {
+        if (req.timestamp < mountedAtRef.current + 2000) return;
+        if (seenReqsRef.has(req.from)) return;
+        seenReqsRef.add(req.from);
+
+        add({
+          type: "friend_request",
+          from: req.from,
+          preview: "Seni arkadaş listesine eklemek istiyor",
+          timestamp: req.timestamp,
+        });
+        showBrowserNotification(`🤝 ${req.from}`, "Arkadaşlık isteği gönderdi");
+      });
+    });
+    return unsubReqs;
   }, [currentUsername, add]);
 
   // Grup mesajlarını dinle

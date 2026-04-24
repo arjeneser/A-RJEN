@@ -21,12 +21,14 @@ const POPUP_ICONS: Record<AppToast["type"], string> = {
   message:         "💬",
   invite:          "✈",
   friend_accepted: "👥",
+  friend_request:  "🤝",
 };
 
 const POPUP_LABELS: Record<AppToast["type"], string> = {
   message:         "Yeni mesaj",
   invite:          "Uçuş daveti",
   friend_accepted: "Arkadaşlık kabul edildi",
+  friend_request:  "Arkadaşlık isteği",
 };
 
 export function Navbar() {
@@ -316,7 +318,15 @@ export function Navbar() {
                               color: "#C084FC",
                             }}
                           >
-                            <span>Arkadaşlar panelini aç</span>
+                            <span>
+                              {popupToast?.type === "message"
+                                ? "Mesaja Git"
+                                : popupToast?.type === "friend_request"
+                                ? "İsteği Gör"
+                                : popupToast?.type === "invite"
+                                ? "Daveti Gör"
+                                : "Arkadaşlar"}
+                            </span>
                             <span>→</span>
                           </button>
 

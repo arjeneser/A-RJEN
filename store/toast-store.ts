@@ -1,7 +1,7 @@
 "use client";
 import { create } from "zustand";
 
-export type ToastType = "message" | "invite" | "friend_accepted";
+export type ToastType = "message" | "invite" | "friend_accepted" | "friend_request";
 
 export interface AppToast {
   id: string;
