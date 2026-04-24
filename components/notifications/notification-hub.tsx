@@ -19,18 +19,19 @@ export function NotificationHub() {
   const currentUsername = useAuthStore((s) => s.currentUsername);
   const { add } = useToastStore();
 
-  // Hangi konuşmada kaç mesaj gördük → sadece yenileri bildir
+  // Hangi mesajları gördük → sadece yenileri bildir
   const seenMsgIdsRef = useRef<Set<string>>(new Set());
   // Hangi davetleri gördük
   const seenInviteIdsRef = useRef<Set<string>>(new Set());
-  // Sayfa yüklenme anı — önceki mesajları bildirim olarak gösterme
-  const mountedAtRef = useRef(Date.now());
+  // Hangi arkadaşlık isteklerini gördük
+  const seenReqsRef = useRef<Set<string>>(new Set());
+  // Grup mesaj ID'leri
+  const seenGroupMsgIdsRef = useRef<Set<string>>(new Set());
 
   // Mesaj dinleyicileri: arkadaş → unsub fonksiyonu
   const msgSubsRef = useRef<Map<string, () => void>>(new Map());
   // Grup mesaj dinleyicileri: groupId → unsub
   const groupSubsRef = useRef<Map<string, () => void>>(new Map());
-  const seenGroupMsgIdsRef = useRef<Set<string>>(new Set());
 
   // Bildirimlere izin iste
   useEffect(() => {
@@ -56,25 +57,27 @@ export function NotificationHub() {
       friendNames.forEach((friendName) => {
         if (msgSubsRef.current.has(friendName)) return;
 
+        // initialized flag — ilk callback sadece seenIds'i doldurur, bildirim göstermez
+        let initialized = false;
+
         const unsub = subscribeToMessages(currentUsername, friendName, (msgs) => {
+          if (!initialized) {
+            msgs.forEach((msg) => { if (msg.id) seenMsgIdsRef.current.add(msg.id); });
+            initialized = true;
+            return;
+          }
+
           msgs.forEach((msg) => {
-            // Kendi mesajlarını atlا
             if (msg.from !== friendName) return;
-            // Sayfa yüklenme öncesindeki mesajları atla
-            if (msg.timestamp < mountedAtRef.current + 2000) return;
-            // Daha önce gösterilenleri atla
             if (msg.id && seenMsgIdsRef.current.has(msg.id)) return;
             if (msg.id) seenMsgIdsRef.current.add(msg.id);
 
-            // Toast göster
             add({
               type: "message",
               from: friendName,
               preview: msg.text,
               timestamp: msg.timestamp,
             });
-
-            // Tarayıcı bildirimi
             showBrowserNotification(`✈ ${friendName}`, msg.text);
           });
         });
@@ -94,9 +97,16 @@ export function NotificationHub() {
   useEffect(() => {
     if (!currentUsername) return;
 
+    let initialized = false;
+
     const unsubInvites = subscribeToFlightInvites(currentUsername, (invites) => {
+      if (!initialized) {
+        invites.forEach((inv) => seenInviteIdsRef.current.add(inv.id));
+        initialized = true;
+        return;
+      }
+
       invites.forEach((invite) => {
-        if (invite.timestamp < mountedAtRef.current + 2000) return;
         if (seenInviteIdsRef.current.has(invite.id)) return;
         seenInviteIdsRef.current.add(invite.id);
 
@@ -109,10 +119,7 @@ export function NotificationHub() {
           timestamp: invite.timestamp,
         });
 
-        showBrowserNotification(
-          `✈ ${invite.from} uçuşa davet etti`,
-          preview
-        );
+        showBrowserNotification(`✈ ${invite.from} uçuşa davet etti`, preview);
       });
     });
 
@@ -122,12 +129,19 @@ export function NotificationHub() {
   // Arkadaşlık isteklerini dinle
   useEffect(() => {
     if (!currentUsername) return;
-    const seenReqsRef = new Set<string>();
+
+    let initialized = false;
+
     const unsubReqs = subscribeToIncomingRequests(currentUsername, (reqs) => {
+      if (!initialized) {
+        reqs.forEach((req) => seenReqsRef.current.add(req.from));
+        initialized = true;
+        return;
+      }
+
       reqs.forEach((req) => {
-        if (req.timestamp < mountedAtRef.current + 2000) return;
-        if (seenReqsRef.has(req.from)) return;
-        seenReqsRef.add(req.from);
+        if (seenReqsRef.current.has(req.from)) return;
+        seenReqsRef.current.add(req.from);
 
         add({
           type: "friend_request",
@@ -138,6 +152,7 @@ export function NotificationHub() {
         showBrowserNotification(`🤝 ${req.from}`, "Arkadaşlık isteği gönderdi");
       });
     });
+
     return unsubReqs;
   }, [currentUsername, add]);
 
@@ -157,10 +172,17 @@ export function NotificationHub() {
       groups.forEach((group) => {
         if (groupSubsRef.current.has(group.id)) return;
 
+        let initialized = false;
+
         const unsub = subscribeToGroupMessages(group.id, (msgs) => {
+          if (!initialized) {
+            msgs.forEach((msg) => seenGroupMsgIdsRef.current.add(msg.id));
+            initialized = true;
+            return;
+          }
+
           msgs.forEach((msg) => {
             if (msg.from === currentUsername) return;
-            if (msg.timestamp < mountedAtRef.current + 2000) return;
             if (seenGroupMsgIdsRef.current.has(msg.id)) return;
             seenGroupMsgIdsRef.current.add(msg.id);
 

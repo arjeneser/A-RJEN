@@ -10,6 +10,7 @@ export interface FlightInvite {
   durationOption: FlightDurationOption;
   status: "pending";
   timestamp: number;
+  lobbyId?: string;
 }
 
 /** Uçuş daveti gönder */
@@ -18,13 +19,14 @@ export async function sendFlightInvite(
   to: string,
   departure: City,
   destination: City,
-  durationOption: FlightDurationOption
+  durationOption: FlightDurationOption,
+  lobbyId?: string
 ): Promise<void> {
   const db = getDb();
   if (!db) return;
   const inviteRef = push(ref(db, `flightInvites/${to}`));
   const id = inviteRef.key!;
-  await set(inviteRef, {
+  const payload: Record<string, unknown> = {
     id,
     from,
     departure,
@@ -32,7 +34,9 @@ export async function sendFlightInvite(
     durationOption,
     status: "pending",
     timestamp: Date.now(),
-  });
+  };
+  if (lobbyId) payload.lobbyId = lobbyId;
+  await set(inviteRef, payload);
 }
 
 /** Daveti sil (reddet veya kabul sonrası temizle) */

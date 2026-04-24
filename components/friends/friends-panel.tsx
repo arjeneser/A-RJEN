@@ -38,6 +38,7 @@ import {
   subscribeToFlightInvites,
   type FlightInvite,
 } from "@/lib/flight-invites";
+import { createLobby, joinLobby } from "@/lib/lobby";
 import {
   getDepartureCities,
   getReachableDestinations,
@@ -112,6 +113,8 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
   const [propDestination, setPropDestination] = useState<City | null>(null);
   const [propSending, setPropSending]     = useState(false);
   const [propSent, setPropSent]           = useState(false);
+  // Step wizard: 1=departure 2=duration 3=destination 4=group+send
+  const [propStep, setPropStep]           = useState<1 | 2 | 3 | 4>(1);
   // Multi-invite: extra friends to send same invite to (besides activeFriend)
   const [extraInvitees, setExtraInvitees] = useState<string[]>([]);
 
@@ -229,6 +232,7 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
     setPropDuration(null);
     setPropDestination(null);
     setPropSent(false);
+    setPropStep(1);
     setExtraInvitees([]);
     setView("propose");
   }
@@ -236,25 +240,47 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
   async function handleSendInvite() {
     if (!currentUsername || !activeFriend || !propDeparture || !propDuration || !propDestination) return;
     setPropSending(true);
-    // Send to activeFriend + any extra group members
     const allRecipients = [activeFriend, ...extraInvitees];
-    await Promise.all(
-      allRecipients.map((r) =>
-        sendFlightInvite(currentUsername, r, propDeparture, propDestination, propDuration)
-      )
-    );
-    setPropSending(false);
-    setPropSent(true);
-    setTimeout(() => { setView("chat"); setPropSent(false); }, 1800);
+    const isGroupInvite = allRecipients.length > 1;
+
+    // Grup daveti ise lobi oluştur, herkese lobbyId ile davet gönder
+    if (isGroupInvite) {
+      const lobbyId = await createLobby(propDeparture, propDestination, propDuration, currentUsername);
+      await Promise.all(
+        allRecipients.map((r) =>
+          sendFlightInvite(currentUsername, r, propDeparture, propDestination, propDuration, lobbyId)
+        )
+      );
+      setPropSending(false);
+      setPropSent(true);
+      setTimeout(() => {
+        setPropSent(false);
+        onClose();
+        router.push(`/lobby/${lobbyId}`);
+      }, 1200);
+    } else {
+      await sendFlightInvite(currentUsername, activeFriend, propDeparture, propDestination, propDuration);
+      setPropSending(false);
+      setPropSent(true);
+      setTimeout(() => { setView("chat"); setPropSent(false); }, 1800);
+    }
   }
 
   async function handleAcceptInvite(invite: FlightInvite) {
     if (!currentUsername) return;
-    joinFlight(invite.departure, invite.destination);
-    setDuration(invite.durationOption);
     await removeFlightInvite(currentUsername, invite.id);
-    router.push("/new-flight");
-    onClose();
+    if (invite.lobbyId) {
+      // Grup uçuşu — lobiye katıl
+      await joinLobby(invite.lobbyId, currentUsername);
+      onClose();
+      router.push(`/lobby/${invite.lobbyId}`);
+    } else {
+      // Tekli davet — doğrudan uçuşa başla
+      joinFlight(invite.departure, invite.destination);
+      setDuration(invite.durationOption);
+      router.push("/new-flight");
+      onClose();
+    }
   }
 
   function handleJoinFlight(friend: FriendInfo) {
@@ -948,203 +974,258 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                   {propSent ? (
                     <div className="flex flex-col items-center justify-center py-16 gap-3">
                       <span className="text-5xl">✈</span>
-                      <p className="text-white font-semibold text-center">
-                        Davet gönderildi!
-                      </p>
+                      <p className="text-white font-semibold text-center">Davet gönderildi!</p>
                       <p className="text-slate-500 text-xs text-center">
-                        {activeFriend} kabul edince birlikte kalkar siniz.
+                        {extraInvitees.length > 0
+                          ? "Lobi oluşturuldu, yönlendiriliyorsunuz…"
+                          : `${activeFriend} kabul edince birlikte kalkarsınız.`}
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-5">
-                      {/* Departure */}
-                      <div>
-                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
-                          Kalkış Havalimanı
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          {departureCities.map((city) => (
-                            <button
-                              key={city.id}
-                              onClick={() => { setPropDeparture(city); setPropDuration(null); setPropDestination(null); }}
-                              className="p-2.5 rounded-xl text-left transition-all active:scale-95"
-                              style={
-                                propDeparture?.id === city.id
-                                  ? {
-                                      background: "rgba(59,130,246,0.15)",
-                                      border: "1px solid rgba(59,130,246,0.45)",
-                                      color: "white",
-                                    }
-                                  : {
-                                      background: "rgba(255,255,255,0.03)",
-                                      border: "1px solid rgba(255,255,255,0.07)",
-                                      color: "#94A3B8",
-                                    }
-                              }
-                            >
-                              <div className="text-xs font-semibold leading-tight">{city.name}</div>
-                              <div className="text-[10px] opacity-60">{city.country}</div>
-                            </button>
-                          ))}
-                        </div>
+                    <div className="space-y-4">
+
+                      {/* ── Tamamlanan adımların chip'leri ── */}
+                      <div className="space-y-1.5">
+                        {propDeparture && (
+                          <motion.button
+                            initial={{ opacity: 0, y: -6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            onClick={() => { setPropStep(1); }}
+                            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left transition-all"
+                            style={{
+                              background: "rgba(59,130,246,0.08)",
+                              border: "1px solid rgba(59,130,246,0.25)",
+                            }}
+                          >
+                            <span className="text-[10px] font-bold text-blue-400/70 uppercase tracking-widest w-16 shrink-0">Kalkış</span>
+                            <span className="text-xs text-white font-semibold flex-1 truncate">{propDeparture.name}</span>
+                            <span className="text-[10px] text-slate-600">← değiştir</span>
+                          </motion.button>
+                        )}
+                        {propDuration && (
+                          <motion.button
+                            initial={{ opacity: 0, y: -6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            onClick={() => { setPropStep(2); }}
+                            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left transition-all"
+                            style={{
+                              background: "rgba(59,130,246,0.08)",
+                              border: "1px solid rgba(59,130,246,0.25)",
+                            }}
+                          >
+                            <span className="text-[10px] font-bold text-blue-400/70 uppercase tracking-widest w-16 shrink-0">Süre</span>
+                            <span className="text-xs text-white font-semibold flex-1">{propDuration.label}</span>
+                            <span className="text-[10px] text-slate-600">← değiştir</span>
+                          </motion.button>
+                        )}
+                        {propDestination && (
+                          <motion.button
+                            initial={{ opacity: 0, y: -6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            onClick={() => { setPropStep(3); }}
+                            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left transition-all"
+                            style={{
+                              background: "rgba(59,130,246,0.08)",
+                              border: "1px solid rgba(59,130,246,0.25)",
+                            }}
+                          >
+                            <span className="text-[10px] font-bold text-blue-400/70 uppercase tracking-widest w-16 shrink-0">Varış</span>
+                            <span className="text-xs text-white font-semibold flex-1 truncate">{propDestination.name}</span>
+                            <span className="text-[10px] text-slate-600">← değiştir</span>
+                          </motion.button>
+                        )}
                       </div>
 
-                      {/* Duration */}
-                      {propDeparture && (
-                        <div>
-                          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
-                            Uçuş Süresi
-                          </div>
-                          <div className="grid grid-cols-4 gap-1.5">
-                            {FLIGHT_DURATIONS.map((d) => (
-                              <button
-                                key={d.key}
-                                onClick={() => { setPropDuration(d); setPropDestination(null); }}
-                                className="py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
-                                style={
-                                  propDuration?.key === d.key
-                                    ? {
-                                        background: "rgba(59,130,246,0.18)",
-                                        border: "1px solid rgba(59,130,246,0.45)",
-                                        color: "white",
-                                      }
-                                    : {
-                                        background: "rgba(255,255,255,0.03)",
-                                        border: "1px solid rgba(255,255,255,0.07)",
-                                        color: "#64748B",
-                                      }
-                                }
-                              >
-                                {d.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      {/* ── Aktif adım ── */}
+                      <AnimatePresence mode="wait">
 
-                      {/* Destination */}
-                      {propDeparture && propDuration && (
-                        <div>
-                          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
-                            Varış ({reachable.length} şehir)
-                          </div>
-                          {reachable.length === 0 ? (
-                            <p className="text-xs text-slate-600">Bu süre için uygun varış bulunamadı.</p>
-                          ) : (
-                            <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
-                              {reachable.map((city) => (
+                        {/* ADIM 1: Kalkış */}
+                        {propStep === 1 && (
+                          <motion.div
+                            key="step1"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.15 }}
+                          >
+                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+                              Kalkış Havalimanı
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              {departureCities.map((city) => (
                                 <button
                                   key={city.id}
-                                  onClick={() => setPropDestination(city)}
-                                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left transition-all active:scale-[0.98]"
+                                  onClick={() => {
+                                    setPropDeparture(city);
+                                    setPropDuration(null);
+                                    setPropDestination(null);
+                                    setPropStep(2);
+                                  }}
+                                  className="p-2.5 rounded-xl text-left transition-all active:scale-95"
                                   style={
-                                    propDestination?.id === city.id
-                                      ? {
-                                          background: "rgba(59,130,246,0.15)",
-                                          border: "1px solid rgba(59,130,246,0.4)",
-                                        }
-                                      : {
-                                          background: "rgba(255,255,255,0.03)",
-                                          border: "1px solid rgba(255,255,255,0.06)",
-                                        }
+                                    propDeparture?.id === city.id
+                                      ? { background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.45)", color: "white" }
+                                      : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", color: "#94A3B8" }
                                   }
                                 >
-                                  <img
-                                    src={`https://flagcdn.com/w40/${city.countryCode.toLowerCase()}.png`}
-                                    alt=""
-                                    className="w-5 h-3 object-cover rounded-sm shrink-0"
-                                  />
-                                  <span className="text-xs text-slate-300 font-medium truncate">{city.name}</span>
-                                  <span className="text-[10px] text-slate-600 ml-auto shrink-0">{city.country}</span>
+                                  <div className="text-xs font-semibold leading-tight">{city.name}</div>
+                                  <div className="text-[10px] opacity-60">{city.country}</div>
                                 </button>
                               ))}
                             </div>
-                          )}
-                        </div>
-                      )}
+                          </motion.div>
+                        )}
 
-                      {/* Group invite: select other friends */}
-                      {propDeparture && propDuration && propDestination && (() => {
-                        const otherFriends = friends.filter((f) => f.username !== activeFriend);
-                        if (otherFriends.length === 0) return null;
-                        return (
-                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                        {/* ADIM 2: Süre */}
+                        {propStep === 2 && propDeparture && (
+                          <motion.div
+                            key="step2"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.15 }}
+                          >
                             <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
-                              👥 Gruba Ekle (opsiyonel)
+                              Uçuş Süresi
                             </div>
-                            <div className="flex flex-wrap gap-1.5">
-                              {otherFriends.map((f) => {
-                                const selected = extraInvitees.includes(f.username);
-                                return (
-                                  <button
-                                    key={f.username}
-                                    onClick={() =>
-                                      setExtraInvitees((prev) =>
-                                        selected
-                                          ? prev.filter((u) => u !== f.username)
-                                          : [...prev, f.username]
-                                      )
-                                    }
-                                    className="px-2.5 py-1 rounded-full text-xs font-semibold transition-all"
-                                    style={
-                                      selected
-                                        ? {
-                                            background: "rgba(124,58,237,0.25)",
-                                            border: "1px solid rgba(124,58,237,0.5)",
-                                            color: "#C4B5FD",
-                                          }
-                                        : {
-                                            background: "rgba(255,255,255,0.04)",
-                                            border: "1px solid rgba(255,255,255,0.09)",
-                                            color: "#64748B",
-                                          }
-                                    }
-                                  >
-                                    {selected ? "✓ " : "+ "}{f.username}
-                                  </button>
-                                );
-                              })}
+                            <div className="grid grid-cols-2 gap-2">
+                              {FLIGHT_DURATIONS.map((d) => (
+                                <button
+                                  key={d.key}
+                                  onClick={() => {
+                                    setPropDuration(d);
+                                    setPropDestination(null);
+                                    setPropStep(3);
+                                  }}
+                                  className="py-3 px-3 rounded-xl text-left transition-all active:scale-95"
+                                  style={
+                                    propDuration?.key === d.key
+                                      ? { background: "rgba(59,130,246,0.18)", border: "1px solid rgba(59,130,246,0.45)", color: "white" }
+                                      : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", color: "#64748B" }
+                                  }
+                                >
+                                  <div className="text-sm font-bold">{d.label}</div>
+                                  <div className="text-[10px] opacity-60">+{d.xpReward} XP</div>
+                                </button>
+                              ))}
                             </div>
                           </motion.div>
-                        );
-                      })()}
+                        )}
 
-                      {/* Send button */}
-                      {propDeparture && propDuration && propDestination && (
-                        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                          <div
-                            className="p-3 rounded-xl mb-3 text-xs text-slate-400"
-                            style={{
-                              background: "rgba(124,58,237,0.07)",
-                              border: "1px solid rgba(124,58,237,0.2)",
-                            }}
+                        {/* ADIM 3: Varış */}
+                        {propStep === 3 && propDeparture && propDuration && (
+                          <motion.div
+                            key="step3"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.15 }}
                           >
-                            <div className="font-semibold text-purple-300 mb-1">Özet</div>
-                            <div>{propDeparture.name} → {propDestination.name}</div>
-                            <div className="text-slate-500">{propDuration.label} · +{propDuration.xpReward} XP</div>
-                            {extraInvitees.length > 0 && (
-                              <div className="mt-1 text-purple-400/70">
-                                👥 {[activeFriend, ...extraInvitees].join(", ")} kişiye gönderilecek
+                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+                              Varış ({reachable.length} şehir)
+                            </div>
+                            {reachable.length === 0 ? (
+                              <p className="text-xs text-slate-600">Bu süre için uygun varış bulunamadı.</p>
+                            ) : (
+                              <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
+                                {reachable.map((city) => (
+                                  <button
+                                    key={city.id}
+                                    onClick={() => { setPropDestination(city); setPropStep(4); }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left transition-all active:scale-[0.98]"
+                                    style={
+                                      propDestination?.id === city.id
+                                        ? { background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.4)" }
+                                        : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }
+                                    }
+                                  >
+                                    <img
+                                      src={`https://flagcdn.com/w40/${city.countryCode.toLowerCase()}.png`}
+                                      alt=""
+                                      className="w-5 h-3 object-cover rounded-sm shrink-0"
+                                    />
+                                    <span className="text-xs text-slate-300 font-medium truncate">{city.name}</span>
+                                    <span className="text-[10px] text-slate-600 ml-auto shrink-0">{city.country}</span>
+                                  </button>
+                                ))}
                               </div>
                             )}
-                          </div>
-                          <button
-                            onClick={handleSendInvite}
-                            disabled={propSending}
-                            className="w-full py-3 rounded-2xl font-bold text-white transition-all active:scale-[0.98] disabled:opacity-50"
-                            style={{
-                              background: "linear-gradient(135deg, #7C3AED, #5B21B6)",
-                              boxShadow: "0 4px 20px rgba(124,58,237,0.4)",
-                            }}
+                          </motion.div>
+                        )}
+
+                        {/* ADIM 4: Grup + Gönder */}
+                        {propStep === 4 && propDeparture && propDuration && propDestination && (
+                          <motion.div
+                            key="step4"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.15 }}
+                            className="space-y-4"
                           >
-                            {propSending
-                              ? "Gönderiliyor…"
-                              : extraInvitees.length > 0
-                              ? `✈ ${1 + extraInvitees.length} Kişiye Davet Gönder`
-                              : `✈ ${activeFriend}'a Davet Gönder`}
-                          </button>
-                        </motion.div>
-                      )}
+                            {/* Gruba ekle */}
+                            {(() => {
+                              const otherFriends = friends.filter((f) => f.username !== activeFriend);
+                              if (otherFriends.length === 0) return null;
+                              return (
+                                <div>
+                                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+                                    👥 Gruba Ekle (opsiyonel)
+                                  </div>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {otherFriends.map((f) => {
+                                      const selected = extraInvitees.includes(f.username);
+                                      return (
+                                        <button
+                                          key={f.username}
+                                          onClick={() =>
+                                            setExtraInvitees((prev) =>
+                                              selected
+                                                ? prev.filter((u) => u !== f.username)
+                                                : [...prev, f.username]
+                                            )
+                                          }
+                                          className="px-2.5 py-1 rounded-full text-xs font-semibold transition-all"
+                                          style={
+                                            selected
+                                              ? { background: "rgba(124,58,237,0.25)", border: "1px solid rgba(124,58,237,0.5)", color: "#C4B5FD" }
+                                              : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", color: "#64748B" }
+                                          }
+                                        >
+                                          {selected ? "✓ " : "+ "}{f.username}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                  {extraInvitees.length > 0 && (
+                                    <p className="text-[10px] text-purple-400/60 mt-1.5">
+                                      Grup daveti lobi oluşturur — herkes hazır olmadan uçuş başlamaz.
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            })()}
+
+                            {/* Gönder butonu */}
+                            <button
+                              onClick={handleSendInvite}
+                              disabled={propSending}
+                              className="w-full py-3 rounded-2xl font-bold text-white transition-all active:scale-[0.98] disabled:opacity-50"
+                              style={{
+                                background: "linear-gradient(135deg, #7C3AED, #5B21B6)",
+                                boxShadow: "0 4px 20px rgba(124,58,237,0.4)",
+                              }}
+                            >
+                              {propSending
+                                ? "Gönderiliyor…"
+                                : extraInvitees.length > 0
+                                ? `✈ ${1 + extraInvitees.length} Kişiye Lobi Daveti Gönder`
+                                : `✈ ${activeFriend}'a Davet Gönder`}
+                            </button>
+                          </motion.div>
+                        )}
+
+                      </AnimatePresence>
                     </div>
                   )}
                 </motion.div>
