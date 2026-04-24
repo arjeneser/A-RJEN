@@ -1,10 +1,14 @@
 "use client";
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToastStore, type AppToast } from "@/store/toast-store";
 import { useAuthStore } from "@/store/auth-store";
+import { useFlightSetup } from "@/store/flight-store";
 import { acceptFriendRequest, rejectFriendRequest } from "@/lib/friends";
 import { leaveGroup } from "@/lib/groups";
+import { removeFlightInvite } from "@/lib/flight-invites";
+import { joinLobby } from "@/lib/lobby";
 
 const ICONS: Record<AppToast["type"], string> = {
   message:         "💬",
@@ -25,9 +29,14 @@ const COLORS: Record<AppToast["type"], { bg: string; border: string; accent: str
 function ToastCard({ toast }: { toast: AppToast }) {
   const { remove } = useToastStore();
   const { currentUsername } = useAuthStore();
+  const { joinFlight, setDuration } = useFlightSetup();
+  const router = useRouter();
   const colors = COLORS[toast.type];
 
-  const hasActions = toast.type === "friend_request" || toast.type === "group_invite";
+  const hasActions =
+    toast.type === "friend_request" ||
+    toast.type === "group_invite" ||
+    (toast.type === "invite" && !!toast.meta?.inviteId);
 
   // Action olmayan kartlar 5sn sonra otomatik kapanır
   // Action olan kartlar kullanıcı karar verene kadar durur (10sn)
@@ -97,6 +106,51 @@ function ToastCard({ toast }: { toast: AppToast }) {
       </div>
 
       {/* ── Action butonları ────────────────────────────────────────────── */}
+      {toast.type === "invite" && toast.meta?.inviteId && (
+        <div
+          className="flex"
+          style={{ borderTop: `1px solid ${colors.border}` }}
+        >
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              const { inviteId, departure, destination, durationOption, lobbyId } = toast.meta!;
+              if (currentUsername && inviteId) {
+                await removeFlightInvite(currentUsername, inviteId);
+              }
+              if (lobbyId) {
+                if (currentUsername) await joinLobby(lobbyId, currentUsername);
+                remove(toast.id);
+                router.push(`/lobby/${lobbyId}`);
+              } else {
+                if (departure && destination) joinFlight(departure, destination);
+                if (durationOption) setDuration(durationOption);
+                remove(toast.id);
+                router.push("/new-flight");
+              }
+            }}
+            className="flex-1 py-2 text-xs font-bold transition-colors hover:opacity-90"
+            style={{ background: "rgba(124,58,237,0.2)", color: "#C084FC" }}
+          >
+            ✈ Kabul Et
+          </button>
+          <div style={{ width: 1, background: colors.border }} />
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              if (currentUsername && toast.meta?.inviteId) {
+                await removeFlightInvite(currentUsername, toast.meta.inviteId);
+              }
+              remove(toast.id);
+            }}
+            className="flex-1 py-2 text-xs font-medium transition-colors hover:opacity-90"
+            style={{ background: "rgba(239,68,68,0.1)", color: "#F87171" }}
+          >
+            ✕ Reddet
+          </button>
+        </div>
+      )}
+
       {toast.type === "friend_request" && (
         <div
           className="flex"

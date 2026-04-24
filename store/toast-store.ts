@@ -1,5 +1,6 @@
 "use client";
 import { create } from "zustand";
+import type { City, FlightDurationOption } from "@/types";
 
 export type ToastType =
   | "message"
@@ -14,8 +15,17 @@ export interface AppToast {
   from: string;
   preview: string;
   timestamp: number;
-  /** group_invite için grup bilgileri */
-  meta?: { groupId: string; groupName: string };
+  /** group_invite */
+  meta?: {
+    groupId?: string;
+    groupName?: string;
+    /** invite */
+    inviteId?: string;
+    departure?: City;
+    destination?: City;
+    durationOption?: FlightDurationOption;
+    lobbyId?: string;
+  };
 }
 
 interface ToastState {

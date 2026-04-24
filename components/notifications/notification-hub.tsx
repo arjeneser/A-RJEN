@@ -89,7 +89,19 @@ export function NotificationHub() {
         if (seenInviteIdsRef.current.has(invite.id)) return;
         seenInviteIdsRef.current.add(invite.id);
         const preview = `${invite.departure.name} → ${invite.destination.name} · ${invite.durationOption.label}`;
-        add({ type: "invite", from: invite.from, preview, timestamp: invite.timestamp });
+        add({
+          type: "invite",
+          from: invite.from,
+          preview,
+          timestamp: invite.timestamp,
+          meta: {
+            inviteId: invite.id,
+            departure: invite.departure,
+            destination: invite.destination,
+            durationOption: invite.durationOption,
+            lobbyId: invite.lobbyId,
+          },
+        });
         showBrowserNotification(`✈ ${invite.from} uçuşa davet etti`, preview);
       });
     });
