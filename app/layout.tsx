@@ -4,7 +4,6 @@ import "./globals.css";
 import { Navbar } from "@/components/layout/navbar";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { NotificationHub } from "@/components/notifications/notification-hub";
-import { ToastContainer } from "@/components/notifications/toast-container";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -52,7 +51,6 @@ export default function RootLayout({
         <AuthProvider>
           <Navbar />
           <NotificationHub />
-          <ToastContainer />
           <main>{children}</main>
         </AuthProvider>
       </body>
