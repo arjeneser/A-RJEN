@@ -122,14 +122,20 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
     ? getReachableDestinations(propDeparture, propDuration)
     : [];
 
-  // ── Firebase subscriptions ───────────────────────────────────────────────────
+  // ── Her zaman açık: bildirim sayısı için (panel kapalıyken de çalışır) ────────
+  useEffect(() => {
+    if (!currentUsername) return;
+    const u1 = subscribeToIncomingRequests(currentUsername, setIncomingReqs);
+    const u2 = subscribeToFlightInvites(currentUsername, setFlightInvites);
+    return () => { u1(); u2(); };
+  }, [currentUsername]);
+
+  // ── Panel açıkken: arkadaş listesi + gruplar ─────────────────────────────────
   useEffect(() => {
     if (!currentUsername || !open) return;
-    const u1 = subscribeToIncomingRequests(currentUsername, setIncomingReqs);
-    const u2 = subscribeToFriends(currentUsername, setFriends);
-    const u3 = subscribeToFlightInvites(currentUsername, setFlightInvites);
-    const u4 = subscribeToUserGroups(currentUsername, setGroups);
-    return () => { u1(); u2(); u3(); u4(); };
+    const u1 = subscribeToFriends(currentUsername, setFriends);
+    const u2 = subscribeToUserGroups(currentUsername, setGroups);
+    return () => { u1(); u2(); };
   }, [currentUsername, open]);
 
   // ── Notify parent of badge count ─────────────────────────────────────────────
