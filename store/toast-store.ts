@@ -1,7 +1,12 @@
 "use client";
 import { create } from "zustand";
 
-export type ToastType = "message" | "invite" | "friend_accepted" | "friend_request";
+export type ToastType =
+  | "message"
+  | "invite"
+  | "friend_accepted"
+  | "friend_request"
+  | "group_invite";
 
 export interface AppToast {
   id: string;
@@ -9,6 +14,8 @@ export interface AppToast {
   from: string;
   preview: string;
   timestamp: number;
+  /** group_invite için grup bilgileri */
+  meta?: { groupId: string; groupName: string };
 }
 
 interface ToastState {
@@ -21,7 +28,6 @@ export const useToastStore = create<ToastState>((set) => ({
   toasts: [],
   add: (t) =>
     set((s) => ({
-      // En fazla 4 toast göster, eskilerden sil
       toasts: [
         ...s.toasts.slice(-3),
         { ...t, id: Math.random().toString(36).slice(2, 9) },

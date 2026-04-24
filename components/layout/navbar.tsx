@@ -10,6 +10,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { formatDuration } from "@/lib/utils";
 import { FriendsPanel } from "@/components/friends/friends-panel";
 import { useToastStore, type AppToast } from "@/store/toast-store";
+import { leaveGroup } from "@/lib/groups";
 
 const NAV_LINKS = [
   { href: "/", label: "Ana Sayfa" },
@@ -22,6 +23,7 @@ const POPUP_ICONS: Record<AppToast["type"], string> = {
   invite:          "✈",
   friend_accepted: "👥",
   friend_request:  "🤝",
+  group_invite:    "👥",
 };
 
 const POPUP_LABELS: Record<AppToast["type"], string> = {
@@ -29,6 +31,15 @@ const POPUP_LABELS: Record<AppToast["type"], string> = {
   invite:          "Uçuş daveti",
   friend_accepted: "Arkadaşlık kabul edildi",
   friend_request:  "Arkadaşlık isteği",
+  group_invite:    "Grup daveti",
+};
+
+const POPUP_ACCENT: Record<AppToast["type"], string> = {
+  message:         "168,85,247",
+  invite:          "168,85,247",
+  friend_accepted: "168,85,247",
+  friend_request:  "168,85,247",
+  group_invite:    "16,185,129",
 };
 
 export function Navbar() {
@@ -246,23 +257,31 @@ export function Navbar() {
                         style={{ width: 260 }}
                       >
                         {/* Ok işareti */}
-                        <div
-                          className="absolute -top-1.5 right-3.5 w-3 h-3 rotate-45"
-                          style={{
-                            background: "#1A0A2E",
-                            border: "1px solid rgba(168,85,247,0.4)",
-                            borderBottomColor: "transparent",
-                            borderRightColor: "transparent",
-                          }}
-                        />
+                        {(() => {
+                          const ac = POPUP_ACCENT[popupToast.type];
+                          return (
+                            <div
+                              className="absolute -top-1.5 right-3.5 w-3 h-3 rotate-45"
+                              style={{
+                                background: "#0A0F1E",
+                                border: `1px solid rgba(${ac},0.4)`,
+                                borderBottomColor: "transparent",
+                                borderRightColor: "transparent",
+                              }}
+                            />
+                          );
+                        })()}
 
                         {/* Kart */}
+                        {(() => {
+                          const ac = POPUP_ACCENT[popupToast.type];
+                          return (
                         <div
                           className="rounded-2xl overflow-hidden"
                           style={{
-                            background: "linear-gradient(135deg, #1A0A2E 0%, #0F0720 100%)",
-                            border: "1px solid rgba(168,85,247,0.35)",
-                            boxShadow: "0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(168,85,247,0.15)",
+                            background: "linear-gradient(135deg, #0D1B2A 0%, #070918 100%)",
+                            border: `1px solid rgba(${ac},0.35)`,
+                            boxShadow: `0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(${ac},0.12)`,
                           }}
                         >
                           {/* İçerik */}
@@ -272,8 +291,8 @@ export function Navbar() {
                               <div
                                 className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0"
                                 style={{
-                                  background: "rgba(168,85,247,0.2)",
-                                  border: "1px solid rgba(168,85,247,0.35)",
+                                  background: `rgba(${ac},0.18)`,
+                                  border: `1px solid rgba(${ac},0.35)`,
                                 }}
                               >
                                 {POPUP_ICONS[popupToast.type]}
@@ -284,7 +303,7 @@ export function Navbar() {
                                 <div className="flex items-center justify-between gap-1 mb-0.5">
                                   <span
                                     className="text-[10px] font-bold uppercase tracking-wider"
-                                    style={{ color: "rgba(192,132,252,0.7)" }}
+                                    style={{ color: `rgba(${ac},0.8)` }}
                                   >
                                     {POPUP_LABELS[popupToast.type]}
                                   </span>
@@ -308,39 +327,85 @@ export function Navbar() {
                             </div>
                           </div>
 
-                          {/* Aç butonu */}
-                          <button
-                            onClick={openPanelFromPopup}
-                            className="w-full px-4 py-2.5 flex items-center justify-between text-xs font-semibold transition-colors"
-                            style={{
-                              background: "rgba(168,85,247,0.12)",
-                              borderTop: "1px solid rgba(168,85,247,0.2)",
-                              color: "#C084FC",
-                            }}
-                          >
-                            <span>
-                              {popupToast?.type === "message"
-                                ? "Mesaja Git"
-                                : popupToast?.type === "friend_request"
-                                ? "İsteği Gör"
-                                : popupToast?.type === "invite"
-                                ? "Daveti Gör"
-                                : "Arkadaşlar"}
-                            </span>
-                            <span>→</span>
-                          </button>
+                          {/* Alt buton(lar) */}
+                          {popupToast?.type === "group_invite" && popupToast.meta ? (
+                            /* Grup daveti: Katıl + Reddet yan yana */
+                            <div
+                              className="flex gap-0"
+                              style={{ borderTop: "1px solid rgba(16,185,129,0.2)" }}
+                            >
+                              <button
+                                onClick={() => {
+                                  dismissPopup();
+                                  setFriendsPanelOpen(true);
+                                }}
+                                className="flex-1 py-2.5 text-xs font-bold transition-colors"
+                                style={{
+                                  background: "rgba(16,185,129,0.15)",
+                                  color: "#34D399",
+                                  borderRight: "1px solid rgba(16,185,129,0.15)",
+                                }}
+                              >
+                                ✓ Katıl
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (currentUsername && popupToast.meta) {
+                                    await leaveGroup(popupToast.meta.groupId, currentUsername);
+                                  }
+                                  dismissPopup();
+                                }}
+                                className="flex-1 py-2.5 text-xs font-medium transition-colors"
+                                style={{
+                                  background: "rgba(239,68,68,0.08)",
+                                  color: "#F87171",
+                                }}
+                              >
+                                ✕ Reddet
+                              </button>
+                            </div>
+                          ) : (
+                            /* Diğer bildirimler: tek buton */
+                            <button
+                              onClick={openPanelFromPopup}
+                              className="w-full px-4 py-2.5 flex items-center justify-between text-xs font-semibold transition-colors"
+                              style={{
+                                background: "rgba(168,85,247,0.12)",
+                                borderTop: "1px solid rgba(168,85,247,0.2)",
+                                color: "#C084FC",
+                              }}
+                            >
+                              <span>
+                                {popupToast?.type === "message"
+                                  ? "Mesaja Git"
+                                  : popupToast?.type === "friend_request"
+                                  ? "İsteği Gör"
+                                  : popupToast?.type === "invite"
+                                  ? "Daveti Gör"
+                                  : "Arkadaşlar"}
+                              </span>
+                              <span>→</span>
+                            </button>
+                          )}
 
                           {/* Progress bar */}
-                          <div className="h-0.5" style={{ background: "rgba(168,85,247,0.1)" }}>
-                            <motion.div
-                              className="h-full"
-                              style={{ background: "rgba(168,85,247,0.5)" }}
-                              initial={{ width: "100%" }}
-                              animate={{ width: "0%" }}
-                              transition={{ duration: 5, ease: "linear" }}
-                            />
-                          </div>
+                          {(() => {
+                            const ac = POPUP_ACCENT[popupToast.type];
+                            return (
+                              <div className="h-0.5" style={{ background: `rgba(${ac},0.1)` }}>
+                                <motion.div
+                                  className="h-full"
+                                  style={{ background: `rgba(${ac},0.5)` }}
+                                  initial={{ width: "100%" }}
+                                  animate={{ width: "0%" }}
+                                  transition={{ duration: 5, ease: "linear" }}
+                                />
+                              </div>
+                            );
+                          })()}
                         </div>
+                        );
+                        })()}
                       </motion.div>
                     )}
                   </AnimatePresence>

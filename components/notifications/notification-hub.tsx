@@ -2,7 +2,7 @@
 /**
  * NotificationHub
  * ────────────────
- * Firebase'den gelen mesajları ve uçuş davetlerini dinler,
+ * Firebase'den gelen mesajları ve bildirimleri dinler,
  * yeni bildirim gelince toast + tarayıcı bildirimi gösterir.
  * Layout'ta tek bir kere render edilir.
  */
@@ -19,18 +19,13 @@ export function NotificationHub() {
   const currentUsername = useAuthStore((s) => s.currentUsername);
   const { add } = useToastStore();
 
-  // Hangi mesajları gördük → sadece yenileri bildir
-  const seenMsgIdsRef = useRef<Set<string>>(new Set());
-  // Hangi davetleri gördük
-  const seenInviteIdsRef = useRef<Set<string>>(new Set());
-  // Hangi arkadaşlık isteklerini gördük
-  const seenReqsRef = useRef<Set<string>>(new Set());
-  // Grup mesaj ID'leri
-  const seenGroupMsgIdsRef = useRef<Set<string>>(new Set());
+  const seenMsgIdsRef       = useRef<Set<string>>(new Set());
+  const seenInviteIdsRef    = useRef<Set<string>>(new Set());
+  const seenReqsRef         = useRef<Set<string>>(new Set());
+  const seenGroupMsgIdsRef  = useRef<Set<string>>(new Set());
+  const seenGroupIdsRef     = useRef<Set<string>>(new Set()); // grup davetleri
 
-  // Mesaj dinleyicileri: arkadaş → unsub fonksiyonu
-  const msgSubsRef = useRef<Map<string, () => void>>(new Map());
-  // Grup mesaj dinleyicileri: groupId → unsub
+  const msgSubsRef   = useRef<Map<string, () => void>>(new Map());
   const groupSubsRef = useRef<Map<string, () => void>>(new Map());
 
   // Bildirimlere izin iste
@@ -38,26 +33,19 @@ export function NotificationHub() {
     if (currentUsername) requestNotificationPermission();
   }, [currentUsername]);
 
-  // Arkadaş listesini dinle, her arkadaş için mesaj aboneliği aç
+  // Arkadaş mesajları
   useEffect(() => {
     if (!currentUsername) return;
 
     const unsubFriends = subscribeToFriends(currentUsername, (friends) => {
       const friendNames = friends.map((f) => f.username);
 
-      // Eski arkadaşların aboneliklerini kapat
       msgSubsRef.current.forEach((unsub, name) => {
-        if (!friendNames.includes(name)) {
-          unsub();
-          msgSubsRef.current.delete(name);
-        }
+        if (!friendNames.includes(name)) { unsub(); msgSubsRef.current.delete(name); }
       });
 
-      // Yeni arkadaşlar için abone ol
       friendNames.forEach((friendName) => {
         if (msgSubsRef.current.has(friendName)) return;
-
-        // initialized flag — ilk callback sadece seenIds'i doldurur, bildirim göstermez
         let initialized = false;
 
         const unsub = subscribeToMessages(currentUsername, friendName, (msgs) => {
@@ -66,18 +54,11 @@ export function NotificationHub() {
             initialized = true;
             return;
           }
-
           msgs.forEach((msg) => {
             if (msg.from !== friendName) return;
             if (msg.id && seenMsgIdsRef.current.has(msg.id)) return;
             if (msg.id) seenMsgIdsRef.current.add(msg.id);
-
-            add({
-              type: "message",
-              from: friendName,
-              preview: msg.text,
-              timestamp: msg.timestamp,
-            });
+            add({ type: "message", from: friendName, preview: msg.text, timestamp: msg.timestamp });
             showBrowserNotification(`✈ ${friendName}`, msg.text);
           });
         });
@@ -93,56 +74,43 @@ export function NotificationHub() {
     };
   }, [currentUsername, add]);
 
-  // Uçuş davetlerini dinle
+  // Uçuş davetleri
   useEffect(() => {
     if (!currentUsername) return;
-
     let initialized = false;
 
-    const unsubInvites = subscribeToFlightInvites(currentUsername, (invites) => {
+    const unsub = subscribeToFlightInvites(currentUsername, (invites) => {
       if (!initialized) {
         invites.forEach((inv) => seenInviteIdsRef.current.add(inv.id));
         initialized = true;
         return;
       }
-
       invites.forEach((invite) => {
         if (seenInviteIdsRef.current.has(invite.id)) return;
         seenInviteIdsRef.current.add(invite.id);
-
         const preview = `${invite.departure.name} → ${invite.destination.name} · ${invite.durationOption.label}`;
-
-        add({
-          type: "invite",
-          from: invite.from,
-          preview,
-          timestamp: invite.timestamp,
-        });
-
+        add({ type: "invite", from: invite.from, preview, timestamp: invite.timestamp });
         showBrowserNotification(`✈ ${invite.from} uçuşa davet etti`, preview);
       });
     });
 
-    return unsubInvites;
+    return unsub;
   }, [currentUsername, add]);
 
-  // Arkadaşlık isteklerini dinle
+  // Arkadaşlık istekleri
   useEffect(() => {
     if (!currentUsername) return;
-
     let initialized = false;
 
-    const unsubReqs = subscribeToIncomingRequests(currentUsername, (reqs) => {
+    const unsub = subscribeToIncomingRequests(currentUsername, (reqs) => {
       if (!initialized) {
         reqs.forEach((req) => seenReqsRef.current.add(req.from));
         initialized = true;
         return;
       }
-
       reqs.forEach((req) => {
         if (seenReqsRef.current.has(req.from)) return;
         seenReqsRef.current.add(req.from);
-
         add({
           type: "friend_request",
           from: req.from,
@@ -153,39 +121,62 @@ export function NotificationHub() {
       });
     });
 
-    return unsubReqs;
+    return unsub;
   }, [currentUsername, add]);
 
-  // Grup mesajlarını dinle
+  // Grup davetleri + grup mesajları
   useEffect(() => {
     if (!currentUsername) return;
+    let groupsInitialized = false;
 
     const unsubGroups = subscribeToUserGroups(currentUsername, (groups) => {
       const groupIds = groups.map((g) => g.id);
 
-      // Eski grupların aboneliklerini kapat
+      // ── Grup daveti tespiti ──────────────────────────────────────────────────
+      if (!groupsInitialized) {
+        // İlk callback: mevcut grupları sessizce kaydet
+        groups.forEach((g) => seenGroupIdsRef.current.add(g.id));
+        groupsInitialized = true;
+      } else {
+        // Sonraki callbackler: yeni grup varsa ve kuranı biz değilsek → davet toast
+        groups.forEach((g) => {
+          if (seenGroupIdsRef.current.has(g.id)) return;
+          seenGroupIdsRef.current.add(g.id);
+          if (g.createdBy === currentUsername) return; // kendimiz kurduk
+
+          add({
+            type: "group_invite",
+            from: g.createdBy,
+            preview: `"${g.name}" adlı gruba eklendiniz`,
+            timestamp: g.createdAt,
+            meta: { groupId: g.id, groupName: g.name },
+          });
+          showBrowserNotification(
+            `👥 ${g.createdBy} gruba ekledi`,
+            `"${g.name}" adlı gruba katılmak ister misiniz?`
+          );
+        });
+      }
+
+      // ── Grup mesaj abonelikleri ──────────────────────────────────────────────
       groupSubsRef.current.forEach((unsub, id) => {
         if (!groupIds.includes(id)) { unsub(); groupSubsRef.current.delete(id); }
       });
 
-      // Yeni gruplar için abone ol
       groups.forEach((group) => {
         if (groupSubsRef.current.has(group.id)) return;
-
-        let initialized = false;
+        let msgInitialized = false;
 
         const unsub = subscribeToGroupMessages(group.id, (msgs) => {
-          if (!initialized) {
+          if (!msgInitialized) {
             msgs.forEach((msg) => seenGroupMsgIdsRef.current.add(msg.id));
-            initialized = true;
+            msgInitialized = true;
             return;
           }
-
           msgs.forEach((msg) => {
             if (msg.from === currentUsername) return;
             if (seenGroupMsgIdsRef.current.has(msg.id)) return;
             seenGroupMsgIdsRef.current.add(msg.id);
-
             add({
               type: "message",
               from: `${group.name} › ${msg.from}`,
@@ -207,5 +198,5 @@ export function NotificationHub() {
     };
   }, [currentUsername, add]);
 
-  return null; // Görsel çıktı yok
+  return null;
 }
