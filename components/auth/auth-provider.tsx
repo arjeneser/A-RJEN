@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { useUserStore } from "@/store/user-store";
 import { registerPresence } from "@/lib/friends";
+import { requestNotificationPermission } from "@/lib/notifications";
 
 /**
  * AuthProvider
@@ -32,8 +33,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (loadedRef.current === currentUsername) return; // already loaded
     loadedRef.current = currentUsername;
 
-    // Register user presence in Firebase so others can find them
+    // Firebase'de kullanıcı varlığını kaydet (arkadaş arama için)
     registerPresence(currentUsername);
+    // Bildirim izni iste
+    requestNotificationPermission();
 
     const snap = getSnapshot(currentUsername);
     if (snap) {

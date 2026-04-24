@@ -3,6 +3,8 @@ import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/layout/navbar";
 import { AuthProvider } from "@/components/auth/auth-provider";
+import { NotificationHub } from "@/components/notifications/notification-hub";
+import { ToastContainer } from "@/components/notifications/toast-container";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -49,6 +51,8 @@ export default function RootLayout({
       <body className="bg-[#070918] text-[#F8FAFC] antialiased min-h-screen">
         <AuthProvider>
           <Navbar />
+          <NotificationHub />
+          <ToastContainer />
           <main>{children}</main>
         </AuthProvider>
       </body>
