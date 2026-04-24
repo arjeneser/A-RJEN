@@ -860,16 +860,43 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                               </span>
                               {/* Okundu bilgisi — sadece kendi mesajlarında */}
                               {isOwn && (
-                                <span
-                                  className="text-[10px] font-bold leading-none"
+                                <svg
+                                  width="14"
+                                  height="10"
+                                  viewBox="0 0 14 10"
+                                  fill="none"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
                                   style={{
-                                    color: partnerReadAt >= msg.timestamp
+                                    stroke: partnerReadAt >= msg.timestamp
                                       ? "#60A5FA"
-                                      : "rgba(255,255,255,0.3)",
+                                      : "rgba(255,255,255,0.25)",
+                                    transition: "stroke 0.3s",
                                   }}
                                 >
-                                  {partnerReadAt >= msg.timestamp ? "✓✓" : "✓"}
-                                </span>
+                                  {/* Dış oval */}
+                                  <path
+                                    d="M1 5C1 5 3 1 7 1C11 1 13 5 13 5C13 5 11 9 7 9C3 9 1 5 1 5Z"
+                                    strokeWidth="1.1"
+                                  />
+                                  {/* Göz bebeği */}
+                                  <circle
+                                    cx="7"
+                                    cy="5"
+                                    r="1.8"
+                                    strokeWidth="1.1"
+                                  />
+                                  {/* Parlaklık noktası — sadece okunduğunda */}
+                                  {partnerReadAt >= msg.timestamp && (
+                                    <circle
+                                      cx="8.2"
+                                      cy="3.8"
+                                      r="0.5"
+                                      fill="#60A5FA"
+                                      stroke="none"
+                                    />
+                                  )}
+                                </svg>
                               )}
                             </div>
                           </div>
