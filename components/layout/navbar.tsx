@@ -26,6 +26,7 @@ export function Navbar() {
 
   const [remainingMs, setRemainingMs] = useState(0);
   const [friendsPanelOpen, setFriendsPanelOpen] = useState(false);
+  const [friendsNotifCount, setFriendsNotifCount] = useState(0);
 
   const isFlightActive =
     session?.status === "running" || session?.status === "paused";
@@ -174,7 +175,7 @@ export function Navbar() {
             {currentUsername && (
               <button
                 onClick={() => setFriendsPanelOpen(true)}
-                className="px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
+                className="relative px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
                 style={{
                   background: "rgba(168,85,247,0.08)",
                   border: "1px solid rgba(168,85,247,0.2)",
@@ -183,6 +184,14 @@ export function Navbar() {
                 title="Arkadaşlar"
               >
                 👥
+                {friendsNotifCount > 0 && (
+                  <span
+                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center"
+                    style={{ background: "#EF4444", color: "white" }}
+                  >
+                    {friendsNotifCount > 9 ? "9+" : friendsNotifCount}
+                  </span>
+                )}
               </button>
             )}
 
@@ -206,7 +215,11 @@ export function Navbar() {
     </header>
 
     {/* Friends panel (outside header so it overlays everything) */}
-    <FriendsPanel open={friendsPanelOpen} onClose={() => setFriendsPanelOpen(false)} />
+    <FriendsPanel
+      open={friendsPanelOpen}
+      onClose={() => setFriendsPanelOpen(false)}
+      onNotificationCount={setFriendsNotifCount}
+    />
   </>
   );
 }
