@@ -2,6 +2,9 @@
 import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToastStore, type AppToast } from "@/store/toast-store";
+import { useAuthStore } from "@/store/auth-store";
+import { acceptFriendRequest, rejectFriendRequest } from "@/lib/friends";
+import { leaveGroup } from "@/lib/groups";
 
 const ICONS: Record<AppToast["type"], string> = {
   message:         "💬",
@@ -21,13 +24,18 @@ const COLORS: Record<AppToast["type"], { bg: string; border: string; accent: str
 
 function ToastCard({ toast }: { toast: AppToast }) {
   const { remove } = useToastStore();
+  const { currentUsername } = useAuthStore();
   const colors = COLORS[toast.type];
 
-  // Otomatik kapat (5 saniye)
+  const hasActions = toast.type === "friend_request" || toast.type === "group_invite";
+
+  // Action olmayan kartlar 5sn sonra otomatik kapanır
+  // Action olan kartlar kullanıcı karar verene kadar durur (10sn)
   useEffect(() => {
-    const t = setTimeout(() => remove(toast.id), 5000);
+    const timeout = hasActions ? 10_000 : 5_000;
+    const t = setTimeout(() => remove(toast.id), timeout);
     return () => clearTimeout(t);
-  }, [toast.id, remove]);
+  }, [toast.id, remove, hasActions]);
 
   return (
     <motion.div
@@ -36,7 +44,7 @@ function ToastCard({ toast }: { toast: AppToast }) {
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: 60, scale: 0.9 }}
       transition={{ type: "spring", stiffness: 360, damping: 28 }}
-      className="relative flex items-start gap-3 px-4 py-3.5 rounded-2xl shadow-2xl cursor-pointer select-none"
+      className="relative flex flex-col rounded-2xl shadow-2xl select-none overflow-hidden"
       style={{
         background: colors.bg,
         border: `1px solid ${colors.border}`,
@@ -45,54 +53,121 @@ function ToastCard({ toast }: { toast: AppToast }) {
         minWidth: 280,
         maxWidth: 340,
       }}
-      onClick={() => remove(toast.id)}
+      onClick={hasActions ? undefined : () => remove(toast.id)}
     >
-      {/* Accent bar */}
-      <div
-        className="absolute left-0 top-3 bottom-3 w-1 rounded-full"
-        style={{ background: colors.accent }}
-      />
+      {/* ── Üst içerik ──────────────────────────────────────────────────── */}
+      <div className="relative flex items-start gap-3 px-4 py-3.5">
+        {/* Accent bar */}
+        <div
+          className="absolute left-0 top-3 bottom-3 w-1 rounded-full"
+          style={{ background: colors.accent }}
+        />
 
-      {/* Icon */}
-      <div
-        className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0"
-        style={{
-          background: `${colors.accent}22`,
-          border: `1px solid ${colors.accent}44`,
-        }}
-      >
-        {ICONS[toast.type]}
+        {/* Icon */}
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0"
+          style={{
+            background: `${colors.accent}22`,
+            border: `1px solid ${colors.accent}44`,
+          }}
+        >
+          {ICONS[toast.type]}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2 mb-0.5">
+            <span
+              className="text-sm font-semibold text-white truncate"
+              style={{ fontFamily: "Space Grotesk, sans-serif" }}
+            >
+              {toast.from}
+            </span>
+            <button
+              onClick={(e) => { e.stopPropagation(); remove(toast.id); }}
+              className="text-slate-600 hover:text-slate-400 transition-colors text-xs shrink-0"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="text-xs text-slate-400 leading-snug line-clamp-2">
+            {toast.preview}
+          </p>
+        </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2 mb-0.5">
-          <span
-            className="text-sm font-semibold text-white truncate"
-            style={{ fontFamily: "Space Grotesk, sans-serif" }}
-          >
-            {toast.from}
-          </span>
+      {/* ── Action butonları ────────────────────────────────────────────── */}
+      {toast.type === "friend_request" && (
+        <div
+          className="flex"
+          style={{ borderTop: `1px solid ${colors.border}` }}
+        >
           <button
-            onClick={(e) => { e.stopPropagation(); remove(toast.id); }}
-            className="text-slate-600 hover:text-slate-400 transition-colors text-xs shrink-0"
+            onClick={async (e) => {
+              e.stopPropagation();
+              if (currentUsername) await acceptFriendRequest(currentUsername, toast.from);
+              remove(toast.id);
+            }}
+            className="flex-1 py-2 text-xs font-bold transition-colors hover:opacity-90"
+            style={{ background: "rgba(245,158,11,0.18)", color: "#FCD34D" }}
           >
-            ✕
+            ✓ Kabul Et
+          </button>
+          <div style={{ width: 1, background: colors.border }} />
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              if (currentUsername) await rejectFriendRequest(currentUsername, toast.from);
+              remove(toast.id);
+            }}
+            className="flex-1 py-2 text-xs font-medium transition-colors hover:opacity-90"
+            style={{ background: "rgba(239,68,68,0.1)", color: "#F87171" }}
+          >
+            ✕ Reddet
           </button>
         </div>
-        <p className="text-xs text-slate-400 leading-snug line-clamp-2">
-          {toast.preview}
-        </p>
-      </div>
+      )}
+
+      {toast.type === "group_invite" && toast.meta && (
+        <div
+          className="flex"
+          style={{ borderTop: `1px solid ${colors.border}` }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              remove(toast.id); // zaten gruba ekli, sadece kapat
+            }}
+            className="flex-1 py-2 text-xs font-bold transition-colors hover:opacity-90"
+            style={{ background: "rgba(16,185,129,0.18)", color: "#34D399" }}
+          >
+            ✓ Katıl
+          </button>
+          <div style={{ width: 1, background: colors.border }} />
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              if (currentUsername && toast.meta) {
+                await leaveGroup(toast.meta.groupId, currentUsername);
+              }
+              remove(toast.id);
+            }}
+            className="flex-1 py-2 text-xs font-medium transition-colors hover:opacity-90"
+            style={{ background: "rgba(239,68,68,0.1)", color: "#F87171" }}
+          >
+            ✕ Reddet
+          </button>
+        </div>
+      )}
 
       {/* Progress bar */}
-      <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-b-2xl overflow-hidden">
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 overflow-hidden">
         <motion.div
           className="h-full"
           style={{ background: colors.accent, opacity: 0.4 }}
           initial={{ width: "100%" }}
           animate={{ width: "0%" }}
-          transition={{ duration: 5, ease: "linear" }}
+          transition={{ duration: hasActions ? 10 : 5, ease: "linear" }}
         />
       </div>
     </motion.div>
