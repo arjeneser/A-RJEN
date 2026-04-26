@@ -350,7 +350,7 @@ export function Navbar() {
                               </button>
                               <button
                                 onClick={async () => {
-                                  if (currentUsername && popupToast.meta) {
+                                  if (currentUsername && popupToast.meta?.groupId) {
                                     await leaveGroup(popupToast.meta.groupId, currentUsername);
                                   }
                                   dismissPopup();
