@@ -201,7 +201,7 @@ function ToastCard({ toast }: { toast: AppToast }) {
           <button
             onClick={async (e) => {
               e.stopPropagation();
-              if (currentUsername && toast.meta) {
+              if (currentUsername && toast.meta?.groupId) {
                 await leaveGroup(toast.meta.groupId, currentUsername);
               }
               remove(toast.id);
