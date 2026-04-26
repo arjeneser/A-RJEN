@@ -157,7 +157,7 @@ export function Navbar() {
 
               {/* ── Uçuş timer / TAMAMLANDI ──────────────────────── */}
               {showTimer && (
-                <Link href="/focus">
+                <Link href={isCompleted ? "/success" : "/focus"}>
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}

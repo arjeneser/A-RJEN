@@ -38,14 +38,21 @@ export default function SuccessPage() {
     }
   }, [session, router, mounted]);
 
-  // Record flight once
+  // Record flight once — sessionStorage ile aynı oturumda tekrar kayıt engellenir
   useEffect(() => {
     if (!session || recordedRef.current) return;
     if (
       session.status === "completed" ||
       session.status === "running" // completed in bg, still "running" in store edge case
     ) {
+      // Aynı uçuş daha önce kaydedilmişse atla (sayfa tekrar mount edilse bile)
+      const storageKey = `airjen_recorded_${session.startTime}`;
+      if (typeof window !== "undefined" && sessionStorage.getItem(storageKey)) {
+        recordedRef.current = true;
+        return;
+      }
       recordedRef.current = true;
+      if (typeof window !== "undefined") sessionStorage.setItem(storageKey, "1");
       const durationMinutes = Math.round(session.durationMs / 60000);
       const xpEarned = Math.round(durationMinutes / 5);
       recordFlight({
