@@ -43,20 +43,30 @@ export default function FocusPage() {
   const { elapsedMs, remainingMs, progress, isPaused, pause, resume } =
     useTimer(onComplete);
 
-  // ── Sekme başlığında geri sayım ──────────────────────────────────────────
+  // ── Sekme başlığı: arka plandaysa "Odağını kaybetme" ────────────────────
   useEffect(() => {
-    if (session?.status === "completed") {
-      document.title = "✅ TAMAMLANDI — AIRJEN";
-      return;
+    function updateTitle() {
+      if (document.hidden) {
+        document.title = "✈ Odağını kaybetme — AIRJEN";
+        return;
+      }
+      if (session?.status === "completed") {
+        document.title = "✅ TAMAMLANDI — AIRJEN";
+        return;
+      }
+      if (!session || session.status === "abandoned") {
+        document.title = "AIRJEN";
+        return;
+      }
+      document.title = `⏱ ${formatDuration(remainingMs)} — AIRJEN`;
     }
-    if (!session || session.status === "abandoned") {
-      document.title = "AIRJEN";
-      return;
-    }
-    document.title = `⏱ ${formatDuration(remainingMs)} — AIRJEN`;
+
+    updateTitle();
+    document.addEventListener("visibilitychange", updateTitle);
+    return () => document.removeEventListener("visibilitychange", updateTitle);
   }, [remainingMs, session]);
 
-  // Sayfa kapanınca başlığı sıfırla
+  // Sayfa unmount olunca başlığı sıfırla
   useEffect(() => {
     return () => { document.title = "AIRJEN"; };
   }, []);
