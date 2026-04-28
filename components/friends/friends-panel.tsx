@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
-import { useFlightSetup } from "@/store/flight-store";
+import { useFlightSetup, useActiveSession } from "@/store/flight-store";
 import { useUserStore } from "@/store/user-store";
 import {
   sendFriendRequest,
@@ -17,12 +17,19 @@ import {
 } from "@/lib/friends";
 import {
   sendMessage,
+  sendVoiceMessage,
+  sendFlightCardMessage,
+  toggleReaction,
+  setTyping,
   subscribeToMessages,
+  subscribeToTyping,
   markConversationRead,
   subscribeToReadCursor,
   conversationId,
   type ChatMessage,
+  type ReplyRef,
 } from "@/lib/messages";
+import { subscribeToPresence, subscribeToMultiplePresences, type UserPresence } from "@/lib/presence";
 import {
   createGroup,
   sendGroupMessage,
@@ -71,6 +78,7 @@ function timeAgo(ts: number): string {
 export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPanelProps) {
   const { currentUsername } = useAuthStore();
   const { joinFlight, setDuration } = useFlightSetup();
+  const { session: activeSession } = useActiveSession();
   const { profile: myProfile } = useUserStore();
   const router = useRouter();
 
@@ -87,11 +95,23 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
   const [flightInvites, setFlightInvites] = useState<FlightInvite[]>([]);
 
   // ── chat view state ──────────────────────────────────────────────────────────
-  const [messages, setMessages]     = useState<ChatMessage[]>([]);
-  const [msgInput, setMsgInput]     = useState("");
-  const [partnerReadAt, setPartnerReadAt] = useState<number>(0);
-  const chatEndRef                  = useRef<HTMLDivElement>(null);
-  const msgInputRef                 = useRef<HTMLInputElement>(null);
+  const [messages, setMessages]         = useState<ChatMessage[]>([]);
+  const [msgInput, setMsgInput]         = useState("");
+  const [partnerReadAt, setPartnerReadAt]   = useState<number>(0);
+  const [partnerTyping, setPartnerTyping]   = useState(false);
+  const [partnerPresence, setPartnerPresence] = useState<UserPresence | null>(null);
+  const [replyingTo, setReplyingTo]         = useState<ReplyRef | null>(null);
+  const [emojiPickerMsgId, setEmojiPickerMsgId] = useState<string | null>(null);
+  const [isRecording, setIsRecording]       = useState(false);
+  const [recordingSecs, setRecordingSecs]   = useState(0);
+  const [friendPresences, setFriendPresences] = useState<Record<string, UserPresence>>({});
+  const mediaRecorderRef  = useRef<MediaRecorder | null>(null);
+  const audioChunksRef    = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const typingTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTapRef        = useRef<Record<string, number>>({});
+  const chatEndRef        = useRef<HTMLDivElement>(null);
+  const msgInputRef       = useRef<HTMLInputElement>(null);
 
   // ── group state ───────────────────────────────────────────────────────────────
   const [groups, setGroups]               = useState<Group[]>([]);
@@ -139,19 +159,29 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
     return () => { u1(); u2(); };
   }, [currentUsername, open]);
 
+  // ── Arkadaşların online durumlarını dinle ────────────────────────────────────
+  useEffect(() => {
+    if (!open || friends.length === 0) return;
+    const usernames = friends.map((f) => f.username);
+    const unsub = subscribeToMultiplePresences(usernames, setFriendPresences);
+    return unsub;
+  }, [friends, open]);
+
   // ── Notify parent of badge count ─────────────────────────────────────────────
   useEffect(() => {
     onNotificationCount?.(incomingReqs.length + flightInvites.length);
   }, [incomingReqs, flightInvites, onNotificationCount]);
 
-  // ── Chat subscription + okundu bilgisi ───────────────────────────────────────
+  // ── Chat subscription + okundu bilgisi + typing + presence ──────────────────
   useEffect(() => {
     if (!currentUsername || !activeFriend || view !== "chat") return;
     const cId = conversationId(currentUsername, activeFriend);
     markConversationRead(cId, currentUsername);
     const u1 = subscribeToMessages(currentUsername, activeFriend, setMessages);
     const u2 = subscribeToReadCursor(cId, activeFriend, setPartnerReadAt);
-    return () => { u1(); u2(); };
+    const u3 = subscribeToTyping(cId, currentUsername, (users) => setPartnerTyping(users.length > 0));
+    const u4 = subscribeToPresence(activeFriend, setPartnerPresence);
+    return () => { u1(); u2(); u3(); u4(); };
   }, [currentUsername, activeFriend, view]);
 
   // Yeni mesaj gelince okundu imlecini güncelle (chat açıkken)
@@ -196,6 +226,10 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
       setActiveFriend(null);
       setActiveGroup(null);
       setPartnerReadAt(0);
+      setPartnerTyping(false);
+      setPartnerPresence(null);
+      setReplyingTo(null);
+      setEmojiPickerMsgId(null);
       setNewGroupName("");
       setSelectedGroupMembers([]);
       setLeaveConfirm(false);
@@ -225,7 +259,91 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
     if (!currentUsername || !activeFriend || !msgInput.trim()) return;
     const text = msgInput.trim();
     setMsgInput("");
-    await sendMessage(currentUsername, activeFriend, text);
+    setReplyingTo(null);
+    // Yazıyor durumunu temizle
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    const cId = conversationId(currentUsername, activeFriend);
+    setTyping(cId, currentUsername, false).catch(() => {});
+    await sendMessage(currentUsername, activeFriend, text, replyingTo ?? undefined);
+  }
+
+  function handleMsgInputChange(val: string) {
+    setMsgInput(val);
+    if (!currentUsername || !activeFriend) return;
+    const cId = conversationId(currentUsername, activeFriend);
+    // Yazıyor sinyali gönder
+    setTyping(cId, currentUsername, true).catch(() => {});
+    // 3sn sonra yazıyor durumunu kaldır
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => {
+      setTyping(cId, currentUsername, false).catch(() => {});
+    }, 3000);
+  }
+
+  async function handleSendFlightCard() {
+    if (!currentUsername || !activeFriend || !activeSession) return;
+    await sendFlightCardMessage(currentUsername, activeFriend, {
+      departureName: activeSession.departure.name,
+      destinationName: activeSession.destination.name,
+      durationLabel: `${Math.round(activeSession.durationMs / 60000)} dk`,
+      xp: Math.round(activeSession.durationMs / 60000 / 5),
+      countryCode: activeSession.destination.countryCode,
+    });
+  }
+
+  async function handleToggleReaction(msgId: string, emoji: string) {
+    if (!currentUsername || !activeFriend || !msgId) return;
+    const cId = conversationId(currentUsername, activeFriend);
+    setEmojiPickerMsgId(null);
+    await toggleReaction(cId, msgId, emoji, currentUsername);
+  }
+
+  async function handleStartRecording() {
+    if (!navigator.mediaDevices) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm" });
+      audioChunksRef.current = [];
+      mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: mr.mimeType });
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const b64 = (reader.result as string).split(",")[1];
+          if (currentUsername && activeFriend && b64) {
+            await sendVoiceMessage(currentUsername, activeFriend, b64, recordingSecs);
+          }
+          setIsRecording(false);
+          setRecordingSecs(0);
+        };
+        reader.readAsDataURL(blob);
+      };
+      mr.start(200);
+      mediaRecorderRef.current = mr;
+      setIsRecording(true);
+      setRecordingSecs(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSecs((s) => {
+          if (s >= 59) { handleStopRecording(); return s; }
+          return s + 1;
+        });
+      }, 1000);
+    } catch { /* izin reddedildi */ }
+  }
+
+  function handleStopRecording() {
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    mediaRecorderRef.current?.stop();
+  }
+
+  function handleMessageDoubleTap(msgId: string) {
+    const now = Date.now();
+    const last = lastTapRef.current[msgId] ?? 0;
+    if (now - last < 400) {
+      setEmojiPickerMsgId((prev) => (prev === msgId ? null : msgId));
+    }
+    lastTapRef.current[msgId] = now;
   }
 
   function openChat(username: string) {
@@ -397,17 +515,37 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                 {view === "group"         && <span className="text-base">👥</span>}
                 {view === "create-group"  && <span className="text-base">➕</span>}
 
-                <span
-                  className="font-bold text-white text-sm truncate"
-                  style={{ fontFamily: "Space Grotesk, sans-serif" }}
-                >
-                  {view === "main"         ? "Arkadaşlar"
-                    : view === "chat"      ? activeFriend
-                    : view === "leaderboard" ? "Sıralama"
-                    : view === "group"     ? (activeGroup?.name ?? "Grup")
-                    : view === "create-group" ? "Grup Oluştur"
-                    : `${activeFriend}'a Uçuş Teklif Et`}
-                </span>
+                {view === "chat" ? (
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                    <span
+                      className="font-bold text-white text-sm truncate"
+                      style={{ fontFamily: "Space Grotesk, sans-serif" }}
+                    >
+                      {activeFriend}
+                    </span>
+                    {partnerPresence?.online ? (
+                      <div
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ background: "#4ADE80", boxShadow: "0 0 6px #4ade80" }}
+                      />
+                    ) : partnerPresence ? (
+                      <span className="text-[10px] text-slate-600 shrink-0 truncate">
+                        {timeAgo(partnerPresence.lastSeen)} önce
+                      </span>
+                    ) : null}
+                  </div>
+                ) : (
+                  <span
+                    className="font-bold text-white text-sm truncate"
+                    style={{ fontFamily: "Space Grotesk, sans-serif" }}
+                  >
+                    {view === "main"           ? "Arkadaşlar"
+                      : view === "leaderboard" ? "Sıralama"
+                      : view === "group"       ? (activeGroup?.name ?? "Grup")
+                      : view === "create-group" ? "Grup Oluştur"
+                      : `${activeFriend}'a Uçuş Teklif Et`}
+                  </span>
+                )}
 
                 {view === "main" && totalNotifs > 0 && (
                   <span
@@ -721,11 +859,19 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                             onClick={() => openChat(f.username)}
                           >
                             <div className="flex items-center gap-2">
-                              <div
-                                className="w-6 h-6 rounded-full flex items-center justify-center text-xs text-slate-600"
-                                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
-                              >
-                                ✈
+                              <div className="relative shrink-0">
+                                <div
+                                  className="w-6 h-6 rounded-full flex items-center justify-center text-xs text-slate-600"
+                                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+                                >
+                                  ✈
+                                </div>
+                                {friendPresences[f.username]?.online && (
+                                  <div
+                                    className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#070918]"
+                                    style={{ background: "#4ADE80" }}
+                                  />
+                                )}
                               </div>
                               <span className="text-sm text-slate-300">{f.username}</span>
                             </div>
@@ -834,7 +980,7 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                   {/* Flying banner */}
                   {activeFriendInfo?.isFlying && activeFriendInfo.flight && (
                     <div
-                      className="mx-3 mt-3 px-3 py-2 rounded-xl flex items-center justify-between"
+                      className="mx-3 mt-3 px-3 py-2 rounded-xl flex items-center justify-between shrink-0"
                       style={{
                         background: "rgba(14,165,233,0.07)",
                         border: "1px solid rgba(14,165,233,0.18)",
@@ -854,7 +1000,10 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                   )}
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5">
+                  <div
+                    className="flex-1 overflow-y-auto px-3 py-3 space-y-2"
+                    onClick={() => setEmojiPickerMsgId(null)}
+                  >
                     {messages.length === 0 && (
                       <div className="flex flex-col items-center justify-center h-full text-slate-700 py-12">
                         <span className="text-3xl mb-2">💬</span>
@@ -863,108 +1012,390 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                         </p>
                       </div>
                     )}
+
                     {messages.map((msg) => {
                       const isOwn = msg.from === currentUsername;
+                      const reactions = msg.reactions ?? {};
+                      const reactionEntries = Object.entries(reactions).filter(([, users]) => users.length > 0);
+                      const isPickerOpen = emojiPickerMsgId === msg.id;
+
                       return (
                         <div
                           key={msg.id}
-                          className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+                          className={`flex flex-col ${isOwn ? "items-end" : "items-start"} group`}
                         >
-                          <div
-                            className="max-w-[78%] px-3 py-2 rounded-2xl text-sm leading-snug"
-                            style={
-                              isOwn
-                                ? {
-                                    background: "linear-gradient(135deg, #1D4ED8, #2563EB)",
-                                    color: "white",
-                                    borderBottomRightRadius: 4,
+                          {/* Row: reply button + bubble */}
+                          <div className={`flex items-end gap-1.5 max-w-[82%] ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
+
+                            {/* Reply button — visible on group hover */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (msg.id) {
+                                  setReplyingTo({ id: msg.id, from: msg.from, text: msg.text.slice(0, 80) });
+                                  msgInputRef.current?.focus();
+                                }
+                              }}
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mb-1"
+                              style={{
+                                background: "rgba(255,255,255,0.06)",
+                                border: "1px solid rgba(255,255,255,0.1)",
+                                color: "#64748B",
+                              }}
+                              title="Yanıtla"
+                            >
+                              ↩
+                            </button>
+
+                            {/* Bubble */}
+                            <div
+                              className="flex flex-col"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (msg.id) handleMessageDoubleTap(msg.id);
+                              }}
+                            >
+                              {/* Quoted message preview */}
+                              {msg.replyTo && (
+                                <div
+                                  className="px-3 pt-2 pb-1.5 rounded-t-2xl text-[10px]"
+                                  style={
+                                    isOwn
+                                      ? {
+                                          background: "rgba(255,255,255,0.18)",
+                                          borderBottom: "1px solid rgba(255,255,255,0.12)",
+                                        }
+                                      : {
+                                          background: "rgba(255,255,255,0.04)",
+                                          borderBottom: "1px solid rgba(255,255,255,0.07)",
+                                        }
                                   }
-                                : {
-                                    background: "rgba(255,255,255,0.07)",
-                                    border: "1px solid rgba(255,255,255,0.09)",
-                                    color: "#CBD5E1",
-                                    borderBottomLeftRadius: 4,
-                                  }
-                            }
-                          >
-                            {msg.text}
-                            <div className="flex items-center justify-end gap-1 mt-0.5">
-                              <span className="text-[9px] opacity-50">
-                                {timeAgo(msg.timestamp)}
-                              </span>
-                              {/* Okundu bilgisi — sadece kendi mesajlarında */}
-                              {isOwn && (
-                                <svg
-                                  width="14"
-                                  height="10"
-                                  viewBox="0 0 14 10"
-                                  fill="none"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  style={{
-                                    stroke: partnerReadAt >= msg.timestamp
-                                      ? "#60A5FA"
-                                      : "rgba(255,255,255,0.25)",
-                                    transition: "stroke 0.3s",
-                                  }}
                                 >
-                                  {/* Dış oval */}
-                                  <path
-                                    d="M1 5C1 5 3 1 7 1C11 1 13 5 13 5C13 5 11 9 7 9C3 9 1 5 1 5Z"
-                                    strokeWidth="1.1"
-                                  />
-                                  {/* Göz bebeği */}
-                                  <circle
-                                    cx="7"
-                                    cy="5"
-                                    r="1.8"
-                                    strokeWidth="1.1"
-                                  />
-                                  {/* Parlaklık noktası — sadece okunduğunda */}
-                                  {partnerReadAt >= msg.timestamp && (
-                                    <circle
-                                      cx="8.2"
-                                      cy="3.8"
-                                      r="0.5"
-                                      fill="#60A5FA"
-                                      stroke="none"
-                                    />
-                                  )}
-                                </svg>
+                                  <div className="font-bold mb-0.5" style={{ color: isOwn ? "#93C5FD" : "#A78BFA" }}>
+                                    {msg.replyTo.from}
+                                  </div>
+                                  <div className="opacity-60 truncate">{msg.replyTo.text}</div>
+                                </div>
                               )}
+
+                              {/* Main bubble */}
+                              <div
+                                className="px-3 py-2 text-sm leading-snug"
+                                style={
+                                  isOwn
+                                    ? {
+                                        background: "linear-gradient(135deg, #1D4ED8, #2563EB)",
+                                        color: "white",
+                                        borderRadius: msg.replyTo ? "0 0 16px 16px" : "16px",
+                                        borderBottomRightRadius: msg.replyTo ? 4 : 4,
+                                        borderTopLeftRadius: msg.replyTo ? 0 : 16,
+                                        borderTopRightRadius: msg.replyTo ? 0 : 16,
+                                      }
+                                    : {
+                                        background: "rgba(255,255,255,0.07)",
+                                        border: "1px solid rgba(255,255,255,0.09)",
+                                        color: "#CBD5E1",
+                                        borderRadius: msg.replyTo ? "0 0 16px 16px" : "16px",
+                                        borderBottomLeftRadius: msg.replyTo ? 4 : 4,
+                                        borderTopLeftRadius: msg.replyTo ? 0 : 16,
+                                        borderTopRightRadius: msg.replyTo ? 0 : 16,
+                                      }
+                                }
+                              >
+                                {/* Flight card */}
+                                {msg.type === "flight_card" && msg.flightCard && (
+                                  <div
+                                    className="mb-2 p-2.5 rounded-xl"
+                                    style={{
+                                      background: isOwn ? "rgba(255,255,255,0.1)" : "rgba(124,58,237,0.12)",
+                                      border: isOwn ? "1px solid rgba(255,255,255,0.15)" : "1px solid rgba(124,58,237,0.25)",
+                                    }}
+                                  >
+                                    <div className="flex items-center gap-1.5 mb-1">
+                                      <img
+                                        src={`https://flagcdn.com/w40/${msg.flightCard.countryCode.toLowerCase()}.png`}
+                                        alt=""
+                                        className="w-5 h-3 object-cover rounded-sm shrink-0"
+                                      />
+                                      <span className="text-xs font-bold truncate">
+                                        {msg.flightCard.departureName} → {msg.flightCard.destinationName}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[10px] opacity-70 mb-1.5">
+                                      <span>⏱ {msg.flightCard.durationLabel}</span>
+                                      <span>+{msg.flightCard.xp} XP</span>
+                                    </div>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        router.push("/new-flight");
+                                        onClose();
+                                      }}
+                                      className="w-full py-1 rounded-lg text-[10px] font-bold transition-all active:scale-95"
+                                      style={{
+                                        background: isOwn ? "rgba(255,255,255,0.15)" : "rgba(124,58,237,0.25)",
+                                        color: isOwn ? "white" : "#C4B5FD",
+                                      }}
+                                    >
+                                      ✈ Aynı Rotada Uç
+                                    </button>
+                                  </div>
+                                )}
+
+                                {/* Voice message */}
+                                {msg.type === "voice" && msg.audioBase64 ? (
+                                  <div className="flex items-center gap-2">
+                                    <audio
+                                      controls
+                                      src={`data:audio/webm;base64,${msg.audioBase64}`}
+                                      className="h-8"
+                                      style={{ maxWidth: 180 }}
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                    {msg.audioDuration !== undefined && (
+                                      <span className="text-[10px] opacity-60 shrink-0">{msg.audioDuration}s</span>
+                                    )}
+                                  </div>
+                                ) : msg.type !== "flight_card" ? (
+                                  <span>{msg.text}</span>
+                                ) : null}
+
+                                {/* Timestamp + read receipt */}
+                                <div className="flex items-center justify-end gap-1 mt-0.5">
+                                  <span className="text-[9px] opacity-50">{timeAgo(msg.timestamp)}</span>
+                                  {isOwn && (
+                                    <svg
+                                      width="14" height="10" viewBox="0 0 14 10" fill="none"
+                                      strokeLinecap="round" strokeLinejoin="round"
+                                      style={{
+                                        stroke: partnerReadAt >= msg.timestamp ? "#60A5FA" : "rgba(255,255,255,0.25)",
+                                        transition: "stroke 0.3s",
+                                      }}
+                                    >
+                                      <path d="M1 5C1 5 3 1 7 1C11 1 13 5 13 5C13 5 11 9 7 9C3 9 1 5 1 5Z" strokeWidth="1.1" />
+                                      <circle cx="7" cy="5" r="1.8" strokeWidth="1.1" />
+                                      {partnerReadAt >= msg.timestamp && (
+                                        <circle cx="8.2" cy="3.8" r="0.5" fill="#60A5FA" stroke="none" />
+                                      )}
+                                    </svg>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </div>
+
+                          {/* Emoji picker popup */}
+                          <AnimatePresence>
+                            {isPickerOpen && (
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.85, y: -4 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.85, y: -4 }}
+                                transition={{ duration: 0.12 }}
+                                className="flex gap-1.5 p-2 rounded-2xl mt-1"
+                                style={{
+                                  background: "rgba(15,23,42,0.97)",
+                                  border: "1px solid rgba(255,255,255,0.1)",
+                                  boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {["❤️", "😂", "👏", "🔥", "✈️", "👍", "😍", "🎉"].map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => msg.id && handleToggleReaction(msg.id, emoji)}
+                                    className="text-lg hover:scale-125 transition-transform active:scale-95"
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+
+                          {/* Reactions row */}
+                          {reactionEntries.length > 0 && (
+                            <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? "justify-end" : "justify-start"}`}>
+                              {reactionEntries.map(([emoji, users]) => {
+                                const didReact = users.includes(currentUsername ?? "");
+                                return (
+                                  <button
+                                    key={emoji}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (msg.id) handleToggleReaction(msg.id, emoji);
+                                    }}
+                                    className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs transition-all active:scale-95"
+                                    style={{
+                                      background: didReact ? "rgba(59,130,246,0.2)" : "rgba(255,255,255,0.06)",
+                                      border: didReact ? "1px solid rgba(59,130,246,0.4)" : "1px solid rgba(255,255,255,0.1)",
+                                      color: didReact ? "#93C5FD" : "#94A3B8",
+                                    }}
+                                  >
+                                    <span>{emoji}</span>
+                                    <span className="text-[10px] font-semibold">{users.length}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
+
+                    {/* Typing indicator */}
+                    <AnimatePresence>
+                      {partnerTyping && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 4 }}
+                          className="flex justify-start"
+                        >
+                          <div
+                            className="px-3 py-2.5 rounded-2xl rounded-bl-sm flex items-center gap-1"
+                            style={{
+                              background: "rgba(255,255,255,0.07)",
+                              border: "1px solid rgba(255,255,255,0.09)",
+                            }}
+                          >
+                            {[0, 1, 2].map((i) => (
+                              <motion.div
+                                key={i}
+                                className="w-1.5 h-1.5 rounded-full"
+                                style={{ background: "#64748B" }}
+                                animate={{ y: [-2, 2, -2] }}
+                                transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }}
+                              />
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
                     <div ref={chatEndRef} />
                   </div>
 
-                  {/* Input */}
+                  {/* Reply preview bar */}
+                  <AnimatePresence>
+                    {replyingTo && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mx-3 mb-1 px-3 py-1.5 rounded-xl flex items-center gap-2 shrink-0"
+                        style={{
+                          background: "rgba(59,130,246,0.08)",
+                          border: "1px solid rgba(59,130,246,0.2)",
+                        }}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[10px] font-bold text-blue-400">{replyingTo.from}&apos;a yanıt</div>
+                          <div className="text-[10px] text-slate-500 truncate">{replyingTo.text}</div>
+                        </div>
+                        <button
+                          onClick={() => setReplyingTo(null)}
+                          className="text-slate-600 hover:text-slate-400 text-xs shrink-0 transition-colors"
+                        >
+                          ✕
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Input area */}
                   <div
-                    className="px-3 py-3 flex gap-2 shrink-0"
+                    className="px-3 py-3 flex gap-2 items-center shrink-0"
                     style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
                   >
-                    <input
-                      ref={msgInputRef}
-                      value={msgInput}
-                      onChange={(e) => setMsgInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
-                      placeholder="Mesaj yaz..."
-                      className="flex-1 px-3 py-2 rounded-xl text-sm text-white placeholder-slate-600 outline-none focus:ring-1 focus:ring-sky-500/40"
-                      style={{
-                        background: "rgba(255,255,255,0.05)",
-                        border: "1px solid rgba(255,255,255,0.09)",
-                      }}
-                    />
-                    <button
-                      onClick={handleSendMessage}
-                      disabled={!msgInput.trim()}
-                      className="px-3.5 py-2 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-30 active:scale-95"
-                      style={{ background: "linear-gradient(135deg, #3B82F6, #1D4ED8)" }}
-                    >
-                      ➤
-                    </button>
+                    {/* Flight card share button */}
+                    {activeSession && !isRecording && (
+                      <button
+                        onClick={handleSendFlightCard}
+                        className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all hover:opacity-80 active:scale-90"
+                        style={{
+                          background: "rgba(124,58,237,0.15)",
+                          border: "1px solid rgba(124,58,237,0.3)",
+                        }}
+                        title="Uçuşumu Paylaş"
+                      >
+                        <span className="text-sm">✈</span>
+                      </button>
+                    )}
+
+                    {/* Mic button */}
+                    {isRecording ? (
+                      <button
+                        onClick={handleStopRecording}
+                        className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all active:scale-90"
+                        style={{
+                          background: "rgba(239,68,68,0.2)",
+                          border: "1px solid rgba(239,68,68,0.4)",
+                        }}
+                        title="Kaydı Durdur ve Gönder"
+                      >
+                        <motion.div
+                          className="w-3 h-3 rounded-sm"
+                          style={{ background: "#F87171" }}
+                          animate={{ opacity: [1, 0.3, 1] }}
+                          transition={{ duration: 0.8, repeat: Infinity }}
+                        />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleStartRecording}
+                        className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all hover:opacity-80 active:scale-90"
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(255,255,255,0.09)",
+                        }}
+                        title="Sesli Mesaj"
+                      >
+                        🎤
+                      </button>
+                    )}
+
+                    {/* Input / recording indicator */}
+                    {isRecording ? (
+                      <div
+                        className="flex-1 px-3 py-2 rounded-xl text-xs text-red-400 flex items-center gap-2"
+                        style={{
+                          background: "rgba(239,68,68,0.06)",
+                          border: "1px solid rgba(239,68,68,0.2)",
+                        }}
+                      >
+                        <motion.div
+                          className="w-2 h-2 rounded-full bg-red-400 shrink-0"
+                          animate={{ opacity: [1, 0, 1] }}
+                          transition={{ duration: 0.8, repeat: Infinity }}
+                        />
+                        Kayıt: {recordingSecs}s — durdur &amp; gönder
+                      </div>
+                    ) : (
+                      <input
+                        ref={msgInputRef}
+                        value={msgInput}
+                        onChange={(e) => handleMsgInputChange(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
+                        placeholder="Mesaj yaz..."
+                        className="flex-1 px-3 py-2 rounded-xl text-sm text-white placeholder-slate-600 outline-none focus:ring-1 focus:ring-sky-500/40"
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(255,255,255,0.09)",
+                        }}
+                      />
+                    )}
+
+                    {!isRecording && (
+                      <button
+                        onClick={handleSendMessage}
+                        disabled={!msgInput.trim()}
+                        className="px-3.5 py-2 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-30 active:scale-95"
+                        style={{ background: "linear-gradient(135deg, #3B82F6, #1D4ED8)" }}
+                      >
+                        ➤
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               )}

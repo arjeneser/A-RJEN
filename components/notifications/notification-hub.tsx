@@ -14,6 +14,7 @@ import { subscribeToMessages } from "@/lib/messages";
 import { subscribeToFlightInvites } from "@/lib/flight-invites";
 import { subscribeToUserGroups, subscribeToGroupMessages } from "@/lib/groups";
 import { requestNotificationPermission, showBrowserNotification } from "@/lib/notifications";
+import { initPresence } from "@/lib/presence";
 
 export function NotificationHub() {
   const currentUsername = useAuthStore((s) => s.currentUsername);
@@ -28,9 +29,12 @@ export function NotificationHub() {
   const msgSubsRef   = useRef<Map<string, () => void>>(new Map());
   const groupSubsRef = useRef<Map<string, () => void>>(new Map());
 
-  // Bildirimlere izin iste
+  // Bildirimlere izin iste + online durumu başlat
   useEffect(() => {
-    if (currentUsername) requestNotificationPermission();
+    if (!currentUsername) return;
+    requestNotificationPermission();
+    const stopPresence = initPresence(currentUsername);
+    return stopPresence;
   }, [currentUsername]);
 
   // Arkadaş mesajları
