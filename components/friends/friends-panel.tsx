@@ -63,6 +63,9 @@ interface FriendsPanelProps {
   onNotificationCount?: (n: number) => void;
 }
 
+// ─── Session-persistent last-read timestamps (survives panel open/close) ──────
+const lastReadTimestamps: Record<string, number> = {};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function timeAgo(ts: number): string {
@@ -104,7 +107,12 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
   const [emojiPickerMsgId, setEmojiPickerMsgId] = useState<string | null>(null);
   const [isRecording, setIsRecording]       = useState(false);
   const [recordingSecs, setRecordingSecs]   = useState(0);
+  const [recordedPreview, setRecordedPreview] = useState<{ b64: string; duration: number } | null>(null);
+  const [contextMenu, setContextMenu]       = useState<{ msgId: string } | null>(null);
   const [friendPresences, setFriendPresences] = useState<Record<string, UserPresence>>({});
+  const [unreadCounts, setUnreadCounts]     = useState<Record<string, number>>({});
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const unreadSubsRef     = useRef<Map<string, () => void>>(new Map());
   const mediaRecorderRef  = useRef<MediaRecorder | null>(null);
   const audioChunksRef    = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -112,6 +120,10 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
   const lastTapRef        = useRef<Record<string, number>>({});
   const chatEndRef        = useRef<HTMLDivElement>(null);
   const msgInputRef       = useRef<HTMLInputElement>(null);
+  const waveformCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const audioContextRef   = useRef<AudioContext | null>(null);
+  const analyserRef       = useRef<AnalyserNode | null>(null);
+  const animFrameRef      = useRef<number | null>(null);
 
   // ── group state ───────────────────────────────────────────────────────────────
   const [groups, setGroups]               = useState<Group[]>([]);
@@ -166,6 +178,42 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
     const unsub = subscribeToMultiplePresences(usernames, setFriendPresences);
     return unsub;
   }, [friends, open]);
+
+  // ── Okunmamış mesaj sayılarını takip et ──────────────────────────────────────
+  useEffect(() => {
+    if (!currentUsername || !open || friends.length === 0) return;
+
+    const friendNames = new Set(friends.map((f) => f.username));
+
+    // Artık arkadaş olmayan abonelikleri temizle
+    unreadSubsRef.current.forEach((unsub, name) => {
+      if (!friendNames.has(name)) { unsub(); unreadSubsRef.current.delete(name); }
+    });
+
+    friends.forEach((friend) => {
+      if (unreadSubsRef.current.has(friend.username)) return;
+      const unsub = subscribeToMessages(currentUsername, friend.username, (msgs) => {
+        // Chat şu an bu arkadaşla açıksa okunmamış sıfırla
+        if (activeFriend === friend.username && view === "chat") {
+          lastReadTimestamps[friend.username] = Date.now();
+          setUnreadCounts((prev) => ({ ...prev, [friend.username]: 0 }));
+          return;
+        }
+        const lastRead = lastReadTimestamps[friend.username] ?? 0;
+        const unread = msgs.filter((m) => m.from === friend.username && m.timestamp > lastRead).length;
+        setUnreadCounts((prev) => {
+          if ((prev[friend.username] ?? 0) === unread) return prev;
+          return { ...prev, [friend.username]: unread };
+        });
+      });
+      unreadSubsRef.current.set(friend.username, unsub);
+    });
+
+    return () => {
+      unreadSubsRef.current.forEach((unsub) => unsub());
+      unreadSubsRef.current.clear();
+    };
+  }, [currentUsername, open, friends]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Notify parent of badge count ─────────────────────────────────────────────
   useEffect(() => {
@@ -230,6 +278,8 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
       setPartnerPresence(null);
       setReplyingTo(null);
       setEmojiPickerMsgId(null);
+      setContextMenu(null);
+      setRecordedPreview(null);
       setNewGroupName("");
       setSelectedGroupMembers([]);
       setLeaveConfirm(false);
@@ -298,24 +348,63 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
     await toggleReaction(cId, msgId, emoji, currentUsername);
   }
 
+  function startWaveformAnimation(analyser: AnalyserNode) {
+    const canvas = waveformCanvasRef.current;
+    if (!canvas) return;
+    const ctx2d = canvas.getContext("2d");
+    if (!ctx2d) return;
+    const c = ctx2d; // non-null alias for closure
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    const W = canvas.width;
+    const H = canvas.height;
+    const barCount = 28;
+    const gap = 2;
+    const barW = Math.floor((W - gap * (barCount - 1)) / barCount);
+
+    function draw() {
+      animFrameRef.current = requestAnimationFrame(draw);
+      analyser.getByteFrequencyData(dataArray);
+      c.clearRect(0, 0, W, H);
+      for (let i = 0; i < barCount; i++) {
+        const idx = Math.floor((i / barCount) * bufferLength * 0.75);
+        const val = dataArray[idx] / 255;
+        const barH = Math.max(3, val * H * 0.9);
+        const x = i * (barW + gap);
+        const y = (H - barH) / 2;
+        const alpha = 0.35 + val * 0.65;
+        c.fillStyle = `rgba(96,165,250,${alpha})`;
+        c.fillRect(x, y, barW, barH);
+      }
+    }
+    draw();
+  }
+
   async function handleStartRecording() {
     if (!navigator.mediaDevices) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Web Audio API — ses seviyesini oku
+      const audioCtx = new AudioContext();
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 64;
+      audioCtx.createMediaStreamSource(stream).connect(analyser);
+      audioContextRef.current = audioCtx;
+      analyserRef.current = analyser;
+
       const mr = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm" });
       audioChunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-      mr.onstop = async () => {
+      mr.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
+        if (animFrameRef.current) { cancelAnimationFrame(animFrameRef.current); animFrameRef.current = null; }
+        audioCtx.close().catch(() => {});
         const blob = new Blob(audioChunksRef.current, { type: mr.mimeType });
         const reader = new FileReader();
-        reader.onloadend = async () => {
+        reader.onloadend = () => {
           const b64 = (reader.result as string).split(",")[1];
-          if (currentUsername && activeFriend && b64) {
-            await sendVoiceMessage(currentUsername, activeFriend, b64, recordingSecs);
-          }
+          if (b64) setRecordedPreview({ b64, duration: recordingSecs });
           setIsRecording(false);
-          setRecordingSecs(0);
         };
         reader.readAsDataURL(blob);
       };
@@ -323,6 +412,8 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
       mediaRecorderRef.current = mr;
       setIsRecording(true);
       setRecordingSecs(0);
+      // Canvas animasyonu başlat (biraz geciktir — canvas render edilsin)
+      setTimeout(() => startWaveformAnimation(analyser), 80);
       recordingTimerRef.current = setInterval(() => {
         setRecordingSecs((s) => {
           if (s >= 59) { handleStopRecording(); return s; }
@@ -337,19 +428,48 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
     mediaRecorderRef.current?.stop();
   }
 
+  async function handleSendVoice() {
+    if (!currentUsername || !activeFriend || !recordedPreview) return;
+    const { b64, duration } = recordedPreview;
+    setRecordedPreview(null);
+    setRecordingSecs(0);
+    await sendVoiceMessage(currentUsername, activeFriend, b64, duration);
+  }
+
+  function handleDiscardVoice() {
+    setRecordedPreview(null);
+    setRecordingSecs(0);
+  }
+
   function handleMessageDoubleTap(msgId: string) {
     const now = Date.now();
     const last = lastTapRef.current[msgId] ?? 0;
-    if (now - last < 400) {
-      setEmojiPickerMsgId((prev) => (prev === msgId ? null : msgId));
+    if (now - last < 350) {
+      // Çift tıklama = hızlı ❤️ beğeni
+      handleToggleReaction(msgId, "❤️");
     }
     lastTapRef.current[msgId] = now;
+  }
+
+  function handleLongPressStart(msgId: string) {
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = setTimeout(() => {
+      setContextMenu({ msgId });
+      setEmojiPickerMsgId(null);
+    }, 480);
+  }
+
+  function handleLongPressEnd() {
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
   }
 
   function openChat(username: string) {
     setActiveFriend(username);
     setMessages([]);
     setView("chat");
+    // Okundu olarak işaretle
+    lastReadTimestamps[username] = Date.now();
+    setUnreadCounts((prev) => ({ ...prev, [username]: 0 }));
   }
 
   function openPropose(username: string) {
@@ -798,16 +918,26 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                                 >✈</div>
                                 <span className="text-sm font-semibold text-white">{f.username}</span>
                               </button>
-                              <span
-                                className="text-[9px] font-bold px-2 py-0.5 rounded-full"
-                                style={{
-                                  background: "rgba(14,165,233,0.15)",
-                                  border: "1px solid rgba(14,165,233,0.3)",
-                                  color: "#38BDF8",
-                                }}
-                              >
-                                UÇUYOR
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                {(unreadCounts[f.username] ?? 0) > 0 && (
+                                  <div
+                                    className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                                    style={{ background: "#EF4444", boxShadow: "0 0 8px rgba(239,68,68,0.6)", color: "white" }}
+                                  >
+                                    {unreadCounts[f.username] > 9 ? "9+" : unreadCounts[f.username]}
+                                  </div>
+                                )}
+                                <span
+                                  className="text-[9px] font-bold px-2 py-0.5 rounded-full"
+                                  style={{
+                                    background: "rgba(14,165,233,0.15)",
+                                    border: "1px solid rgba(14,165,233,0.3)",
+                                    color: "#38BDF8",
+                                  }}
+                                >
+                                  UÇUYOR
+                                </span>
+                              </div>
                             </div>
                             {f.flight && (
                               <>
@@ -875,18 +1005,32 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                               </div>
                               <span className="text-sm text-slate-300">{f.username}</span>
                             </div>
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <span className="text-[10px] text-slate-600">💬</span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeFriend(currentUsername!, f.username);
-                                }}
-                                className="text-[10px] text-red-500/50 hover:text-red-400 transition-colors px-1.5 py-0.5 rounded"
-                                style={{ background: "rgba(239,68,68,0.08)" }}
-                              >
-                                Çıkar
-                              </button>
+                            <div className="flex items-center gap-2">
+                              {(unreadCounts[f.username] ?? 0) > 0 && (
+                                <div
+                                  className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                                  style={{
+                                    background: "#EF4444",
+                                    boxShadow: "0 0 8px rgba(239,68,68,0.6)",
+                                    color: "white",
+                                  }}
+                                >
+                                  {unreadCounts[f.username] > 9 ? "9+" : unreadCounts[f.username]}
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="text-[10px] text-slate-600">💬</span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeFriend(currentUsername!, f.username);
+                                  }}
+                                  className="text-[10px] text-red-500/50 hover:text-red-400 transition-colors px-1.5 py-0.5 rounded"
+                                  style={{ background: "rgba(239,68,68,0.08)" }}
+                                >
+                                  Çıkar
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -1002,7 +1146,7 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                   {/* Messages */}
                   <div
                     className="flex-1 overflow-y-auto px-3 py-3 space-y-2"
-                    onClick={() => setEmojiPickerMsgId(null)}
+                    onClick={() => { setEmojiPickerMsgId(null); setContextMenu(null); }}
                   >
                     {messages.length === 0 && (
                       <div className="flex flex-col items-center justify-center h-full text-slate-700 py-12">
@@ -1017,7 +1161,6 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                       const isOwn = msg.from === currentUsername;
                       const reactions = msg.reactions ?? {};
                       const reactionEntries = Object.entries(reactions).filter(([, users]) => users.length > 0);
-                      const isPickerOpen = emojiPickerMsgId === msg.id;
 
                       return (
                         <div
@@ -1054,6 +1197,9 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                                 e.stopPropagation();
                                 if (msg.id) handleMessageDoubleTap(msg.id);
                               }}
+                              onPointerDown={(e) => { e.stopPropagation(); if (msg.id) handleLongPressStart(msg.id); }}
+                              onPointerUp={handleLongPressEnd}
+                              onPointerLeave={handleLongPressEnd}
                             >
                               {/* Quoted message preview */}
                               {msg.replyTo && (
@@ -1184,31 +1330,52 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                             </div>
                           </div>
 
-                          {/* Emoji picker popup */}
+                          {/* Uzun basma context menüsü (yanıtla + emojiler) */}
                           <AnimatePresence>
-                            {isPickerOpen && (
+                            {contextMenu?.msgId === msg.id && (
                               <motion.div
-                                initial={{ opacity: 0, scale: 0.85, y: -4 }}
+                                initial={{ opacity: 0, scale: 0.88, y: -4 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.85, y: -4 }}
-                                transition={{ duration: 0.12 }}
-                                className="flex gap-1.5 p-2 rounded-2xl mt-1"
+                                exit={{ opacity: 0, scale: 0.88, y: -4 }}
+                                transition={{ duration: 0.13 }}
+                                className={`mt-1.5 rounded-2xl overflow-hidden ${isOwn ? "self-end" : "self-start"}`}
                                 style={{
-                                  background: "rgba(15,23,42,0.97)",
+                                  background: "rgba(10,15,30,0.97)",
                                   border: "1px solid rgba(255,255,255,0.1)",
-                                  boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+                                  boxShadow: "0 8px 28px rgba(0,0,0,0.6)",
                                 }}
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                {["❤️", "😂", "👏", "🔥", "✈️", "👍", "😍", "🎉"].map((emoji) => (
-                                  <button
-                                    key={emoji}
-                                    onClick={() => msg.id && handleToggleReaction(msg.id, emoji)}
-                                    className="text-lg hover:scale-125 transition-transform active:scale-95"
-                                  >
-                                    {emoji}
-                                  </button>
-                                ))}
+                                {/* Emoji satırı */}
+                                <div className="flex gap-0.5 px-2 pt-2 pb-1">
+                                  {["❤️", "😂", "👏", "🔥", "✈️", "👍", "😍", "🎉"].map((emoji) => (
+                                    <button
+                                      key={emoji}
+                                      onClick={() => { if (msg.id) handleToggleReaction(msg.id, emoji); setContextMenu(null); }}
+                                      className="text-xl w-9 h-9 rounded-xl flex items-center justify-center hover:scale-110 transition-transform active:scale-95"
+                                      style={{ background: "rgba(255,255,255,0.04)" }}
+                                    >
+                                      {emoji}
+                                    </button>
+                                  ))}
+                                </div>
+                                {/* Ayırıcı */}
+                                <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "0 8px" }} />
+                                {/* Yanıtla */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (msg.id) {
+                                      setReplyingTo({ id: msg.id, from: msg.from, text: msg.text.slice(0, 80) });
+                                      msgInputRef.current?.focus();
+                                    }
+                                    setContextMenu(null);
+                                  }}
+                                  className="w-full px-3 py-2.5 flex items-center gap-2.5 text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/[0.04] transition-colors"
+                                >
+                                  <span className="text-base">↩</span>
+                                  Yanıtla
+                                </button>
                               </motion.div>
                             )}
                           </AnimatePresence>
@@ -1303,13 +1470,61 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                     )}
                   </AnimatePresence>
 
+                  {/* Ses önizleme (kayıt bitti, gönderilmedi) */}
+                  <AnimatePresence>
+                    {recordedPreview && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mx-3 mb-1 px-3 py-2.5 rounded-2xl shrink-0"
+                        style={{
+                          background: "rgba(59,130,246,0.08)",
+                          border: "1px solid rgba(59,130,246,0.22)",
+                        }}
+                      >
+                        <div className="text-[10px] font-bold text-blue-400 mb-2">
+                          🎤 Ses mesajı — {recordedPreview.duration}s &nbsp;·&nbsp; Dinle, sonra gönder
+                        </div>
+                        <audio
+                          controls
+                          src={`data:audio/webm;base64,${recordedPreview.b64}`}
+                          className="w-full h-8 mb-2"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleSendVoice}
+                            className="flex-1 py-1.5 rounded-xl text-xs font-bold text-white transition-all active:scale-95"
+                            style={{
+                              background: "linear-gradient(135deg, #3B82F6, #1D4ED8)",
+                              boxShadow: "0 2px 8px rgba(59,130,246,0.35)",
+                            }}
+                          >
+                            ➤ Gönder
+                          </button>
+                          <button
+                            onClick={handleDiscardVoice}
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all active:scale-95"
+                            style={{
+                              background: "rgba(239,68,68,0.1)",
+                              border: "1px solid rgba(239,68,68,0.25)",
+                              color: "#F87171",
+                            }}
+                          >
+                            🗑 Sil
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   {/* Input area */}
                   <div
                     className="px-3 py-3 flex gap-2 items-center shrink-0"
                     style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
                   >
                     {/* Flight card share button */}
-                    {activeSession && !isRecording && (
+                    {activeSession && !isRecording && !recordedPreview && (
                       <button
                         onClick={handleSendFlightCard}
                         className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all hover:opacity-80 active:scale-90"
@@ -1323,25 +1538,74 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                       </button>
                     )}
 
-                    {/* Mic button */}
-                    {isRecording ? (
-                      <button
-                        onClick={handleStopRecording}
-                        className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all active:scale-90"
-                        style={{
-                          background: "rgba(239,68,68,0.2)",
-                          border: "1px solid rgba(239,68,68,0.4)",
-                        }}
-                        title="Kaydı Durdur ve Gönder"
-                      >
-                        <motion.div
-                          className="w-3 h-3 rounded-sm"
-                          style={{ background: "#F87171" }}
-                          animate={{ opacity: [1, 0.3, 1] }}
-                          transition={{ duration: 0.8, repeat: Infinity }}
-                        />
-                      </button>
-                    ) : (
+                    {/* Kayıt modu — waveform göster */}
+                    {isRecording && (
+                      <>
+                        {/* İptal (çöp kutusu) */}
+                        <button
+                          onClick={() => {
+                            if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+                            if (animFrameRef.current) { cancelAnimationFrame(animFrameRef.current); animFrameRef.current = null; }
+                            audioContextRef.current?.close().catch(() => {});
+                            mediaRecorderRef.current?.stream?.getTracks().forEach((t) => t.stop());
+                            setIsRecording(false);
+                            setRecordingSecs(0);
+                          }}
+                          className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-slate-500 hover:text-red-400 transition-colors"
+                          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                          title="İptal"
+                        >
+                          🗑
+                        </button>
+
+                        {/* Waveform kutusu */}
+                        <div
+                          className="flex-1 flex items-center gap-2 px-2.5 rounded-xl overflow-hidden"
+                          style={{
+                            background: "rgba(15,23,42,0.7)",
+                            border: "1px solid rgba(96,165,250,0.2)",
+                            height: 40,
+                          }}
+                        >
+                          {/* Kırmızı nokta + timer */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <motion.div
+                              className="w-2.5 h-2.5 rounded-full"
+                              style={{ background: "#EF4444" }}
+                              animate={{ opacity: [1, 0.2, 1] }}
+                              transition={{ duration: 0.9, repeat: Infinity }}
+                            />
+                            <span className="text-xs font-mono text-slate-300 tabular-nums">
+                              {String(Math.floor(recordingSecs / 60)).padStart(2, "0")}:{String(recordingSecs % 60).padStart(2, "0")}
+                            </span>
+                          </div>
+                          {/* Canvas waveform */}
+                          <canvas
+                            ref={waveformCanvasRef}
+                            width={120}
+                            height={28}
+                            className="flex-1"
+                            style={{ display: "block", maxWidth: 160 }}
+                          />
+                        </div>
+
+                        {/* Durdur ve önizlemeye gönder */}
+                        <button
+                          onClick={handleStopRecording}
+                          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all active:scale-90"
+                          style={{
+                            background: "linear-gradient(135deg,#3B82F6,#1D4ED8)",
+                            boxShadow: "0 2px 10px rgba(59,130,246,0.4)",
+                          }}
+                          title="Durdur"
+                        >
+                          <div className="w-3 h-3 rounded-sm bg-white" />
+                        </button>
+                      </>
+                    )}
+
+                    {/* Mic butonu (kayıt yokken) */}
+                    {!isRecording && !recordedPreview && (
                       <button
                         onClick={handleStartRecording}
                         className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all hover:opacity-80 active:scale-90"
@@ -1355,23 +1619,8 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                       </button>
                     )}
 
-                    {/* Input / recording indicator */}
-                    {isRecording ? (
-                      <div
-                        className="flex-1 px-3 py-2 rounded-xl text-xs text-red-400 flex items-center gap-2"
-                        style={{
-                          background: "rgba(239,68,68,0.06)",
-                          border: "1px solid rgba(239,68,68,0.2)",
-                        }}
-                      >
-                        <motion.div
-                          className="w-2 h-2 rounded-full bg-red-400 shrink-0"
-                          animate={{ opacity: [1, 0, 1] }}
-                          transition={{ duration: 0.8, repeat: Infinity }}
-                        />
-                        Kayıt: {recordingSecs}s — durdur &amp; gönder
-                      </div>
-                    ) : (
+                    {/* Metin input (kayıt veya önizleme yokken) */}
+                    {!isRecording && !recordedPreview ? (
                       <input
                         ref={msgInputRef}
                         value={msgInput}
@@ -1384,9 +1633,11 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                           border: "1px solid rgba(255,255,255,0.09)",
                         }}
                       />
+                    ) : (
+                      <div className="flex-1" />
                     )}
 
-                    {!isRecording && (
+                    {!isRecording && !recordedPreview && (
                       <button
                         onClick={handleSendMessage}
                         disabled={!msgInput.trim()}

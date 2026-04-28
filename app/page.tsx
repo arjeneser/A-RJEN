@@ -96,9 +96,9 @@ export default function HomePage() {
             className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-tight"
             style={{ fontFamily: "Space Grotesk, sans-serif" }}
           >
-            Pilot Gibi
+            Uçuşa
             <br />
-            <span className="gradient-text">Odaklan</span>
+            <span className="gradient-text">Hazır mısın?</span>
           </motion.h1>
 
           <motion.p
