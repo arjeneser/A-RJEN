@@ -66,6 +66,157 @@ interface FriendsPanelProps {
 // ─── Session-persistent last-read timestamps (survives panel open/close) ──────
 const lastReadTimestamps: Record<string, number> = {};
 
+// ─── VoiceMessagePlayer ───────────────────────────────────────────────────────
+
+function VoiceMessagePlayer({ audioBase64, duration: initDuration }: { audioBase64: string; duration?: number }) {
+  const canvasRef    = useRef<HTMLCanvasElement>(null);
+  const audioRef     = useRef<HTMLAudioElement>(null);
+  const audioCtxRef  = useRef<AudioContext | null>(null);
+  const analyserRef  = useRef<AnalyserNode | null>(null);
+  const animRef      = useRef<number | null>(null);
+  const sourceRef    = useRef<MediaElementAudioSourceNode | null>(null);
+  const [playing, setPlaying]   = useState(false);
+  const [current, setCurrent]   = useState(0);
+  const [total, setTotal]       = useState(initDuration ?? 0);
+  const src = `data:audio/webm;base64,${audioBase64}`;
+
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+  function drawBars(analyser: AnalyserNode) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const c = ctx;
+    const buf = new Uint8Array(analyser.frequencyBinCount);
+    const W = canvas.width, H = canvas.height;
+    const N = 28, gap = 2;
+    const bw = Math.floor((W - gap * (N - 1)) / N);
+    function loop() {
+      animRef.current = requestAnimationFrame(loop);
+      analyser.getByteFrequencyData(buf);
+      c.clearRect(0, 0, W, H);
+      for (let i = 0; i < N; i++) {
+        const v = buf[Math.floor((i / N) * analyser.frequencyBinCount * 0.75)] / 255;
+        const bh = Math.max(3, v * H * 0.9);
+        c.fillStyle = `rgba(96,165,250,${0.35 + v * 0.65})`;
+        c.fillRect(i * (bw + gap), (H - bh) / 2, bw, bh);
+      }
+    }
+    loop();
+  }
+
+  function drawStatic() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const W = canvas.width, H = canvas.height;
+    const N = 28, gap = 2;
+    const bw = Math.floor((W - gap * (N - 1)) / N);
+    ctx.clearRect(0, 0, W, H);
+    for (let i = 0; i < N; i++) {
+      const v = 0.12 + Math.abs(Math.sin(i * 0.7) * 0.15 + Math.cos(i * 1.2) * 0.08);
+      const bh = Math.max(3, v * H);
+      ctx.fillStyle = `rgba(96,165,250,0.22)`;
+      ctx.fillRect(i * (bw + gap), (H - bh) / 2, bw, bh);
+    }
+  }
+
+  function stopAnim() {
+    if (animRef.current) { cancelAnimationFrame(animRef.current); animRef.current = null; }
+    drawStatic();
+  }
+
+  async function togglePlay() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (playing) {
+      audio.pause();
+      stopAnim();
+      setPlaying(false);
+      return;
+    }
+    // AudioContext ilk oynatmada kur
+    if (!audioCtxRef.current) {
+      const actx = new AudioContext();
+      const an = actx.createAnalyser();
+      an.fftSize = 64;
+      const src2 = actx.createMediaElementSource(audio);
+      src2.connect(an);
+      an.connect(actx.destination);
+      audioCtxRef.current = actx;
+      analyserRef.current = an;
+      sourceRef.current = src2;
+    } else if (audioCtxRef.current.state === "suspended") {
+      await audioCtxRef.current.resume();
+    }
+    audio.play().catch(() => {});
+    setPlaying(true);
+    if (analyserRef.current) drawBars(analyserRef.current);
+  }
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onEnd  = () => { setPlaying(false); stopAnim(); setCurrent(0); };
+    const onTime = () => setCurrent(audio.currentTime);
+    const onMeta = () => { if (isFinite(audio.duration)) setTotal(audio.duration); };
+    audio.addEventListener("ended",           onEnd);
+    audio.addEventListener("timeupdate",      onTime);
+    audio.addEventListener("loadedmetadata",  onMeta);
+    return () => {
+      audio.removeEventListener("ended",          onEnd);
+      audio.removeEventListener("timeupdate",     onTime);
+      audio.removeEventListener("loadedmetadata", onMeta);
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+      audioCtxRef.current?.close().catch(() => {});
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => { drawStatic(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="flex items-center gap-2" style={{ minWidth: 190 }}>
+      {/* Play/Pause */}
+      <button
+        onClick={togglePlay}
+        className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all active:scale-90"
+        style={{
+          background: "rgba(59,130,246,0.2)",
+          border: "1px solid rgba(59,130,246,0.35)",
+        }}
+      >
+        {playing ? (
+          <div className="flex gap-0.5">
+            <div className="w-[3px] h-3 rounded-sm" style={{ background: "#60A5FA" }} />
+            <div className="w-[3px] h-3 rounded-sm" style={{ background: "#60A5FA" }} />
+          </div>
+        ) : (
+          <span style={{ color: "#60A5FA", marginLeft: 2, fontSize: 11 }}>▶</span>
+        )}
+      </button>
+
+      {/* Waveform canvas */}
+      <canvas
+        ref={canvasRef}
+        width={112}
+        height={28}
+        style={{ flex: 1, display: "block", maxWidth: 140 }}
+      />
+
+      {/* Timer */}
+      <span className="text-[10px] font-mono tabular-nums shrink-0" style={{ color: "#64748B" }}>
+        {playing ? fmt(current) : fmt(total)}
+      </span>
+
+      {/* Hidden audio element */}
+      <audio ref={audioRef} src={src} preload="metadata" />
+    </div>
+  );
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function timeAgo(ts: number): string {
@@ -1290,17 +1441,11 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
 
                                 {/* Voice message */}
                                 {msg.type === "voice" && msg.audioBase64 ? (
-                                  <div className="flex items-center gap-2">
-                                    <audio
-                                      controls
-                                      src={`data:audio/webm;base64,${msg.audioBase64}`}
-                                      className="h-8"
-                                      style={{ maxWidth: 180 }}
-                                      onClick={(e) => e.stopPropagation()}
+                                  <div onClick={(e) => e.stopPropagation()}>
+                                    <VoiceMessagePlayer
+                                      audioBase64={msg.audioBase64}
+                                      duration={msg.audioDuration}
                                     />
-                                    {msg.audioDuration !== undefined && (
-                                      <span className="text-[10px] opacity-60 shrink-0">{msg.audioDuration}s</span>
-                                    )}
                                   </div>
                                 ) : msg.type !== "flight_card" ? (
                                   <span>{msg.text}</span>
