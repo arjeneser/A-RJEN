@@ -37,7 +37,11 @@ export function WorldMap({ departure, destination, progress, otherFlights = [] }
   );
 
   const doneCount   = Math.floor(t * routeCoords.length);
-  const trailCoords = routeCoords.slice(0, doneCount + 1);
+  // Trail her zaman tam uçağın konumunda biter — ayrık noktalar arasında boşluk kalmasın
+  const trailCoords: [number, number][] = [
+    ...routeCoords.slice(0, Math.max(1, doneCount)),
+    [planePos.lng, planePos.lat],
+  ];
 
   // ── Diğer uçakları haritaya uygula ───────────────────────────────────────
   function applyOtherFlights(flights: LiveFlight[]) {
