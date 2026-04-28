@@ -138,6 +138,7 @@ export const useActiveSession = create<ActiveSessionState>()(
           durationMs,
           startTime: Date.now(),
           totalPausedMs: 0,
+          pauseCount: 0,
           seat,
           passengerName,
           status: "running",
@@ -153,6 +154,7 @@ export const useActiveSession = create<ActiveSessionState>()(
               ...s.session,
               status: "paused",
               pausedAt: Date.now(),
+              pauseCount: (s.session.pauseCount ?? 0) + 1,
             },
           };
         });

@@ -1,4 +1,4 @@
-import { ref, set, remove, onValue, off, get } from "firebase/database";
+import { ref, set, remove, onValue, off, get, update } from "firebase/database";
 import { getDb } from "./firebase";
 import type { City } from "@/types";
 
@@ -12,6 +12,16 @@ export interface FriendStats {
   totalFlights: number;
   currentStreak: number;
 }
+
+/** Belirli bir uçuş süresi için detaylı istatistik */
+export interface FlightDetailStat {
+  completions: number;   // bu sürede kaç uçuş tamamladı
+  totalPauses: number;   // toplam duraklama sayısı
+  totalActualMs: number; // toplam gerçek süre (ms, başlangıç→bitiş)
+  durationLabel: string; // örn. "2 Saat"
+}
+
+export type FlightDetailStats = Record<string, FlightDetailStat>; // key = durationKey
 
 export interface FriendInfo {
   username: string;
@@ -33,6 +43,42 @@ export async function registerPresence(username: string) {
   try {
     await set(ref(db, `users/${username}/lastSeen`), Date.now());
   } catch { /* ignore */ }
+}
+
+/**
+ * Uçuş detay istatistiğini Firebase'e akümüle et.
+ * Her çağrıda o durationKey için completions++, pauses ve actualMs toplanır.
+ */
+export async function syncFlightDetail(
+  username: string,
+  durationKey: string,
+  durationLabel: string,
+  pauseCount: number,
+  actualMs: number
+): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  const r = ref(db, `users/${username}/flightDetails/${durationKey}`);
+  const snap = await get(r);
+  const prev = (snap.val() ?? {}) as Partial<FlightDetailStat>;
+  await set(r, {
+    completions:    (prev.completions   ?? 0) + 1,
+    totalPauses:    (prev.totalPauses   ?? 0) + pauseCount,
+    totalActualMs:  (prev.totalActualMs ?? 0) + actualMs,
+    durationLabel,
+  });
+}
+
+/** Bir kullanıcının tüm uçuş detaylarını gerçek zamanlı dinle */
+export function subscribeToFlightDetailStats(
+  username: string,
+  callback: (stats: FlightDetailStats) => void
+): () => void {
+  const db = getDb();
+  if (!db) return () => {};
+  const r = ref(db, `users/${username}/flightDetails`);
+  onValue(r, (snap) => callback((snap.val() as FlightDetailStats) ?? {}));
+  return () => off(r);
 }
 
 /** Kullanıcı istatistiklerini Firebase'e yaz (uçuş sonrası çağrılır) */

@@ -12,8 +12,10 @@ import {
   removeFriend,
   subscribeToIncomingRequests,
   subscribeToFriends,
+  subscribeToFlightDetailStats,
   type FriendRequest,
   type FriendInfo,
+  type FlightDetailStats,
 } from "@/lib/friends";
 import {
   sendMessage,
@@ -55,7 +57,7 @@ import type { City, FlightDurationOption } from "@/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type View = "main" | "chat" | "propose" | "leaderboard" | "group" | "create-group";
+type View = "main" | "chat" | "propose" | "leaderboard" | "group" | "create-group" | "profile";
 
 interface FriendsPanelProps {
   open: boolean;
@@ -262,6 +264,7 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
   const [contextMenu, setContextMenu]       = useState<{ msgId: string } | null>(null);
   const [friendPresences, setFriendPresences] = useState<Record<string, UserPresence>>({});
   const [unreadCounts, setUnreadCounts]     = useState<Record<string, number>>({});
+  const [profileStats, setProfileStats]     = useState<FlightDetailStats>({});
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unreadSubsRef     = useRef<Map<string, () => void>>(new Map());
   const mediaRecorderRef  = useRef<MediaRecorder | null>(null);
@@ -329,6 +332,13 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
     const unsub = subscribeToMultiplePresences(usernames, setFriendPresences);
     return unsub;
   }, [friends, open]);
+
+  // ── Profil istatistikleri (view === "profile" iken) ───────────────────────────
+  useEffect(() => {
+    if (view !== "profile" || !activeFriend) return;
+    const unsub = subscribeToFlightDetailStats(activeFriend, setProfileStats);
+    return unsub;
+  }, [view, activeFriend]);
 
   // ── Okunmamış mesaj sayılarını takip et ──────────────────────────────────────
   useEffect(() => {
@@ -431,6 +441,7 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
       setEmojiPickerMsgId(null);
       setContextMenu(null);
       setRecordedPreview(null);
+      setProfileStats({});
       setNewGroupName("");
       setSelectedGroupMembers([]);
       setLeaveConfirm(false);
@@ -785,6 +796,7 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                 {view === "leaderboard"   && <span className="text-base">🏆</span>}
                 {view === "group"         && <span className="text-base">👥</span>}
                 {view === "create-group"  && <span className="text-base">➕</span>}
+                {view === "profile"       && <span className="text-base">👤</span>}
 
                 {view === "chat" ? (
                   <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -810,10 +822,11 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                     className="font-bold text-white text-sm truncate"
                     style={{ fontFamily: "Space Grotesk, sans-serif" }}
                   >
-                    {view === "main"           ? "Arkadaşlar"
-                      : view === "leaderboard" ? "Sıralama"
-                      : view === "group"       ? (activeGroup?.name ?? "Grup")
+                    {view === "main"            ? "Arkadaşlar"
+                      : view === "leaderboard"  ? "Sıralama"
+                      : view === "group"        ? (activeGroup?.name ?? "Grup")
                       : view === "create-group" ? "Grup Oluştur"
+                      : view === "profile"      ? `${activeFriend} · Profil`
                       : `${activeFriend}'a Uçuş Teklif Et`}
                   </span>
                 )}
@@ -829,17 +842,27 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
               </div>
 
               {view === "chat" && (
-                <button
-                  onClick={() => openPropose(activeFriend!)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white shrink-0 transition-all hover:opacity-90"
-                  style={{
-                    background: "linear-gradient(135deg, #7C3AED, #5B21B6)",
-                    boxShadow: "0 2px 10px rgba(124,58,237,0.3)",
-                  }}
-                  title="Uçuş Teklif Et"
-                >
-                  ✈ Teklif Et
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={() => { setProfileStats({}); setView("profile"); }}
+                    className="w-7 h-7 flex items-center justify-center rounded-full text-slate-400 hover:text-white transition-colors"
+                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                    title="Profili Görüntüle"
+                  >
+                    👤
+                  </button>
+                  <button
+                    onClick={() => openPropose(activeFriend!)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90"
+                    style={{
+                      background: "linear-gradient(135deg, #7C3AED, #5B21B6)",
+                      boxShadow: "0 2px 10px rgba(124,58,237,0.3)",
+                    }}
+                    title="Uçuş Teklif Et"
+                  >
+                    ✈ Teklif Et
+                  </button>
+                </div>
               )}
               {view === "group" && activeGroup && (
                 <div
@@ -1321,25 +1344,7 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                           {/* Row: reply button + bubble */}
                           <div className={`flex items-end gap-1.5 max-w-[82%] ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
 
-                            {/* Reply button — visible on group hover */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (msg.id) {
-                                  setReplyingTo({ id: msg.id, from: msg.from, text: msg.text.slice(0, 80) });
-                                  msgInputRef.current?.focus();
-                                }
-                              }}
-                              className="w-6 h-6 rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mb-1"
-                              style={{
-                                background: "rgba(255,255,255,0.06)",
-                                border: "1px solid rgba(255,255,255,0.1)",
-                                color: "#64748B",
-                              }}
-                              title="Yanıtla"
-                            >
-                              ↩
-                            </button>
+                            {/* Reply button removed — long-press context menu ile yanıtla */}
 
                             {/* Bubble */}
                             <div
@@ -2349,6 +2354,197 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                       ? "Oluşturuluyor…"
                       : `👥 ${newGroupName.trim() || "Grup"} Oluştur (${selectedGroupMembers.length + 1} kişi)`}
                   </button>
+                </motion.div>
+              )}
+
+              {/* ════════════ PROFILE VIEW ════════════ */}
+              {view === "profile" && activeFriend && (
+                <motion.div
+                  key="profile"
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 12 }}
+                  transition={{ duration: 0.18 }}
+                  className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
+                >
+                  {/* Kullanıcı kartı */}
+                  {(() => {
+                    const fInfo = friends.find((f) => f.username === activeFriend);
+                    return (
+                      <div
+                        className="p-4 rounded-2xl flex items-center gap-3"
+                        style={{
+                          background: "rgba(255,255,255,0.03)",
+                          border: "1px solid rgba(255,255,255,0.07)",
+                        }}
+                      >
+                        <div
+                          className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0"
+                          style={{
+                            background: "rgba(59,130,246,0.12)",
+                            border: "1px solid rgba(59,130,246,0.25)",
+                          }}
+                        >
+                          ✈
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-base font-bold text-white" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                              {activeFriend}
+                            </span>
+                            {partnerPresence?.online && (
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: "#4ADE80", boxShadow: "0 0 6px #4ade80" }} />
+                            )}
+                          </div>
+                          {fInfo?.stats && (
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="text-[11px] text-slate-500">
+                                ✈ {fInfo.stats.totalFlights} uçuş
+                              </span>
+                              <span className="text-[11px] text-amber-500/80">
+                                ⭐ {fInfo.stats.totalXP.toLocaleString()} XP
+                              </span>
+                              <span className="text-[11px] text-orange-400/80">
+                                🔥 {fInfo.stats.currentStreak}g
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Uçuş detay istatistikleri */}
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+                      Uçuş Performansı
+                    </div>
+
+                    {Object.keys(profileStats).length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-10 text-slate-700">
+                        <span className="text-3xl mb-2">📊</span>
+                        <p className="text-xs text-center">
+                          Henüz kayıtlı uçuş istatistiği yok.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {Object.entries(profileStats)
+                          .sort(([a], [b]) => parseInt(a) - parseInt(b))
+                          .map(([key, stat]) => {
+                            const avgPauses = stat.completions > 0
+                              ? (stat.totalPauses / stat.completions).toFixed(1)
+                              : "0";
+                            const avgActualHrs = stat.completions > 0
+                              ? stat.totalActualMs / stat.completions / 3600000
+                              : 0;
+                            const nominalHrs = parseInt(key.replace("h", ""));
+                            const overRatio = avgActualHrs > 0 && nominalHrs > 0
+                              ? ((avgActualHrs - nominalHrs) / nominalHrs * 100).toFixed(0)
+                              : null;
+
+                            function fmtHrs(ms: number) {
+                              const h = Math.floor(ms / 3600000);
+                              const m = Math.round((ms % 3600000) / 60000);
+                              if (h === 0) return `${m}dk`;
+                              if (m === 0) return `${h}sa`;
+                              return `${h}sa ${m}dk`;
+                            }
+
+                            return (
+                              <motion.div
+                                key={key}
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="p-3.5 rounded-2xl space-y-3"
+                                style={{
+                                  background: "rgba(255,255,255,0.025)",
+                                  border: "1px solid rgba(255,255,255,0.07)",
+                                }}
+                              >
+                                {/* Başlık satırı */}
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className="px-2.5 py-1 rounded-lg text-xs font-bold"
+                                      style={{
+                                        background: "rgba(59,130,246,0.15)",
+                                        border: "1px solid rgba(59,130,246,0.3)",
+                                        color: "#60A5FA",
+                                      }}
+                                    >
+                                      {stat.durationLabel}
+                                    </div>
+                                    <span className="text-[10px] text-slate-600">
+                                      {stat.completions}× tamamlandı
+                                    </span>
+                                  </div>
+                                  {overRatio !== null && parseInt(overRatio) > 0 && (
+                                    <span className="text-[10px] text-amber-500/70">
+                                      +%{overRatio} fazla
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Detay satırları */}
+                                <div className="grid grid-cols-2 gap-2">
+                                  {/* Ortalama duraklama */}
+                                  <div
+                                    className="p-2.5 rounded-xl flex flex-col gap-0.5"
+                                    style={{
+                                      background: "rgba(239,68,68,0.06)",
+                                      border: "1px solid rgba(239,68,68,0.15)",
+                                    }}
+                                  >
+                                    <span className="text-[10px] text-slate-600">Ortalama Mola</span>
+                                    <span className="text-lg font-bold" style={{ color: "#F87171", fontFamily: "Space Grotesk" }}>
+                                      {avgPauses}×
+                                    </span>
+                                    <span className="text-[9px] text-slate-700">duraksama / uçuş</span>
+                                  </div>
+
+                                  {/* Ortalama gerçek süre */}
+                                  <div
+                                    className="p-2.5 rounded-xl flex flex-col gap-0.5"
+                                    style={{
+                                      background: "rgba(59,130,246,0.06)",
+                                      border: "1px solid rgba(59,130,246,0.15)",
+                                    }}
+                                  >
+                                    <span className="text-[10px] text-slate-600">Ort. Bitiş Süresi</span>
+                                    <span className="text-sm font-bold" style={{ color: "#60A5FA", fontFamily: "Space Grotesk" }}>
+                                      {fmtHrs(stat.totalActualMs / stat.completions)}
+                                    </span>
+                                    <span className="text-[9px] text-slate-700">
+                                      hedef: {stat.durationLabel.toLowerCase()}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* İlerleme çubuğu — gerçek/hedef oranı */}
+                                {nominalHrs > 0 && avgActualHrs > 0 && (
+                                  <div>
+                                    <div className="flex justify-between text-[9px] text-slate-700 mb-1">
+                                      <span>Hedef süre</span>
+                                      <span>Gerçek süre</span>
+                                    </div>
+                                    <div className="relative h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                                      <div
+                                        className="absolute top-0 left-0 h-full rounded-full"
+                                        style={{
+                                          width: `${Math.min(100, (nominalHrs / avgActualHrs) * 100)}%`,
+                                          background: "linear-gradient(90deg,#3B82F6,#60A5FA)",
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </motion.div>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </div>
                 </motion.div>
               )}
 

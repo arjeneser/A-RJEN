@@ -49,6 +49,7 @@ export interface FlightSession {
   startTime: number;  // unix ms timestamp
   pausedAt?: number;  // unix ms when last paused
   totalPausedMs: number; // accumulated pause time
+  pauseCount: number;   // kaç defa duraksatıldı
   seat: string;
   passengerName: string;
   status: SessionStatus;

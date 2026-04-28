@@ -18,6 +18,36 @@ const WorldMap = dynamic(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Mola kronometresi — mount anından itibaren sayar
+// ─────────────────────────────────────────────────────────────────────────────
+
+function BreakTimer() {
+  const [secs, setSecs] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setSecs((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  const fmt = (n: number) => String(n).padStart(2, "0");
+  return (
+    <div
+      className="px-6 py-3 rounded-2xl text-center"
+      style={{ background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.25)" }}
+    >
+      <div
+        className="text-4xl font-bold tabular-nums"
+        style={{ color: "#F87171", fontFamily: "Space Grotesk, sans-serif", letterSpacing: 2 }}
+      >
+        {h > 0 ? `${fmt(h)}:${fmt(m)}:${fmt(s)}` : `${fmt(m)}:${fmt(s)}`}
+      </div>
+      <div className="text-[10px] text-slate-600 mt-1 uppercase tracking-widest">mola süresi</div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Focus Page
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -348,6 +378,76 @@ export default function FocusPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Mola Overlay (duraklatılınca) ────────────────────────────────────── */}
+      <AnimatePresence>
+        {isPaused && (
+          <motion.div
+            key="pause-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-[55] flex items-center justify-center"
+            style={{ background: "rgba(7,9,24,0.88)", backdropFilter: "blur(8px)" }}
+          >
+            <motion.div
+              initial={{ scale: 0.88, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.88, y: 20 }}
+              transition={{ type: "spring", stiffness: 340, damping: 26 }}
+              className="flex flex-col items-center gap-5 px-8 py-10 rounded-3xl"
+              style={{
+                background: "linear-gradient(160deg, rgba(220,38,38,0.12) 0%, rgba(7,9,24,0.95) 100%)",
+                border: "1px solid rgba(239,68,68,0.3)",
+                boxShadow: "0 0 60px rgba(239,68,68,0.15), 0 24px 64px rgba(0,0,0,0.6)",
+                minWidth: 280,
+              }}
+            >
+              {/* Uçak ikonu (kırmızı arka plan) */}
+              <div
+                className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl"
+                style={{
+                  background: "linear-gradient(135deg, #DC2626, #991B1B)",
+                  boxShadow: "0 8px 32px rgba(220,38,38,0.5)",
+                }}
+              >
+                ✈
+              </div>
+
+              {/* Başlık */}
+              <div className="text-center">
+                <div
+                  className="text-xl font-bold text-white mb-1"
+                  style={{ fontFamily: "Space Grotesk, sans-serif" }}
+                >
+                  Mola Zamanı
+                </div>
+                <div className="text-sm text-slate-500">
+                  Uçuşun duraklatıldı
+                </div>
+              </div>
+
+              {/* Mola kronometresi */}
+              <BreakTimer />
+
+              {/* Devam Et butonu */}
+              <motion.button
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={resume}
+                className="w-full py-3.5 rounded-2xl font-bold text-white text-base"
+                style={{
+                  background: "linear-gradient(135deg, #22C55E, #16A34A)",
+                  boxShadow: "0 4px 20px rgba(34,197,94,0.4)",
+                }}
+              >
+                ▶ Devam Et
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Notes Drawer ────────────────────────────────────────────────────── */}
       <AnimatePresence>

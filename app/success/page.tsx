@@ -16,7 +16,7 @@ import {
   flightsToNextLevel,
 } from "@/store/user-store";
 import { useAuthStore } from "@/store/auth-store";
-import { syncStats } from "@/lib/friends";
+import { syncStats, syncFlightDetail } from "@/lib/friends";
 
 export default function SuccessPage() {
   const router = useRouter();
@@ -88,6 +88,17 @@ export default function SuccessPage() {
             totalFlights:  updatedProfile.totalFlights,
             currentStreak: updatedProfile.currentStreak,
           });
+          // Detaylı uçuş istatistiği — duraklama sayısı + gerçek süre
+          const durationKey   = `${Math.round(session!.durationMs / 3600000)}h`;
+          const durationLabel = `${Math.round(session!.durationMs / 3600000)} Saat`;
+          const actualMs      = Date.now() - session!.startTime; // gerçek geçen süre
+          syncFlightDetail(
+            currentUsername,
+            durationKey,
+            durationLabel,
+            session!.pauseCount ?? 0,
+            actualMs
+          );
         }
       }, 200);
     }
