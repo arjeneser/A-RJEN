@@ -8,21 +8,38 @@ import { requestNotificationPermission } from "@/lib/notifications";
 /**
  * AuthProvider
  * ─────────────
- * • On mount: if a user is logged in, load their snapshot into useUserStore.
- * • Subscribes to useUserStore changes and auto-saves snapshots to auth store
- *   so data is never lost.
- * • Must be rendered inside the app root (layout.tsx).
+ * • Sayfa yüklenince "beni hatırla" oturumunu geri yükler
+ *   (localStorage → kalıcı | sessionStorage → sekme kapanınca sona erer)
+ * • Giriş yapan kullanıcının snapshot'ını useUserStore'a yükler.
+ * • useUserStore değişimlerinde otomatik snapshot kaydeder.
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { currentUsername, getSnapshot, saveSnapshot } = useAuthStore();
+  const { currentUsername, getSnapshot, saveSnapshot, setCurrentUser, credentials } = useAuthStore();
   const { loadSnapshot, exportSnapshot, resetToDefault } = useUserStore();
-  const loadedRef  = useRef<string | null>(null);
+  const loadedRef    = useRef<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const restoredRef  = useRef(false);
 
-  // ── Load snapshot when username changes (login / page refresh) ────────────
+  // ── Oturum geri yükleme (sayfa yükleme / yenileme) ───────────────────────
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+
+    if (currentUsername) return; // Zustand persist zaten yükledi
+
+    const saved =
+      localStorage.getItem("airjen-session") ||
+      sessionStorage.getItem("airjen-session");
+
+    if (saved && credentials[saved]) {
+      setCurrentUser(saved);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Kullanıcı adı değişince snapshot yükle ────────────────────────────────
   useEffect(() => {
     if (!currentUsername) {
-      // Not logged in — keep store empty
       if (loadedRef.current !== null) {
         resetToDefault();
         loadedRef.current = null;
@@ -30,29 +47,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (loadedRef.current === currentUsername) return; // already loaded
+    if (loadedRef.current === currentUsername) return;
     loadedRef.current = currentUsername;
 
-    // Firebase'de kullanıcı varlığını kaydet (arkadaş arama için)
     registerPresence(currentUsername);
-    // Bildirim izni iste
     requestNotificationPermission();
 
     const snap = getSnapshot(currentUsername);
     if (snap) {
       loadSnapshot(snap);
     } else {
-      resetToDefault(); // new user → fresh profile
+      resetToDefault();
     }
   }, [currentUsername, getSnapshot, loadSnapshot, resetToDefault]);
 
-  // ── Auto-save snapshot to auth store on every user store change ───────────
+  // ── Snapshot otomatik kayıt (debounced) ───────────────────────────────────
   useEffect(() => {
     if (!currentUsername) return;
 
     const unsub = useUserStore.subscribe(() => {
       if (!currentUsername) return;
-      // Debounce 800ms to avoid hammering storage on rapid changes
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
         const snap = exportSnapshot();

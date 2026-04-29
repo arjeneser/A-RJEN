@@ -11,19 +11,27 @@ export interface UserSnapshot {
   stamps: Stamp[];
 }
 
+/** Şifreyi string olarak saklayan eski format ile uyumluluk için union */
+export interface UserCredential {
+  password: string;
+  securityQuestion: string;
+  securityAnswer: string; // lowercase trimmed
+}
+
 type LoginResult   = "ok" | "wrong_password" | "not_found";
 type RegisterResult = "ok" | "taken";
 
 interface AuthState {
   currentUsername: string | null;
-  credentials: Record<string, string>;      // username → password
-  snapshots:   Record<string, UserSnapshot>; // username → saved data
+  credentials: Record<string, UserCredential | string>; // string = eski format
+  snapshots:   Record<string, UserSnapshot>;
 
-  login:        (username: string, password: string) => LoginResult;
-  register:     (username: string, password: string) => RegisterResult;
-  logout:       () => void;
-  saveSnapshot: (username: string, snap: UserSnapshot) => void;
-  getSnapshot:  (username: string) => UserSnapshot | null;
+  login:          (username: string, password: string) => LoginResult;
+  register:       (username: string, password: string, securityQuestion: string, securityAnswer: string) => RegisterResult;
+  logout:         () => void;
+  setCurrentUser: (username: string | null) => void;
+  saveSnapshot:   (username: string, snap: UserSnapshot) => void;
+  getSnapshot:    (username: string) => UserSnapshot | null;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -39,26 +47,45 @@ export const useAuthStore = create<AuthState>()(
       login: (username, password) => {
         const { credentials } = get();
         const key = username.trim().toLowerCase();
-        if (!credentials[key])           return "not_found";
-        if (credentials[key] !== password) return "wrong_password";
+        const cred = credentials[key];
+        if (!cred) return "not_found";
+        // Eski format: string — yeni format: nesne
+        const storedPw = typeof cred === "string" ? cred : cred.password;
+        if (storedPw !== password) return "wrong_password";
         set({ currentUsername: key });
         return "ok";
       },
 
       // ── register ───────────────────────────────────────────────────────────
-      register: (username, password) => {
+      register: (username, password, securityQuestion, securityAnswer) => {
         const { credentials } = get();
         const key = username.trim().toLowerCase();
         if (credentials[key]) return "taken";
         set((s) => ({
-          credentials: { ...s.credentials, [key]: password },
+          credentials: {
+            ...s.credentials,
+            [key]: {
+              password,
+              securityQuestion,
+              securityAnswer: securityAnswer.trim().toLowerCase(),
+            },
+          },
           currentUsername: key,
         }));
         return "ok";
       },
 
       // ── logout ─────────────────────────────────────────────────────────────
-      logout: () => set({ currentUsername: null }),
+      logout: () => {
+        set({ currentUsername: null });
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("airjen-session");
+          sessionStorage.removeItem("airjen-session");
+        }
+      },
+
+      // ── setCurrentUser ─────────────────────────────────────────────────────
+      setCurrentUser: (username) => set({ currentUsername: username }),
 
       // ── saveSnapshot ───────────────────────────────────────────────────────
       saveSnapshot: (username, snap) =>
@@ -69,6 +96,10 @@ export const useAuthStore = create<AuthState>()(
       // ── getSnapshot ────────────────────────────────────────────────────────
       getSnapshot: (username) => get().snapshots[username] ?? null,
     }),
-    { name: "airjen-auth" }
+    {
+      name: "airjen-auth",
+      // currentUsername, credentials ve snapshots persist edilir.
+      // Oturum kalıcılığı ayrıca airjen-session (localStorage/sessionStorage) ile yönetilir.
+    }
   )
 );

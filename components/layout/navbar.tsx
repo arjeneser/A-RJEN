@@ -15,6 +15,7 @@ import { leaveGroup } from "@/lib/groups";
 const NAV_LINKS = [
   { href: "/", label: "Ana Sayfa" },
   { href: "/new-flight", label: "Yeni Uçuş" },
+  { href: "/lobbies", label: "🚀 Ortak Uçuş" },
   { href: "/passport", label: "Pasaport" },
 ];
 

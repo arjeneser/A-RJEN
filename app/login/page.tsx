@@ -6,25 +6,45 @@ import { useAuthStore } from "@/store/auth-store";
 
 type Mode = "login" | "register";
 
+const SECURITY_QUESTIONS = [
+  "Evcil hayvanınızın adı nedir?",
+  "Annenizin kızlık soyadı nedir?",
+  "İlk öğretmeninizin adı nedir?",
+  "Doğduğunuz şehir neresidir?",
+  "Çocukluk arkadaşınızın adı nedir?",
+  "İlk arabanızın markası nedir?",
+  "En sevdiğiniz çocukluk filmi hangisiydi?",
+  "Büyüdüğünüz sokağın adı nedir?",
+];
+
+const INPUT_STYLE: React.CSSProperties = {
+  background: "rgba(255,255,255,0.06)",
+  border: "1px solid rgba(255,255,255,0.1)",
+};
+const INPUT_FOCUS  = "rgba(59,130,246,0.5)";
+const INPUT_BLUR   = "rgba(255,255,255,0.1)";
+
 export default function LoginPage() {
   const router = useRouter();
   const { login, register, currentUsername } = useAuthStore();
 
-  const [mode, setMode]         = useState<Mode>("login");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm]   = useState("");
-  const [error, setError]       = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [remember, setRemember] = useState(false);
+  const [mode, setMode]                       = useState<Mode>("login");
+  const [username, setUsername]               = useState("");
+  const [password, setPassword]               = useState("");
+  const [confirm, setConfirm]                 = useState("");
+  const [securityQuestion, setSecurityQuestion] = useState(SECURITY_QUESTIONS[0]);
+  const [securityAnswer, setSecurityAnswer]   = useState("");
+  const [error, setError]                     = useState("");
+  const [loading, setLoading]                 = useState(false);
+  const [remember, setRemember]               = useState(false);
 
-  // Kayıtlı kullanıcı adını yükle
+  // Kayıtlı kullanıcı adını yükle (beni hatırla seçiliyse)
   useEffect(() => {
     const saved = localStorage.getItem("airjen-remember");
     if (saved) { setUsername(saved); setRemember(true); }
   }, []);
 
-  // Already logged in → go home
+  // Giriş yapılmışsa ana sayfaya yönlendir
   useEffect(() => {
     if (currentUsername) router.replace("/");
   }, [currentUsername, router]);
@@ -42,22 +62,45 @@ export default function LoginPage() {
 
     if (mode === "register") {
       if (p !== confirm) { setError("Şifreler eşleşmiyor."); return; }
-      const res = register(u, p);
+      if (!securityAnswer.trim()) { setError("Güvenlik sorusu cevabı gerekli."); return; }
+      const res = register(u, p, securityQuestion, securityAnswer);
       if (res === "taken") { setError("Bu kullanıcı adı zaten alınmış."); return; }
+      // Yeni kayıt → her zaman kalıcı oturum
+      localStorage.setItem("airjen-session", u.trim().toLowerCase());
+      sessionStorage.removeItem("airjen-session");
       router.replace("/");
       return;
     }
 
+    // Login
     setLoading(true);
     setTimeout(() => {
       const res = login(u, p);
       setLoading(false);
-      if (res === "not_found")     { setError("Kullanıcı bulunamadı."); return; }
+      if (res === "not_found")      { setError("Kullanıcı bulunamadı."); return; }
       if (res === "wrong_password") { setError("Şifre hatalı."); return; }
-      if (remember) localStorage.setItem("airjen-remember", u);
-      else localStorage.removeItem("airjen-remember");
+
+      // Beni hatırla: localStorage (kalıcı) vs sessionStorage (sekme kapanınca sona erer)
+      const key = u.trim().toLowerCase();
+      if (remember) {
+        localStorage.setItem("airjen-session", key);
+        localStorage.setItem("airjen-remember", u);
+        sessionStorage.removeItem("airjen-session");
+      } else {
+        sessionStorage.setItem("airjen-session", key);
+        localStorage.removeItem("airjen-session");
+        localStorage.removeItem("airjen-remember");
+      }
       router.replace("/");
     }, 300);
+  }
+
+  function switchMode(m: Mode) {
+    setMode(m);
+    setError("");
+    setConfirm("");
+    setSecurityAnswer("");
+    setSecurityQuestion(SECURITY_QUESTIONS[0]);
   }
 
   return (
@@ -102,7 +145,7 @@ export default function LoginPage() {
             {(["login", "register"] as Mode[]).map((m) => (
               <button
                 key={m}
-                onClick={() => { setMode(m); setError(""); }}
+                onClick={() => switchMode(m)}
                 className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all duration-200"
                 style={
                   mode === m
@@ -132,12 +175,9 @@ export default function LoginPage() {
                 placeholder="pilot123"
                 autoComplete="username"
                 className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none transition-all"
-                style={{
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                }}
-                onFocus={(e) => (e.target.style.borderColor = "rgba(59,130,246,0.5)")}
-                onBlur={(e)  => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+                style={INPUT_STYLE}
+                onFocus={(e) => (e.target.style.borderColor = INPUT_FOCUS)}
+                onBlur={(e)  => (e.target.style.borderColor = INPUT_BLUR)}
               />
             </div>
 
@@ -153,41 +193,84 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 autoComplete={mode === "register" ? "new-password" : "current-password"}
                 className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none transition-all"
-                style={{
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                }}
-                onFocus={(e) => (e.target.style.borderColor = "rgba(59,130,246,0.5)")}
-                onBlur={(e)  => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+                style={INPUT_STYLE}
+                onFocus={(e) => (e.target.style.borderColor = INPUT_FOCUS)}
+                onBlur={(e)  => (e.target.style.borderColor = INPUT_BLUR)}
               />
             </div>
 
-            {/* Confirm password (register only) */}
+            {/* Kayıt modu ek alanları */}
             <AnimatePresence>
               {mode === "register" && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
+                  transition={{ duration: 0.22 }}
+                  className="space-y-4 overflow-hidden"
                 >
-                  <label className="block text-xs text-slate-400 mb-1.5 font-medium">
-                    Şifre Tekrar
-                  </label>
-                  <input
-                    type="password"
-                    value={confirm}
-                    onChange={(e) => setConfirm(e.target.value)}
-                    placeholder="••••••••"
-                    autoComplete="new-password"
-                    className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none transition-all"
-                    style={{
-                      background: "rgba(255,255,255,0.06)",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                    }}
-                    onFocus={(e) => (e.target.style.borderColor = "rgba(59,130,246,0.5)")}
-                    onBlur={(e)  => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
-                  />
+                  {/* Şifre Tekrar */}
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1.5 font-medium">
+                      Şifre Tekrar
+                    </label>
+                    <input
+                      type="password"
+                      value={confirm}
+                      onChange={(e) => setConfirm(e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="new-password"
+                      className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none transition-all"
+                      style={INPUT_STYLE}
+                      onFocus={(e) => (e.target.style.borderColor = INPUT_FOCUS)}
+                      onBlur={(e)  => (e.target.style.borderColor = INPUT_BLUR)}
+                    />
+                  </div>
+
+                  {/* Güvenlik Sorusu */}
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1.5 font-medium">
+                      🔒 Güvenlik Sorusu
+                    </label>
+                    <select
+                      value={securityQuestion}
+                      onChange={(e) => setSecurityQuestion(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none transition-all appearance-none cursor-pointer"
+                      style={{
+                        background: "rgba(255,255,255,0.06)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                      }}
+                      onFocus={(e) => (e.target.style.borderColor = INPUT_FOCUS)}
+                      onBlur={(e)  => (e.target.style.borderColor = INPUT_BLUR)}
+                    >
+                      {SECURITY_QUESTIONS.map((q) => (
+                        <option key={q} value={q} style={{ background: "#0A0F1E" }}>
+                          {q}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Güvenlik Sorusu Cevabı */}
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1.5 font-medium">
+                      Cevabınız
+                    </label>
+                    <input
+                      type="text"
+                      value={securityAnswer}
+                      onChange={(e) => setSecurityAnswer(e.target.value)}
+                      placeholder="Cevabı girin…"
+                      autoComplete="off"
+                      className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none transition-all"
+                      style={INPUT_STYLE}
+                      onFocus={(e) => (e.target.style.borderColor = INPUT_FOCUS)}
+                      onBlur={(e)  => (e.target.style.borderColor = INPUT_BLUR)}
+                    />
+                    <p className="text-[10px] text-slate-600 mt-1.5 leading-relaxed">
+                      Şifrenizi unutursanız bu cevap ile kimliğinizi doğrulayabilirsiniz. Büyük/küçük harf fark etmez.
+                    </p>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -214,7 +297,12 @@ export default function LoginPage() {
                     </svg>
                   )}
                 </div>
-                <span className="text-xs text-slate-400">Beni Hatırla</span>
+                <div>
+                  <span className="text-xs text-slate-400">Beni Hatırla</span>
+                  <span className="text-[10px] text-slate-600 ml-2">
+                    {remember ? "Tarayıcı kapansa bile giriş kalır" : "Sekme kapanınca çıkış yapılır"}
+                  </span>
+                </div>
               </label>
             )}
 
