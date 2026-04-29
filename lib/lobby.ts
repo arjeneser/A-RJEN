@@ -82,6 +82,43 @@ export async function startLobby(lobbyId: string): Promise<void> {
   });
 }
 
+/** Lobiden ayrıl */
+export async function leaveLobby(lobbyId: string, username: string): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  const { remove } = await import("firebase/database");
+  await remove(ref(db, `lobbies/${lobbyId}/members/${username}`));
+}
+
+/**
+ * Kullanıcının üye olduğu tüm aktif lobileri dinle.
+ * Firebase'de "waiting" veya "starting" olan lobiler döner.
+ */
+export function subscribeToUserLobbies(
+  username: string,
+  callback: (lobbies: Lobby[]) => void
+): () => void {
+  const db = getDb();
+  if (!db) return () => {};
+  const { query, orderByChild, equalTo, get } = require("firebase/database");
+
+  // lobbies/ altındaki tüm lobileri dinle, client-side filtrele
+  const r = ref(db, "lobbies");
+  onValue(r, (snap) => {
+    const data = snap.val() as Record<string, Lobby> | null;
+    if (!data) { callback([]); return; }
+    const result = Object.values(data).filter(
+      (l) =>
+        l.members &&
+        l.members[username] !== undefined &&
+        (l.status === "waiting" || l.status === "starting")
+    );
+    result.sort((a, b) => b.createdAt - a.createdAt);
+    callback(result);
+  });
+  return () => off(r);
+}
+
 /** Lobi değişikliklerini gerçek zamanlı dinle */
 export function subscribeToLobby(
   lobbyId: string,

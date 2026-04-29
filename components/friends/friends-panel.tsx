@@ -47,7 +47,7 @@ import {
   subscribeToFlightInvites,
   type FlightInvite,
 } from "@/lib/flight-invites";
-import { createLobby, joinLobby } from "@/lib/lobby";
+import { createLobby, joinLobby, leaveLobby, subscribeToUserLobbies, type Lobby as LobbyData } from "@/lib/lobby";
 import {
   getDepartureCities,
   getReachableDestinations,
@@ -57,7 +57,7 @@ import type { City, FlightDurationOption } from "@/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type View = "main" | "chat" | "propose" | "leaderboard" | "group" | "create-group" | "profile";
+type View = "main" | "chat" | "propose" | "leaderboard" | "group" | "create-group" | "profile" | "lobbies";
 
 interface FriendsPanelProps {
   open: boolean;
@@ -265,6 +265,7 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
   const [friendPresences, setFriendPresences] = useState<Record<string, UserPresence>>({});
   const [unreadCounts, setUnreadCounts]     = useState<Record<string, number>>({});
   const [profileStats, setProfileStats]     = useState<FlightDetailStats>({});
+  const [userLobbies, setUserLobbies]       = useState<LobbyData[]>([]);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unreadSubsRef     = useRef<Map<string, () => void>>(new Map());
   const mediaRecorderRef  = useRef<MediaRecorder | null>(null);
@@ -332,6 +333,13 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
     const unsub = subscribeToMultiplePresences(usernames, setFriendPresences);
     return unsub;
   }, [friends, open]);
+
+  // ── Kullanıcının aktif lobileri (her zaman dinle) ────────────────────────────
+  useEffect(() => {
+    if (!currentUsername) return;
+    const unsub = subscribeToUserLobbies(currentUsername, setUserLobbies);
+    return unsub;
+  }, [currentUsername]);
 
   // ── Profil istatistikleri (view === "profile" iken) ───────────────────────────
   useEffect(() => {
@@ -797,6 +805,7 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                 {view === "group"         && <span className="text-base">👥</span>}
                 {view === "create-group"  && <span className="text-base">➕</span>}
                 {view === "profile"       && <span className="text-base">👤</span>}
+                {view === "lobbies"       && <span className="text-base">🚀</span>}
 
                 {view === "chat" ? (
                   <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -827,6 +836,7 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                       : view === "group"        ? (activeGroup?.name ?? "Grup")
                       : view === "create-group" ? "Grup Oluştur"
                       : view === "profile"      ? `${activeFriend} · Profil`
+                      : view === "lobbies"      ? "Lobiler"
                       : `${activeFriend}'a Uçuş Teklif Et`}
                   </span>
                 )}
@@ -904,17 +914,39 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                     <div className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">
                       Arkadaş Ekle
                     </div>
-                    <button
-                      onClick={() => setView("leaderboard")}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
-                      style={{
-                        background: "rgba(245,158,11,0.1)",
-                        border: "1px solid rgba(245,158,11,0.2)",
-                        color: "#F59E0B",
-                      }}
-                    >
-                      🏆 Sıralama
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      {/* Lobi butonu */}
+                      <button
+                        onClick={() => setView("lobbies")}
+                        className="relative flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
+                        style={{
+                          background: "rgba(124,58,237,0.1)",
+                          border: "1px solid rgba(124,58,237,0.22)",
+                          color: "#A78BFA",
+                        }}
+                      >
+                        🚀 Lobiler
+                        {userLobbies.length > 0 && (
+                          <span
+                            className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold"
+                            style={{ background: "#7C3AED", color: "white" }}
+                          >
+                            {userLobbies.length}
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setView("leaderboard")}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
+                        style={{
+                          background: "rgba(245,158,11,0.1)",
+                          border: "1px solid rgba(245,158,11,0.2)",
+                          color: "#F59E0B",
+                        }}
+                      >
+                        🏆 Sıralama
+                      </button>
+                    </div>
                   </div>
 
                   {/* ── Add Friend ─────────────────────────────────── */}
@@ -1460,20 +1492,25 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                                 <div className="flex items-center justify-end gap-1 mt-0.5">
                                   <span className="text-[9px] opacity-50">{timeAgo(msg.timestamp)}</span>
                                   {isOwn && (
-                                    <svg
-                                      width="14" height="10" viewBox="0 0 14 10" fill="none"
-                                      strokeLinecap="round" strokeLinejoin="round"
-                                      style={{
-                                        stroke: partnerReadAt >= msg.timestamp ? "#60A5FA" : "rgba(255,255,255,0.25)",
-                                        transition: "stroke 0.3s",
-                                      }}
-                                    >
-                                      <path d="M1 5C1 5 3 1 7 1C11 1 13 5 13 5C13 5 11 9 7 9C3 9 1 5 1 5Z" strokeWidth="1.1" />
-                                      <circle cx="7" cy="5" r="1.8" strokeWidth="1.1" />
-                                      {partnerReadAt >= msg.timestamp && (
+                                    partnerReadAt >= msg.timestamp ? (
+                                      /* Okundu — göz ikonu (mavi) */
+                                      <svg width="14" height="10" viewBox="0 0 14 10" fill="none"
+                                        strokeLinecap="round" strokeLinejoin="round"
+                                        style={{ stroke: "#60A5FA", transition: "stroke 0.3s" }}
+                                      >
+                                        <path d="M1 5C1 5 3 1 7 1C11 1 13 5 13 5C13 5 11 9 7 9C3 9 1 5 1 5Z" strokeWidth="1.1" />
+                                        <circle cx="7" cy="5" r="1.8" strokeWidth="1.1" />
                                         <circle cx="8.2" cy="3.8" r="0.5" fill="#60A5FA" stroke="none" />
-                                      )}
-                                    </svg>
+                                      </svg>
+                                    ) : (
+                                      /* Gönderildi — tek tik */
+                                      <svg width="10" height="8" viewBox="0 0 10 8" fill="none"
+                                        strokeLinecap="round" strokeLinejoin="round"
+                                        style={{ stroke: "rgba(255,255,255,0.35)" }}
+                                      >
+                                        <path d="M1 4L3.5 6.5L9 1.5" strokeWidth="1.4" />
+                                      </svg>
+                                    )
                                   )}
                                 </div>
                               </div>
@@ -2664,6 +2701,157 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                       </div>
                     );
                   })()}
+                </motion.div>
+              )}
+
+              {/* ════════════ LOBBIES VIEW ════════════ */}
+              {view === "lobbies" && (
+                <motion.div
+                  key="lobbies"
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 12 }}
+                  transition={{ duration: 0.18 }}
+                  className="flex-1 overflow-y-auto px-4 py-4 space-y-3"
+                >
+                  {userLobbies.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-40 gap-3">
+                      <span className="text-3xl opacity-30">🚀</span>
+                      <p className="text-xs text-slate-600 text-center">
+                        Aktif lobin yok.<br />
+                        Bir arkadaşına uçuş teklif ederek lobi oluşturabilirsin.
+                      </p>
+                    </div>
+                  ) : (
+                    userLobbies.map((lobby) => {
+                      const memberCount = Object.keys(lobby.members ?? {}).length;
+                      const isCreator = lobby.createdBy === currentUsername;
+                      const isStarting = lobby.status === "starting";
+
+                      return (
+                        <motion.div
+                          key={lobby.id}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="rounded-2xl p-4 space-y-3"
+                          style={{
+                            background: isStarting
+                              ? "rgba(74,222,128,0.06)"
+                              : "rgba(255,255,255,0.03)",
+                            border: isStarting
+                              ? "1px solid rgba(74,222,128,0.2)"
+                              : "1px solid rgba(255,255,255,0.07)",
+                          }}
+                        >
+                          {/* Route */}
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 text-sm font-semibold text-white truncate"
+                                style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                                <span className="truncate">{lobby.departure?.name ?? "?"}</span>
+                                <span className="text-slate-600 shrink-0">→</span>
+                                <span className="truncate">{lobby.destination?.name ?? "?"}</span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[10px] text-slate-500">
+                                  {lobby.durationOption?.label ?? ""}
+                                </span>
+                                <span className="text-[10px] text-slate-700">·</span>
+                                <span className="text-[10px] text-slate-500">
+                                  {memberCount} üye
+                                </span>
+                                {isCreator && (
+                                  <>
+                                    <span className="text-[10px] text-slate-700">·</span>
+                                    <span
+                                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                                      style={{
+                                        background: "rgba(99,102,241,0.15)",
+                                        border: "1px solid rgba(99,102,241,0.25)",
+                                        color: "#818CF8",
+                                      }}
+                                    >
+                                      Kaptan
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Status badge */}
+                            <div
+                              className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-full"
+                              style={
+                                isStarting
+                                  ? { background: "rgba(74,222,128,0.15)", border: "1px solid rgba(74,222,128,0.3)", color: "#4ADE80" }
+                                  : { background: "rgba(148,163,184,0.08)", border: "1px solid rgba(148,163,184,0.12)", color: "#64748B" }
+                              }
+                            >
+                              {isStarting ? "✈ Kalkış" : "⏳ Bekleniyor"}
+                            </div>
+                          </div>
+
+                          {/* Members list */}
+                          <div className="flex flex-wrap gap-1.5">
+                            {Object.entries(lobby.members ?? {}).map(([uname, member]) => (
+                              <div
+                                key={uname}
+                                className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]"
+                                style={{
+                                  background: uname === currentUsername
+                                    ? "rgba(99,102,241,0.12)"
+                                    : "rgba(255,255,255,0.05)",
+                                  border: uname === currentUsername
+                                    ? "1px solid rgba(99,102,241,0.2)"
+                                    : "1px solid rgba(255,255,255,0.07)",
+                                  color: uname === currentUsername ? "#818CF8" : "#94A3B8",
+                                }}
+                              >
+                                <span
+                                  className="w-1.5 h-1.5 rounded-full shrink-0"
+                                  style={{ background: member.ready ? "#4ADE80" : "#64748B" }}
+                                />
+                                {uname}
+                                {member.seat && (
+                                  <span className="opacity-60 ml-0.5">{member.seat}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Action buttons */}
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => router.push(`/lobby/${lobby.id}`)}
+                              className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                              style={{
+                                background: "rgba(99,102,241,0.15)",
+                                border: "1px solid rgba(99,102,241,0.25)",
+                                color: "#818CF8",
+                              }}
+                            >
+                              Lobiye Git →
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (!currentUsername) return;
+                                await leaveLobby(lobby.id, currentUsername);
+                              }}
+                              className="px-3 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                              style={{
+                                background: "rgba(239,68,68,0.08)",
+                                border: "1px solid rgba(239,68,68,0.15)",
+                                color: "#EF4444",
+                              }}
+                              title="Lobiden Ayrıl"
+                            >
+                              Ayrıl
+                            </button>
+                          </div>
+                        </motion.div>
+                      );
+                    })
+                  )}
                 </motion.div>
               )}
 
