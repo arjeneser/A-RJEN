@@ -2,6 +2,7 @@
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import { useFlightSetup } from "@/store/flight-store";
+import { useUserStore } from "@/store/user-store";
 import { getReachableDestinations, haversineKm, flagEmoji } from "@/data/cities";
 import type { City } from "@/types";
 
@@ -28,12 +29,14 @@ function DestRow({
   city,
   distKm,
   isSelected,
+  visited,
   onSelect,
   index,
 }: {
   city: City;
   distKm: number;
   isSelected: boolean;
+  visited: boolean;
   onSelect: (c: City) => void;
   index: number;
 }) {
@@ -59,8 +62,22 @@ function DestRow({
 
       {/* City + country */}
       <div className="flex-1 min-w-0">
-        <div className={`font-semibold text-sm truncate ${isSelected ? "text-white" : "text-slate-200"}`}>
-          {city.name}
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className={`font-semibold text-sm truncate ${isSelected ? "text-white" : "text-slate-200"}`}>
+            {city.name}
+          </span>
+          {visited && (
+            <span
+              className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
+              style={{
+                background: "rgba(16,185,129,0.12)",
+                border: "1px solid rgba(16,185,129,0.25)",
+                color: "#34D399",
+              }}
+            >
+              Daha önce gidildi
+            </span>
+          )}
         </div>
         <div className="text-slate-500 text-xs truncate">{city.country}</div>
       </div>
@@ -88,6 +105,7 @@ function DestRow({
 // ── Main step ─────────────────────────────────────────────────────────────────
 export function StepDestination() {
   const { departure, duration, destination, setDestination } = useFlightSetup();
+  const visitedCityIds = useUserStore((s) => s.profile.visitedCityIds);
 
   if (!departure || !duration) return null;
 
@@ -210,6 +228,7 @@ export function StepDestination() {
                   city={city}
                   distKm={d}
                   isSelected={destination?.id === city.id}
+                  visited={visitedCityIds.includes(city.id)}
                   onSelect={setDestination}
                   index={i}
                 />

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/store/auth-store";
+import { useUserStore } from "@/store/user-store";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { subscribeToUserLobbies, leaveLobby, createLobby, type Lobby } from "@/lib/lobby";
 import { subscribeToFriends, type FriendInfo } from "@/lib/friends";
@@ -42,6 +43,7 @@ const WIZARD_STEPS = [
 export default function LobbiesPage() {
   const router              = useRouter();
   const { currentUsername } = useAuthStore();
+  const visitedCityIds      = useUserStore((s) => s.profile.visitedCityIds);
 
   // ── Lobi listesi ─────────────────────────────────────────────────────────
   const [lobbies, setLobbies]   = useState<Lobby[]>([]);
@@ -422,7 +424,15 @@ export default function LobbiesPage() {
                                     >
                                       <span className="text-2xl shrink-0">{flagEmoji(city.countryCode)}</span>
                                       <div className="flex-1 min-w-0">
-                                        <div className={`font-semibold text-sm truncate ${isSel ? "text-white" : "text-slate-200"}`}>{city.name}</div>
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                          <span className={`font-semibold text-sm truncate ${isSel ? "text-white" : "text-slate-200"}`}>{city.name}</span>
+                                          {visitedCityIds.includes(city.id) && (
+                                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
+                                              style={{ background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.25)", color: "#34D399" }}>
+                                              Daha önce gidildi
+                                            </span>
+                                          )}
+                                        </div>
                                         <div className="text-slate-500 text-xs truncate">{city.country}</div>
                                       </div>
                                       <div className="text-xs font-medium shrink-0" style={{ color: isSel ? "#A78BFA" : "#64748B" }}>
