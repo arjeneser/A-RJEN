@@ -265,8 +265,14 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
   const [friendPresences, setFriendPresences] = useState<Record<string, UserPresence>>({});
   const [unreadCounts, setUnreadCounts]     = useState<Record<string, number>>({});
   const [profileStats, setProfileStats]     = useState<FlightDetailStats>({});
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const unreadSubsRef     = useRef<Map<string, () => void>>(new Map());
+  const longPressTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const unreadSubsRef       = useRef<Map<string, () => void>>(new Map());
+  const activeFriendRef     = useRef<string | null>(activeFriend);
+  const viewRef             = useRef<View>(view);
+
+  // activeFriend ve view'ı ref'e senkronize et (stale closure önleme)
+  useEffect(() => { activeFriendRef.current = activeFriend; }, [activeFriend]);
+  useEffect(() => { viewRef.current = view; }, [view]);
   const mediaRecorderRef  = useRef<MediaRecorder | null>(null);
   const audioChunksRef    = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -354,8 +360,8 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
     friends.forEach((friend) => {
       if (unreadSubsRef.current.has(friend.username)) return;
       const unsub = subscribeToMessages(currentUsername, friend.username, (msgs) => {
-        // Chat şu an bu arkadaşla açıksa okunmamış sıfırla
-        if (activeFriend === friend.username && view === "chat") {
+        // Ref üzerinden güncel değeri oku (stale closure yok)
+        if (activeFriendRef.current === friend.username && viewRef.current === "chat") {
           lastReadTimestamps[friend.username] = Date.now();
           setUnreadCounts((prev) => ({ ...prev, [friend.username]: 0 }));
           return;
@@ -376,10 +382,11 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
     };
   }, [currentUsername, open, friends]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Notify parent of badge count ─────────────────────────────────────────────
+  // ── Notify parent of badge count (istekler + davetler + okunmamış mesajlar) ──
   useEffect(() => {
-    onNotificationCount?.(incomingReqs.length + flightInvites.length);
-  }, [incomingReqs, flightInvites, onNotificationCount]);
+    const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
+    onNotificationCount?.(incomingReqs.length + flightInvites.length + totalUnread);
+  }, [incomingReqs, flightInvites, unreadCounts, onNotificationCount]);
 
   // ── Chat subscription + okundu bilgisi + typing + presence ──────────────────
   useEffect(() => {
@@ -629,9 +636,16 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
     setActiveFriend(username);
     setMessages([]);
     setView("chat");
-    // Okundu olarak işaretle
+    // Ref'i hemen güncelle — subscription callback stale olmadan okusun
+    activeFriendRef.current = username;
+    viewRef.current = "chat";
+    // Okundu olarak işaretle (local + Firebase)
     lastReadTimestamps[username] = Date.now();
     setUnreadCounts((prev) => ({ ...prev, [username]: 0 }));
+    if (currentUsername) {
+      const cId = conversationId(currentUsername, username);
+      markConversationRead(cId, currentUsername);
+    }
   }
 
   function openPropose(username: string) {
