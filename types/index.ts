@@ -82,6 +82,8 @@ export interface UserProfile {
   visitedCityIds: string[];
   totalFocusMinutes: number;
   completedSessionIds: string[];
+  avatarEmoji?: string;   // seçilmiş avatar emoji
+  bio?: string;           // kısa biyografi (max 140 karakter)
 }
 
 export interface CompletedFlight {

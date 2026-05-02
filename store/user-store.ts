@@ -60,6 +60,8 @@ export const DEFAULT_PROFILE: UserProfile = {
   visitedCityIds: [],
   totalFocusMinutes: 0,
   completedSessionIds: [],
+  avatarEmoji: "✈️",
+  bio: "",
 };
 
 // ─── Store interface ──────────────────────────────────────────────────────────
@@ -71,7 +73,9 @@ interface UserState {
   achievements: Achievement[];
 
   // ── Actions ─────────────────────────────────────────────────────────────
-  updateName: (name: string) => void;
+  updateName:   (name: string)  => void;
+  updateBio:    (bio: string)   => void;
+  updateAvatar: (emoji: string) => void;
 
   recordFlight: (params: {
     departureId: string;
@@ -105,8 +109,9 @@ export const useUserStore = create<UserState>()(
       achievements: [],
 
       // ── updateName ───────────────────────────────────────────────────────
-      updateName: (name) =>
-        set((s) => ({ profile: { ...s.profile, name } })),
+      updateName:   (name)  => set((s) => ({ profile: { ...s.profile, name } })),
+      updateBio:    (bio)   => set((s) => ({ profile: { ...s.profile, bio } })),
+      updateAvatar: (emoji) => set((s) => ({ profile: { ...s.profile, avatarEmoji: emoji } })),
 
       // ── addAchievements ──────────────────────────────────────────────────
       addAchievements: (newOnes) =>

@@ -17,6 +17,7 @@ const NAV_LINKS = [
   { href: "/new-flight", label: "Yeni Uçuş" },
   { href: "/lobbies", label: "🚀 Ortak Uçuş" },
   { href: "/passport", label: "Pasaport" },
+  { href: "/profile", label: "Profil" },
 ];
 
 const POPUP_ICONS: Record<AppToast["type"], string> = {
