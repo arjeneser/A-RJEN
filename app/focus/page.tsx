@@ -158,7 +158,7 @@ export default function FocusPage() {
       <div className="fixed inset-0 bg-[#070918] flex flex-col pointer-events-none">
 
         {/* ── World Map ─────────────────────────────────────────────────── */}
-        <div className="absolute inset-0">
+        <div className="absolute inset-0 pointer-events-none">
           <WorldMap
             departure={departure}
             destination={destination}

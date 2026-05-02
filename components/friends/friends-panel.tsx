@@ -499,13 +499,20 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
   async function handleSendMessage() {
     if (!currentUsername || !activeFriend || !msgInput.trim()) return;
     const text = msgInput.trim();
+    const replyRef = replyingTo;
     setMsgInput("");
     setReplyingTo(null);
     // Yazıyor durumunu temizle
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     const cId = conversationId(currentUsername, activeFriend);
     setTyping(cId, currentUsername, false).catch(() => {});
-    await sendMessage(currentUsername, activeFriend, text, replyingTo ?? undefined);
+    try {
+      await sendMessage(currentUsername, activeFriend, text, replyRef ?? undefined);
+    } catch (err) {
+      console.error("[FriendsPanel] sendMessage failed:", err);
+      // Başarısız olursa mesajı geri yükle
+      setMsgInput(text);
+    }
   }
 
   function handleMsgInputChange(val: string) {
@@ -624,7 +631,12 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
     const { b64, duration } = recordedPreview;
     setRecordedPreview(null);
     setRecordingSecs(0);
-    await sendVoiceMessage(currentUsername, activeFriend, b64, duration);
+    try {
+      await sendVoiceMessage(currentUsername, activeFriend, b64, duration);
+    } catch (err) {
+      console.error("[FriendsPanel] sendVoiceMessage failed:", err);
+      setRecordedPreview({ b64, duration });
+    }
   }
 
   function handleDiscardVoice() {
@@ -804,7 +816,7 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
-            className="fixed top-0 right-0 bottom-0 z-50 flex flex-col"
+            className="fixed top-0 right-0 bottom-0 z-[200] flex flex-col"
             style={{
               width: 360,
               background: "linear-gradient(180deg, #0A0F1E 0%, #070918 100%)",
