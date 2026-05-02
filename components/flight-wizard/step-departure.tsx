@@ -10,12 +10,18 @@ export function StepDeparture() {
   const [query, setQuery] = useState("");
   const allCities = getDepartureCities();
 
+  // Türkçe karakter duyarlı normalizasyon:
+  // toLocaleLowerCase("tr"): İ→i, I→ı, Ş→ş, Ğ→ğ, Ü→ü, Ö→ö, Ç→ç
+  // normalize("NFC"): birleşik unicode karakterleri birleştirir
+  function trNorm(s: string) {
+    return s.toLocaleLowerCase("tr").normalize("NFC");
+  }
+
   const filtered = query.trim()
-    ? allCities.filter(
-        (c) =>
-          c.name.toLowerCase().includes(query.toLowerCase()) ||
-          c.country.toLowerCase().includes(query.toLowerCase())
-      )
+    ? allCities.filter((c) => {
+        const q = trNorm(query);
+        return trNorm(c.name).includes(q) || trNorm(c.country).includes(q);
+      })
     : allCities;
 
   return (

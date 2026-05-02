@@ -60,12 +60,17 @@ export default function LobbiesPage() {
   const [depQuery, setDepQuery]     = useState("");
 
   const departureCities = getDepartureCities();
+
+  // Türkçe karakter duyarlı normalizasyon (İ→i, I→ı, Ş→ş ...)
+  function trNorm(s: string) {
+    return s.toLocaleLowerCase("tr").normalize("NFC");
+  }
+
   const filteredCities  = depQuery.trim()
-    ? departureCities.filter(
-        (c) =>
-          c.name.toLowerCase().includes(depQuery.toLowerCase()) ||
-          c.country.toLowerCase().includes(depQuery.toLowerCase())
-      )
+    ? departureCities.filter((c) => {
+        const q = trNorm(depQuery);
+        return trNorm(c.name).includes(q) || trNorm(c.country).includes(q);
+      })
     : departureCities;
 
   const destinations = departure && duration ? getReachableDestinations(departure, duration) : [];
