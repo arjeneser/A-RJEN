@@ -50,25 +50,56 @@ const COUNTRY_NAMES: Record<string, string> = {
   SK:"Slovakya",VN:"Vietnam",SI:"Slovenya",SO:"Somali",ZA:"Güney Afrika",
   ZW:"Zimbabwe",ES:"İspanya",SD:"Sudan",SE:"İsveç",CH:"İsviçre",SY:"Suriye",
   TJ:"Tacikistan",TH:"Tayland",AE:"BAE",TR:"Türkiye",UG:"Uganda",UA:"Ukrayna",
-  MK:"Kuzey Makedonya",GB:"Birleşik Krallık",US:"ABD",UY:"Uruguay",UZ:"Özbekistan",
+  MK:"Kuzey Makedonya",GB:"İngiltere",US:"ABD",UY:"Uruguay",UZ:"Özbekistan",
   VE:"Venezuela",YE:"Yemen",ZM:"Zambia",AZ:"Azerbaycan",AM:"Ermenistan",
   BA:"Bosna Hersek",BY:"Belarus",BJ:"Benin",EE:"Estonya",
+  GE:"Gürcistan",KG:"Kırgızistan",TM:"Türkmenistan",
+  TN:"Tunus",OM:"Umman",BH:"Bahreyn",MT:"Malta",
 };
 
-// ── 5 renk paleti (hepsi amber/altın ailesi, birbirinden ayırt edilebilir) ──
-const VISITED_PALETTE = [
-  { fill: "#C8882A", stroke: "rgba(200,136,42,0.55)",  hover: "#E0A038" }, // sıcak amber
-  { fill: "#A87E20", stroke: "rgba(168,126,32,0.55)",  hover: "#C09228" }, // koyu altın
-  { fill: "#D4960E", stroke: "rgba(212,150,14,0.55)",  hover: "#EAA818" }, // parlak sarı-amber
-  { fill: "#B86A18", stroke: "rgba(184,106,24,0.55)",  hover: "#D07E28" }, // turuncu-amber
-  { fill: "#9A9028", stroke: "rgba(154,144,40,0.55)",  hover: "#B4A830" }, // zeytin-altın
+// ── 4 renk paleti — birbirinden net farklı, koyu tema uyumlu ──────────────────
+//   0 → yeşil-teal   1 → çelik mavi   2 → amber   3 → lavanta mor
+const PALETTE = [
+  { fill: "#4E9070", stroke: "rgba(78,144,112,0.6)",  hover: "#5EAA84" }, // yeşil
+  { fill: "#3D78B0", stroke: "rgba(61,120,176,0.6)",  hover: "#4E90CC" }, // mavi
+  { fill: "#C8882A", stroke: "rgba(200,136,42,0.6)",  hover: "#E0A038" }, // amber
+  { fill: "#8864A8", stroke: "rgba(136,100,168,0.6)", hover: "#A07CC2" }, // mor
 ];
 
-// Deterministik renk indeksi: komşu ülkeler farklı renk alır (sayısal ID'ye göre)
-function visitedColorIndex(numericId: string): number {
-  const n = parseInt(numericId, 10);
-  // Basit hash benzeri dağılım — komşular genellikle ardışık ID'ye sahip değil
-  return ((n * 2654435761) >>> 0) % VISITED_PALETTE.length;
+// ── Manuel renk ataması — komşu ülkeler farklı renk alır ─────────────────────
+// 0=yeşil  1=mavi  2=amber  3=mor
+const COLOR_MAP: Record<string, number> = {
+  // Türkiye ve çevresi
+  TR:2, GR:0, BG:1, RO:3, UA:2, RU:1, MD:0, BY:3,
+  GE:0, AM:3, AZ:1, IR:3, IQ:0, SY:1,
+  // Ortadoğu
+  IL:2, JO:0, LB:3, SA:0, KW:3, QA:2, AE:1, OM:0, YE:3, BH:1,
+  // Kuzey Afrika
+  EG:1, LY:0, TN:2, DZ:3, MA:1, SD:0, ET:2, SO:3,
+  // Orta Asya
+  KZ:2, UZ:0, TM:3, TJ:1, KG:2, AF:0, PK:3,
+  // Avrupa
+  GB:0, IE:2, FR:3, ES:1, PT:2, IT:0, CH:3, AT:1, DE:2, NL:0, BE:3,
+  DK:1, SE:2, NO:0, FI:3, EE:1, LV:2, LT:0,
+  PL:1, CZ:2, SK:0, HU:3, HR:1, SI:2, RS:0, BA:3, ME:1, AL:2, MK:0,
+  MT:1, CY:0, IS:3, LI:1, MC:2, LU:0,
+  // Asya & Pasifik
+  CN:1, JP:2, KR:0, KP:3, IN:1, BD:2, LK:0, MM:3, TH:1, VN:2,
+  MY:0, ID:3, PH:1, AU:2, NZ:0,
+  // Sahra Altı Afrika
+  NG:1, GH:2, KE:0, TZ:3, ZA:1, MZ:2, ZM:0, ZW:3, UG:1, RW:2,
+  CD:0, AO:3, CM:1, SN:2, ML:0, MR:3, BJ:1, GA:2,
+  // Amerika
+  US:3, CA:1, MX:2, BR:0, AR:3, CL:1, PE:2, CO:0, VE:3, UY:1,
+  PY:2, BO:0, EC:3, CU:1, JM:2,
+};
+
+function getColorIndex(a2: string): number {
+  if (a2 in COLOR_MAP) return COLOR_MAP[a2];
+  // Bilinmeyen ülkeler için basit hash
+  let h = 0;
+  for (let i = 0; i < a2.length; i++) h = (h * 31 + a2.charCodeAt(i)) & 0xffff;
+  return h % 4;
 }
 
 interface VisitedMapProps {
@@ -76,8 +107,8 @@ interface VisitedMapProps {
 }
 
 export const VisitedMap = memo(function VisitedMap({ visitedCountryCodes }: VisitedMapProps) {
-  const visited    = new Set(visitedCountryCodes.map((c) => c.toUpperCase()));
-  const containerRef = useRef<HTMLDivElement>(null);
+  const visited       = new Set(visitedCountryCodes.map((c) => c.toUpperCase()));
+  const containerRef  = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ name: string; x: number; y: number } | null>(null);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -106,24 +137,22 @@ export const VisitedMap = memo(function VisitedMap({ visitedCountryCodes }: Visi
         <Geographies geography={GEO_URL}>
           {({ geographies }: { geographies: any[] }) =>
             geographies.map((geo: any) => {
-              const id   = String(geo.id ?? "").padStart(3, "0");
-              const a2   = N2A[id];
+              const id        = String(geo.id ?? "").padStart(3, "0");
+              const a2        = N2A[id];
               const isTR      = a2 === "TR";
               const isVisited = a2 ? visited.has(a2) : false;
 
-              let fill: string;
-              let stroke: string;
-              let hoverFill: string;
+              let fill: string, stroke: string, hoverFill: string;
 
               if (isTR) {
                 fill      = "#C8102E";
                 stroke    = "rgba(255,120,120,0.5)";
                 hoverFill = "#E8182E";
-              } else if (isVisited) {
-                const palette = VISITED_PALETTE[visitedColorIndex(id)];
-                fill      = palette.fill;
-                stroke    = palette.stroke;
-                hoverFill = palette.hover;
+              } else if (isVisited && a2) {
+                const p   = PALETTE[getColorIndex(a2)];
+                fill      = p.fill;
+                stroke    = p.stroke;
+                hoverFill = p.hover;
               } else {
                 fill      = "#1A2540";
                 stroke    = "rgba(255,255,255,0.06)";
@@ -143,11 +172,7 @@ export const VisitedMap = memo(function VisitedMap({ visitedCountryCodes }: Visi
                     if (!a2 || (!isVisited && !isTR)) return;
                     if (!containerRef.current) return;
                     const rect = containerRef.current.getBoundingClientRect();
-                    setTooltip({
-                      name,
-                      x: e.clientX - rect.left,
-                      y: e.clientY - rect.top,
-                    });
+                    setTooltip({ name, x: e.clientX - rect.left, y: e.clientY - rect.top });
                   }}
                   onMouseLeave={() => setTooltip(null)}
                   style={{
@@ -162,40 +187,38 @@ export const VisitedMap = memo(function VisitedMap({ visitedCountryCodes }: Visi
         </Geographies>
       </ComposableMap>
 
-      {/* ── Hover tooltip ─────────────────────────────────────────────── */}
+      {/* ── Hover tooltip ───────────────────────────────────────────────── */}
       {tooltip && (
         <div
           className="pointer-events-none absolute z-10 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap"
           style={{
-            left:       tooltip.x + 12,
-            top:        tooltip.y - 28,
-            background: "rgba(8,13,28,0.92)",
-            border:     "1px solid rgba(200,136,42,0.35)",
-            color:      "#D4A050",
+            left:           tooltip.x + 12,
+            top:            tooltip.y - 28,
+            background:     "rgba(8,13,28,0.95)",
+            border:         "1px solid rgba(255,255,255,0.12)",
+            color:          "#F1F5F9",
             backdropFilter: "blur(6px)",
-            boxShadow: "0 2px 12px rgba(0,0,0,0.5)",
+            boxShadow:      "0 2px 12px rgba(0,0,0,0.6)",
           }}
         >
           {tooltip.name}
         </div>
       )}
 
-      {/* ── Legend ────────────────────────────────────────────────────── */}
+      {/* ── Legend ──────────────────────────────────────────────────────── */}
       <div
-        className="absolute bottom-2.5 left-3 flex items-center gap-4 px-3 py-1.5 rounded-xl"
+        className="absolute bottom-2.5 left-3 flex items-center gap-3 px-3 py-1.5 rounded-xl"
         style={{ background: "rgba(8,13,28,0.88)", backdropFilter: "blur(8px)" }}
       >
         <div className="flex items-center gap-1.5">
           <div className="w-2.5 h-2.5 rounded-sm" style={{ background: "#C8102E" }} />
           <span className="text-[10px] text-slate-400">Türkiye</span>
         </div>
-        <div className="flex items-center gap-4 items-center">
-          {VISITED_PALETTE.slice(0, 3).map((p, i) => (
-            <div key={i} className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-sm" style={{ background: p.fill }} />
-              {i === 0 && <span className="text-[10px] text-slate-400">Ziyaret edildi</span>}
-            </div>
+        <div className="flex items-center gap-1.5">
+          {PALETTE.map((p, i) => (
+            <div key={i} className="w-2.5 h-2.5 rounded-sm" style={{ background: p.fill }} />
           ))}
+          <span className="text-[10px] text-slate-400">Ziyaret edildi</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-2.5 h-2.5 rounded-sm" style={{ background: "#1A2540" }} />
@@ -203,7 +226,7 @@ export const VisitedMap = memo(function VisitedMap({ visitedCountryCodes }: Visi
         </div>
       </div>
 
-      {/* ── Badge ─────────────────────────────────────────────────────── */}
+      {/* ── Badge ───────────────────────────────────────────────────────── */}
       <div
         className="absolute top-2.5 right-3 px-2.5 py-1 rounded-full text-[11px] font-bold"
         style={{

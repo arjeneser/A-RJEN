@@ -68,6 +68,24 @@ interface FriendsPanelProps {
 // ─── Session-persistent last-read timestamps (survives panel open/close) ──────
 const lastReadTimestamps: Record<string, number> = {};
 
+function loadReadTimestamps(username: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const saved = JSON.parse(localStorage.getItem(`airjen_read_${username}`) ?? "{}") as Record<string, number>;
+    Object.assign(lastReadTimestamps, saved);
+  } catch { /* ignore */ }
+}
+
+function persistReadTimestamp(username: string, friend: string, ts: number) {
+  if (typeof window === "undefined") return;
+  try {
+    const key = `airjen_read_${username}`;
+    const existing = JSON.parse(localStorage.getItem(key) ?? "{}") as Record<string, number>;
+    existing[friend] = ts;
+    localStorage.setItem(key, JSON.stringify(existing));
+  } catch { /* ignore */ }
+}
+
 // ─── VoiceMessagePlayer ───────────────────────────────────────────────────────
 
 function VoiceMessagePlayer({ audioBase64, duration: initDuration }: { audioBase64: string; duration?: number }) {
@@ -318,6 +336,8 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
   // ── Her zaman açık: bildirim sayısı için (panel kapalıyken de çalışır) ────────
   useEffect(() => {
     if (!currentUsername) return;
+    // localStorage'dan okunmuş zaman damgalarını yükle
+    loadReadTimestamps(currentUsername);
     const u1 = subscribeToIncomingRequests(currentUsername, setIncomingReqs);
     const u2 = subscribeToFlightInvites(currentUsername, setFlightInvites);
     return () => { u1(); u2(); };
@@ -362,7 +382,9 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
       const unsub = subscribeToMessages(currentUsername, friend.username, (msgs) => {
         // Ref üzerinden güncel değeri oku (stale closure yok)
         if (activeFriendRef.current === friend.username && viewRef.current === "chat") {
-          lastReadTimestamps[friend.username] = Date.now();
+          const ts = Date.now();
+          lastReadTimestamps[friend.username] = ts;
+          if (currentUsername) persistReadTimestamp(currentUsername, friend.username, ts);
           setUnreadCounts((prev) => ({ ...prev, [friend.username]: 0 }));
           return;
         }
@@ -639,8 +661,10 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
     // Ref'i hemen güncelle — subscription callback stale olmadan okusun
     activeFriendRef.current = username;
     viewRef.current = "chat";
-    // Okundu olarak işaretle (local + Firebase)
-    lastReadTimestamps[username] = Date.now();
+    // Okundu olarak işaretle (local + localStorage + Firebase)
+    const ts = Date.now();
+    lastReadTimestamps[username] = ts;
+    if (currentUsername) persistReadTimestamp(currentUsername, username, ts);
     setUnreadCounts((prev) => ({ ...prev, [username]: 0 }));
     if (currentUsername) {
       const cId = conversationId(currentUsername, username);
