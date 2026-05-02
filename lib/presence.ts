@@ -42,8 +42,8 @@ export function subscribeToPresence(
   const db = getDb();
   if (!db) return () => {};
   const r = ref(db, `presence/${username}`);
-  onValue(r, (snap) => callback(snap.val() as UserPresence | null));
-  return () => off(r);
+  // Return the per-listener unsubscribe from onValue, not off(r) which kills all listeners
+  return onValue(r, (snap) => callback(snap.val() as UserPresence | null));
 }
 
 /** Birden fazla kullanıcının online durumunu dinle */
@@ -60,11 +60,12 @@ export function subscribeToMultiplePresences(
 
   usernames.forEach((u) => {
     const r = ref(db, `presence/${u}`);
-    onValue(r, (snap) => {
-      state[u] = snap.val() as UserPresence;
-      callback({ ...state });
-    });
-    unsubs.push(() => off(r));
+    unsubs.push(
+      onValue(r, (snap) => {
+        state[u] = snap.val() as UserPresence;
+        callback({ ...state });
+      })
+    );
   });
 
   return () => unsubs.forEach((fn) => fn());

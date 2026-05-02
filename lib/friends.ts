@@ -1,4 +1,4 @@
-import { ref, set, remove, onValue, off, get, update } from "firebase/database";
+import { ref, set, remove, onValue, get, update } from "firebase/database";
 import { getDb } from "./firebase";
 import type { City } from "@/types";
 
@@ -77,8 +77,7 @@ export function subscribeToFlightDetailStats(
   const db = getDb();
   if (!db) return () => {};
   const r = ref(db, `users/${username}/flightDetails`);
-  onValue(r, (snap) => callback((snap.val() as FlightDetailStats) ?? {}));
-  return () => off(r);
+  return onValue(r, (snap) => callback((snap.val() as FlightDetailStats) ?? {}));
 }
 
 /** Kullanıcı istatistiklerini Firebase'e yaz (uçuş sonrası çağrılır) */
@@ -146,11 +145,10 @@ export function subscribeToIncomingRequests(
   const db = getDb();
   if (!db) return () => {};
   const r = ref(db, `friendships/${username}/incoming`);
-  onValue(r, (snap) => {
+  return onValue(r, (snap) => {
     const data = snap.val() as Record<string, FriendRequest> | null;
     callback(data ? Object.values(data) : []);
   });
-  return () => off(r);
 }
 
 /** Arkadaş listesini + uçuş durumlarını + istatistikleri dinle */
@@ -186,24 +184,20 @@ export function subscribeToFriends(
     callback(friends);
   };
 
-  onValue(listRef, (snap) => {
+  const u1 = onValue(listRef, (snap) => {
     friendUsernames = snap.val() ? Object.keys(snap.val()) : [];
     merge();
   });
 
-  onValue(flightRef, (snap) => {
+  const u2 = onValue(flightRef, (snap) => {
     flightData = snap.val() || {};
     merge();
   });
 
-  onValue(usersRef, (snap) => {
+  const u3 = onValue(usersRef, (snap) => {
     usersData = snap.val() || {};
     merge();
   });
 
-  return () => {
-    off(listRef);
-    off(flightRef);
-    off(usersRef);
-  };
+  return () => { u1(); u2(); u3(); };
 }

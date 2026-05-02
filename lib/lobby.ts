@@ -1,4 +1,4 @@
-import { ref, set, update, onValue, off, push, serverTimestamp } from "firebase/database";
+import { ref, set, update, onValue, push, serverTimestamp } from "firebase/database";
 import { getDb } from "./firebase";
 import type { City, FlightDurationOption } from "@/types";
 
@@ -104,7 +104,7 @@ export function subscribeToUserLobbies(
 
   // lobbies/ altındaki tüm lobileri dinle, client-side filtrele
   const r = ref(db, "lobbies");
-  onValue(r, (snap) => {
+  return onValue(r, (snap) => {
     const data = snap.val() as Record<string, Lobby> | null;
     if (!data) { callback([]); return; }
     const result = Object.values(data).filter(
@@ -116,7 +116,6 @@ export function subscribeToUserLobbies(
     result.sort((a, b) => b.createdAt - a.createdAt);
     callback(result);
   });
-  return () => off(r);
 }
 
 /** Lobi değişikliklerini gerçek zamanlı dinle */
@@ -127,8 +126,7 @@ export function subscribeToLobby(
   const db = getDb();
   if (!db) return () => {};
   const r = ref(db, `lobbies/${lobbyId}`);
-  onValue(r, (snap) => {
+  return onValue(r, (snap) => {
     callback(snap.exists() ? (snap.val() as Lobby) : null);
   });
-  return () => off(r);
 }

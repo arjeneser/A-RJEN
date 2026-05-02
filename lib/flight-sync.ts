@@ -1,4 +1,4 @@
-import { ref, set, remove, onValue, off } from "firebase/database";
+import { ref, set, remove, onValue } from "firebase/database";
 import { getDb } from "./firebase";
 import type { City } from "@/types";
 
@@ -46,7 +46,7 @@ export function subscribeToFlights(
   const STALE_MS = 60_000; // 60 saniye
   const flightsRef = ref(db, "flights");
 
-  onValue(flightsRef, (snapshot) => {
+  return onValue(flightsRef, (snapshot) => {
     const data = snapshot.val() as Record<string, LiveFlight> | null;
     if (!data) { callback([]); return; }
     const now = Date.now();
@@ -55,6 +55,4 @@ export function subscribeToFlights(
     );
     callback(flights);
   });
-
-  return () => off(flightsRef);
 }

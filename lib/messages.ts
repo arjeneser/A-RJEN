@@ -1,4 +1,4 @@
-import { ref, set, push, get, onValue, off, remove, update } from "firebase/database";
+import { ref, set, push, get, onValue, remove, update } from "firebase/database";
 import { getDb } from "./firebase";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -158,7 +158,8 @@ export function subscribeToMessages(
   if (!db) return () => {};
   const cId = conversationId(user1, user2);
   const r   = ref(db, `messages/${cId}`);
-  onValue(r, (snap) => {
+  // onValue returns a per-listener unsubscribe — do NOT use off(r) which kills all listeners on the path
+  return onValue(r, (snap) => {
     const data = snap.val() as Record<string, Omit<ChatMessage, "id">> | null;
     const msgs: ChatMessage[] = data
       ? Object.entries(data)
@@ -167,7 +168,6 @@ export function subscribeToMessages(
       : [];
     callback(msgs);
   });
-  return () => off(r);
 }
 
 /**
@@ -181,10 +181,9 @@ export function subscribeToReadCursor(
   const db = getDb();
   if (!db) return () => {};
   const r = ref(db, `readCursors/${convId}/${partnerUsername}`);
-  onValue(r, (snap) => {
+  return onValue(r, (snap) => {
     callback(snap.val() ?? 0);
   });
-  return () => off(r);
 }
 
 /**
@@ -199,7 +198,7 @@ export function subscribeToTyping(
   const db = getDb();
   if (!db) return () => {};
   const r = ref(db, `typing/${convId}`);
-  onValue(r, (snap) => {
+  return onValue(r, (snap) => {
     const data = snap.val() as Record<string, number> | null;
     if (!data) { callback([]); return; }
     const now = Date.now();
@@ -209,5 +208,4 @@ export function subscribeToTyping(
       .map(([u]) => u);
     callback(active);
   });
-  return () => off(r);
 }

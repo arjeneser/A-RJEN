@@ -1,4 +1,4 @@
-import { ref, set, push, remove, onValue, off } from "firebase/database";
+import { ref, set, push, remove, onValue } from "firebase/database";
 import { getDb } from "./firebase";
 import type { City, FlightDurationOption } from "@/types";
 
@@ -54,12 +54,11 @@ export function subscribeToFlightInvites(
   const db = getDb();
   if (!db) return () => {};
   const r = ref(db, `flightInvites/${username}`);
-  onValue(r, (snap) => {
+  return onValue(r, (snap) => {
     const data = snap.val() as Record<string, FlightInvite> | null;
     const invites = data
       ? Object.values(data).sort((a, b) => b.timestamp - a.timestamp)
       : [];
     callback(invites);
   });
-  return () => off(r);
 }

@@ -1,4 +1,4 @@
-import { ref, set, push, onValue, off, remove } from "firebase/database";
+import { ref, set, push, onValue, remove } from "firebase/database";
 import { getDb } from "./firebase";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -116,20 +116,17 @@ export function subscribeToUserGroups(
     callback(groups);
   };
 
-  onValue(userGroupsRef, (snap) => {
+  const u1 = onValue(userGroupsRef, (snap) => {
     myGroupIds = snap.val() ? Object.keys(snap.val()) : [];
     merge();
   });
 
-  onValue(allGroupsRef, (snap) => {
+  const u2 = onValue(allGroupsRef, (snap) => {
     allGroupsData = snap.val() || {};
     merge();
   });
 
-  return () => {
-    off(userGroupsRef);
-    off(allGroupsRef);
-  };
+  return () => { u1(); u2(); };
 }
 
 /** Grup mesajlarını gerçek zamanlı dinle */
@@ -141,12 +138,11 @@ export function subscribeToGroupMessages(
   if (!db) return () => {};
 
   const r = ref(db, `groupMessages/${groupId}`);
-  onValue(r, (snap) => {
+  return onValue(r, (snap) => {
     const data = snap.val() as Record<string, GroupMessage> | null;
     const msgs = data
       ? Object.values(data).sort((a, b) => a.timestamp - b.timestamp)
       : [];
     callback(msgs);
   });
-  return () => off(r);
 }
