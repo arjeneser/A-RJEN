@@ -154,8 +154,8 @@ export default function FocusPage() {
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* ── Outer wrapper ─────────────────────────────────────────────────── */}
-      <div className="fixed inset-0 bg-[#070918] flex flex-col">
+      {/* ── Outer wrapper — pointer-events-none so the friends panel above can receive clicks ── */}
+      <div className="fixed inset-0 bg-[#070918] flex flex-col pointer-events-none">
 
         {/* ── World Map ─────────────────────────────────────────────────── */}
         <div className="absolute inset-0">
@@ -188,7 +188,7 @@ export default function FocusPage() {
         />
 
         {/* ── Top HUD ───────────────────────────────────────────────────── */}
-        <div className="relative z-20 p-4 pt-6 flex items-start justify-between">
+        <div className="relative z-20 p-4 pt-6 flex items-start justify-between pointer-events-auto">
           {/* Route chip */}
           <motion.div
             initial={{ opacity: 0, y: -16 }}

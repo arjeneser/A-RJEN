@@ -484,8 +484,8 @@ const CITIES_CAPITALS: City[] = [
   // ── World Capitals (one airport per country, sorted by country name) ──────
   {
     id: "kbl_af",
-    name: "Kabul",
-    country: "Afghanistan",
+    name: "Kabil",
+    country: "Afganistan",
     countryCode: "AF",
     lat: 34.5659,
     lng: 69.2123,
@@ -495,7 +495,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "mhq_ax",
     name: "Mariehamn",
-    country: "Åland Islands",
+    country: "Åland Adaları",
     countryCode: "AX",
     lat: 60.1222,
     lng: 19.8982,
@@ -504,8 +504,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "tia_al",
-    name: "Tirana",
-    country: "Albania",
+    name: "Tiran",
+    country: "Arnavutluk",
     countryCode: "AL",
     lat: 41.4147,
     lng: 19.7206,
@@ -514,8 +514,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "alg_dz",
-    name: "Algiers",
-    country: "Algeria",
+    name: "Cezayir",
+    country: "Cezayir",
     countryCode: "DZ",
     lat: 36.6939,
     lng: 3.2145,
@@ -525,7 +525,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "ppg_as",
     name: "Pago Pago",
-    country: "American Samoa",
+    country: "Amerikan Samoası",
     countryCode: "AS",
     lat: -14.331,
     lng: -170.71,
@@ -555,7 +555,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "anu_ag",
     name: "Saint John's",
-    country: "Antigua and Barbuda",
+    country: "Antigua ve Barbuda",
     countryCode: "AG",
     lat: 17.1367,
     lng: -61.7927,
@@ -565,7 +565,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "aep_ar",
     name: "Buenos Aires",
-    country: "Argentina",
+    country: "Arjantin",
     countryCode: "AR",
     lat: -34.5594,
     lng: -58.4155,
@@ -575,7 +575,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "evn_am",
     name: "Yerevan",
-    country: "Armenia",
+    country: "Ermenistan",
     countryCode: "AM",
     lat: 40.1489,
     lng: 44.3979,
@@ -594,8 +594,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "cbr_au",
-    name: "Canberra",
-    country: "Australia",
+    name: "Kanberra",
+    country: "Avustralya",
     countryCode: "AU",
     lat: -35.3069,
     lng: 149.195,
@@ -604,8 +604,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "vie_at",
-    name: "Vienna",
-    country: "Austria",
+    name: "Viyana",
+    country: "Avusturya",
     countryCode: "AT",
     lat: 48.1103,
     lng: 16.5697,
@@ -614,8 +614,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "gyd_az",
-    name: "Baku",
-    country: "Azerbaijan",
+    name: "Bakü",
+    country: "Azerbaycan",
     countryCode: "AZ",
     lat: 40.4728,
     lng: 50.0509,
@@ -625,7 +625,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "nas_bs",
     name: "Nassau",
-    country: "Bahamas",
+    country: "Bahamalar",
     countryCode: "BS",
     lat: 25.039,
     lng: -77.4662,
@@ -635,7 +635,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "bah_bh",
     name: "Manama",
-    country: "Bahrain",
+    country: "Bahreyn",
     countryCode: "BH",
     lat: 26.2673,
     lng: 50.6376,
@@ -644,8 +644,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "dac_bd",
-    name: "Dhaka",
-    country: "Bangladesh",
+    name: "Dakka",
+    country: "Bangladeş",
     countryCode: "BD",
     lat: 23.8433,
     lng: 90.3978,
@@ -674,8 +674,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "bru_be",
-    name: "Brussels",
-    country: "Belgium",
+    name: "Brüksel",
+    country: "Belçika",
     countryCode: "BE",
     lat: 50.9014,
     lng: 4.4844,
@@ -715,7 +715,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "pbh_bt",
     name: "Thimphu",
-    country: "Bhutan",
+    country: "Butan",
     countryCode: "BT",
     lat: 27.4032,
     lng: 89.4246,
@@ -725,7 +725,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "sre_bo",
     name: "Sucre",
-    country: "Bolivia",
+    country: "Bolivya",
     countryCode: "BO",
     lat: -19.2468,
     lng: -65.1496,
@@ -734,8 +734,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "sjj_ba",
-    name: "Sarajevo",
-    country: "Bosnia and Herzegovina",
+    name: "Saraybosna",
+    country: "Bosna Hersek",
     countryCode: "BA",
     lat: 43.8246,
     lng: 18.3315,
@@ -745,7 +745,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "gbe_bw",
     name: "Gaborone",
-    country: "Botswana",
+    country: "Botsvana",
     countryCode: "BW",
     lat: -24.5552,
     lng: 25.9182,
@@ -754,8 +754,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "bsb_br",
-    name: "Brasília",
-    country: "Brazil",
+    name: "Brezilya",
+    country: "Brezilya",
     countryCode: "BR",
     lat: -15.8692,
     lng: -47.9208,
@@ -765,7 +765,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "nkw_io",
     name: "Diego Garcia",
-    country: "British Indian Ocean Territory",
+    country: "İngiliz Hint Okyanusu Toprakları",
     countryCode: "IO",
     lat: -7.3133,
     lng: 72.4111,
@@ -775,7 +775,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "eis_vg",
     name: "Road Town",
-    country: "British Virgin Islands",
+    country: "İngiliz Virjin Adaları",
     countryCode: "VG",
     lat: 18.4455,
     lng: -64.5417,
@@ -794,8 +794,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "sof_bg",
-    name: "Sofia",
-    country: "Bulgaria",
+    name: "Sofya",
+    country: "Bulgaristan",
     countryCode: "BG",
     lat: 42.6964,
     lng: 23.4177,
@@ -825,7 +825,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "kti_kh",
     name: "Phnom Penh",
-    country: "Cambodia",
+    country: "Kamboçya",
     countryCode: "KH",
     lat: 11.36,
     lng: 104.9213,
@@ -834,8 +834,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "nsi_cm",
-    name: "Yaoundé",
-    country: "Cameroon",
+    name: "Yaounde",
+    country: "Kamerun",
     countryCode: "CM",
     lat: 3.7226,
     lng: 11.5533,
@@ -845,7 +845,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "yow_ca",
     name: "Ottawa",
-    country: "Canada",
+    country: "Kanada",
     countryCode: "CA",
     lat: 45.3225,
     lng: -75.6692,
@@ -855,7 +855,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "rai_cv",
     name: "Praia",
-    country: "Cape Verde",
+    country: "Yeşil Burun Adaları",
     countryCode: "CV",
     lat: 14.9411,
     lng: -23.4847,
@@ -865,7 +865,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "bon_bq",
     name: "Kralendijk",
-    country: "Caribbean Netherlands",
+    country: "Karayip Hollandası",
     countryCode: "BQ",
     lat: 12.131,
     lng: -68.2685,
@@ -875,7 +875,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "gcm_ky",
     name: "George Town",
-    country: "Cayman Islands",
+    country: "Cayman Adaları",
     countryCode: "KY",
     lat: 19.2928,
     lng: -81.3577,
@@ -885,7 +885,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "bgf_cf",
     name: "Bangui",
-    country: "Central African Republic",
+    country: "Orta Afrika Cumhuriyeti",
     countryCode: "CF",
     lat: 4.3985,
     lng: 18.5188,
@@ -895,7 +895,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "ndj_td",
     name: "N'Djamena",
-    country: "Chad",
+    country: "Çad",
     countryCode: "TD",
     lat: 12.1337,
     lng: 15.034,
@@ -905,7 +905,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "scl_cl",
     name: "Santiago",
-    country: "Chile",
+    country: "Şili",
     countryCode: "CL",
     lat: -33.393,
     lng: -70.7858,
@@ -914,8 +914,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "pek_cn",
-    name: "Beijing",
-    country: "China",
+    name: "Pekin",
+    country: "Çin",
     countryCode: "CN",
     lat: 40.0773,
     lng: 116.5967,
@@ -925,7 +925,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "xch_cx",
     name: "Flying Fish Cove",
-    country: "Christmas Island",
+    country: "Christmas Adası",
     countryCode: "CX",
     lat: -10.4504,
     lng: 105.6911,
@@ -935,7 +935,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "cck_cc",
     name: "West Island",
-    country: "Cocos (Keeling) Islands",
+    country: "Cocos (Keeling) Adaları",
     countryCode: "CC",
     lat: -12.1922,
     lng: 96.8341,
@@ -944,8 +944,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "bog_co",
-    name: "Bogotá",
-    country: "Colombia",
+    name: "Bogota",
+    country: "Kolombiya",
     countryCode: "CO",
     lat: 4.7016,
     lng: -74.1469,
@@ -955,7 +955,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "hah_km",
     name: "Moroni",
-    country: "Comoros",
+    country: "Komorlar",
     countryCode: "KM",
     lat: -11.5337,
     lng: 43.2719,
@@ -965,7 +965,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "rar_ck",
     name: "Avarua",
-    country: "Cook Islands",
+    country: "Cook Adaları",
     countryCode: "CK",
     lat: -21.2027,
     lng: -159.806,
@@ -974,8 +974,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "sjo_cr",
-    name: "San José",
-    country: "Costa Rica",
+    name: "San Jose",
+    country: "Kosta Rika",
     countryCode: "CR",
     lat: 9.9939,
     lng: -84.2088,
@@ -985,7 +985,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "zag_hr",
     name: "Zagreb",
-    country: "Croatia",
+    country: "Hırvatistan",
     countryCode: "HR",
     lat: 45.7429,
     lng: 16.0688,
@@ -995,7 +995,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "hav_cu",
     name: "Havana",
-    country: "Cuba",
+    country: "Küba",
     countryCode: "CU",
     lat: 22.9892,
     lng: -82.4091,
@@ -1014,8 +1014,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "ecn_cy",
-    name: "Nicosia",
-    country: "Cyprus",
+    name: "Lefkoşa",
+    country: "Kıbrıs",
     countryCode: "CY",
     lat: 35.1531,
     lng: 33.5074,
@@ -1024,8 +1024,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "prg_cz",
-    name: "Prague",
-    country: "Czechia",
+    name: "Prag",
+    country: "Çekya",
     countryCode: "CZ",
     lat: 50.1009,
     lng: 14.2599,
@@ -1034,8 +1034,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "cph_dk",
-    name: "Copenhagen",
-    country: "Denmark",
+    name: "Kopenhag",
+    country: "Danimarka",
     countryCode: "DK",
     lat: 55.6179,
     lng: 12.656,
@@ -1044,8 +1044,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "jib_dj",
-    name: "Djibouti",
-    country: "Djibouti",
+    name: "Cibuti",
+    country: "Cibuti",
     countryCode: "DJ",
     lat: 11.5473,
     lng: 43.1595,
@@ -1055,7 +1055,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "fdf_dm",
     name: "Roseau",
-    country: "Dominica",
+    country: "Dominika",
     countryCode: "DM",
     lat: 14.591,
     lng: -61.0032,
@@ -1065,7 +1065,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "sdq_do",
     name: "Santo Domingo",
-    country: "Dominican Republic",
+    country: "Dominik Cumhuriyeti",
     countryCode: "DO",
     lat: 18.4297,
     lng: -69.6689,
@@ -1074,8 +1074,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "bzv_cd",
-    name: "Kinshasa",
-    country: "DR Congo",
+    name: "Kinşasa",
+    country: "Kongo Demokratik Cumhuriyeti",
     countryCode: "CD",
     lat: -4.2517,
     lng: 15.253,
@@ -1084,8 +1084,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "uio_ec",
-    name: "Quito",
-    country: "Ecuador",
+    name: "Kito",
+    country: "Ekvador",
     countryCode: "EC",
     lat: -0.1254,
     lng: -78.3543,
@@ -1094,8 +1094,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "cai_eg",
-    name: "Cairo",
-    country: "Egypt",
+    name: "Kahire",
+    country: "Mısır",
     countryCode: "EG",
     lat: 30.1115,
     lng: 31.3967,
@@ -1115,7 +1115,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "bsg_gq",
     name: "Ciudad de la Paz",
-    country: "Equatorial Guinea",
+    country: "Ekvator Ginesi",
     countryCode: "GQ",
     lat: 1.9055,
     lng: 9.8057,
@@ -1125,7 +1125,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "asm_er",
     name: "Asmara",
-    country: "Eritrea",
+    country: "Eritre",
     countryCode: "ER",
     lat: 15.2919,
     lng: 38.9107,
@@ -1135,7 +1135,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "tll_ee",
     name: "Tallinn",
-    country: "Estonia",
+    country: "Estonya",
     countryCode: "EE",
     lat: 59.4132,
     lng: 24.8326,
@@ -1145,7 +1145,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "sho_sz",
     name: "Mbabane",
-    country: "Eswatini",
+    country: "Esvatini",
     countryCode: "SZ",
     lat: -26.3586,
     lng: 31.7169,
@@ -1155,7 +1155,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "add_et",
     name: "Addis Ababa",
-    country: "Ethiopia",
+    country: "Etiyopya",
     countryCode: "ET",
     lat: 8.9779,
     lng: 38.7993,
@@ -1165,7 +1165,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "mpn_fk",
     name: "Stanley",
-    country: "Falkland Islands",
+    country: "Falkland Adaları",
     countryCode: "FK",
     lat: -51.8226,
     lng: -58.4458,
@@ -1175,7 +1175,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "fae_fo",
     name: "Tórshavn",
-    country: "Faroe Islands",
+    country: "Faroe Adaları",
     countryCode: "FO",
     lat: 62.0633,
     lng: -7.2758,
@@ -1195,7 +1195,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "hel_fi",
     name: "Helsinki",
-    country: "Finland",
+    country: "Finlandiya",
     countryCode: "FI",
     lat: 60.3184,
     lng: 24.9633,
@@ -1205,7 +1205,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "lbg_fr",
     name: "Paris",
-    country: "France",
+    country: "Fransa",
     countryCode: "FR",
     lat: 48.9623,
     lng: 2.4365,
@@ -1215,7 +1215,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "cay_gf",
     name: "Cayenne",
-    country: "French Guiana",
+    country: "Fransız Guyanası",
     countryCode: "GF",
     lat: 4.82,
     lng: -52.3613,
@@ -1224,8 +1224,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "ppt_pf",
-    name: "Papeetē",
-    country: "French Polynesia",
+    name: "Papeete",
+    country: "Fransız Polinezyası",
     countryCode: "PF",
     lat: -17.5535,
     lng: -149.6069,
@@ -1235,7 +1235,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "dnr_tf",
     name: "Port-aux-Français",
-    country: "French Southern and Antarctic Lands",
+    country: "Fransız Güney ve Antarktika Toprakları",
     countryCode: "TF",
     lat: 48.5877,
     lng: -2.08,
@@ -1255,7 +1255,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "bjl_gm",
     name: "Banjul",
-    country: "Gambia",
+    country: "Gambiya",
     countryCode: "GM",
     lat: 13.338,
     lng: -16.6522,
@@ -1264,8 +1264,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "tbs_ge",
-    name: "Tbilisi",
-    country: "Georgia",
+    name: "Tiflis",
+    country: "Gürcistan",
     countryCode: "GE",
     lat: 41.6692,
     lng: 44.9547,
@@ -1275,7 +1275,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "ber_de",
     name: "Berlin",
-    country: "Germany",
+    country: "Almanya",
     countryCode: "DE",
     lat: 52.3617,
     lng: 13.5023,
@@ -1284,8 +1284,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "acc_gh",
-    name: "Accra",
-    country: "Ghana",
+    name: "Akra",
+    country: "Gana",
     countryCode: "GH",
     lat: 5.6052,
     lng: -0.1668,
@@ -1294,8 +1294,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "gib_gi",
-    name: "Gibraltar",
-    country: "Gibraltar",
+    name: "Cebelitarık",
+    country: "Cebelitarık",
     countryCode: "GI",
     lat: 36.1517,
     lng: -5.3498,
@@ -1304,8 +1304,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "ath_gr",
-    name: "Athens",
-    country: "Greece",
+    name: "Atina",
+    country: "Yunanistan",
     countryCode: "GR",
     lat: 37.9364,
     lng: 23.9445,
@@ -1315,7 +1315,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "goh_gl",
     name: "Nuuk",
-    country: "Greenland",
+    country: "Grönland",
     countryCode: "GL",
     lat: 64.1911,
     lng: -51.6791,
@@ -1364,8 +1364,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "cky_gn",
-    name: "Conakry",
-    country: "Guinea",
+    name: "Konakri",
+    country: "Gine",
     countryCode: "GN",
     lat: 9.5769,
     lng: -13.612,
@@ -1375,7 +1375,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "oxb_gw",
     name: "Bissau",
-    country: "Guinea-Bissau",
+    country: "Gine-Bissau",
     countryCode: "GW",
     lat: 11.8943,
     lng: -15.6536,
@@ -1424,8 +1424,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "bud_hu",
-    name: "Budapest",
-    country: "Hungary",
+    name: "Budapeşte",
+    country: "Macaristan",
     countryCode: "HU",
     lat: 47.4302,
     lng: 19.2624,
@@ -1435,7 +1435,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "kef_is",
     name: "Reykjavik",
-    country: "Iceland",
+    country: "İzlanda",
     countryCode: "IS",
     lat: 63.985,
     lng: -22.6056,
@@ -1444,8 +1444,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "del_in",
-    name: "New Delhi",
-    country: "India",
+    name: "Yeni Delhi",
+    country: "Hindistan",
     countryCode: "IN",
     lat: 28.5556,
     lng: 77.0952,
@@ -1454,8 +1454,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "hlp_id",
-    name: "Jakarta",
-    country: "Indonesia",
+    name: "Cakarta",
+    country: "Endonezya",
     countryCode: "ID",
     lat: -6.267,
     lng: 106.8903,
@@ -1464,8 +1464,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "thr_ir",
-    name: "Tehran",
-    country: "Iran",
+    name: "Tahran",
+    country: "İran",
     countryCode: "IR",
     lat: 35.6892,
     lng: 51.3144,
@@ -1474,8 +1474,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "bgw_iq",
-    name: "Baghdad",
-    country: "Iraq",
+    name: "Bağdat",
+    country: "Irak",
     countryCode: "IQ",
     lat: 33.2625,
     lng: 44.2346,
@@ -1485,7 +1485,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "dub_ie",
     name: "Dublin",
-    country: "Ireland",
+    country: "İrlanda",
     countryCode: "IE",
     lat: 53.4287,
     lng: -6.2621,
@@ -1495,7 +1495,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "iom_im",
     name: "Douglas",
-    country: "Isle of Man",
+    country: "Man Adası",
     countryCode: "IM",
     lat: 54.0831,
     lng: -4.6239,
@@ -1504,8 +1504,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "tlv_il",
-    name: "Jerusalem",
-    country: "Israel",
+    name: "Kudüs",
+    country: "İsrail",
     countryCode: "IL",
     lat: 32.0114,
     lng: 34.8867,
@@ -1514,8 +1514,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "cia_it",
-    name: "Rome",
-    country: "Italy",
+    name: "Roma",
+    country: "İtalya",
     countryCode: "IT",
     lat: 41.7988,
     lng: 12.5953,
@@ -1525,7 +1525,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "byk_ci",
     name: "Yamoussoukro",
-    country: "Ivory Coast",
+    country: "Fildişi Sahili",
     countryCode: "CI",
     lat: 7.7388,
     lng: -5.0737,
@@ -1535,7 +1535,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "kin_jm",
     name: "Kingston",
-    country: "Jamaica",
+    country: "Jamaika",
     countryCode: "JM",
     lat: 17.9357,
     lng: -76.7875,
@@ -1545,7 +1545,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "hnd_jp",
     name: "Tokyo",
-    country: "Japan",
+    country: "Japonya",
     countryCode: "JP",
     lat: 35.5497,
     lng: 139.787,
@@ -1565,7 +1565,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "adj_jo",
     name: "Amman",
-    country: "Jordan",
+    country: "Ürdün",
     countryCode: "JO",
     lat: 31.9727,
     lng: 35.9916,
@@ -1575,7 +1575,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "nqz_kz",
     name: "Astana",
-    country: "Kazakhstan",
+    country: "Kazakistan",
     countryCode: "KZ",
     lat: 51.027,
     lng: 71.4671,
@@ -1604,8 +1604,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "prn_xk",
-    name: "Pristina",
-    country: "Kosovo",
+    name: "Priştine",
+    country: "Kosova",
     countryCode: "XK",
     lat: 42.5728,
     lng: 21.0358,
@@ -1614,8 +1614,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "kwi_kw",
-    name: "Kuwait City",
-    country: "Kuwait",
+    name: "Kuveyt",
+    country: "Kuveyt",
     countryCode: "KW",
     lat: 29.2245,
     lng: 47.9698,
@@ -1624,8 +1624,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "bsz_kg",
-    name: "Bishkek",
-    country: "Kyrgyzstan",
+    name: "Bişkek",
+    country: "Kırgızistan",
     countryCode: "KG",
     lat: 43.0613,
     lng: 74.4776,
@@ -1645,7 +1645,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "rix_lv",
     name: "Riga",
-    country: "Latvia",
+    country: "Letonya",
     countryCode: "LV",
     lat: 56.9208,
     lng: 23.9707,
@@ -1654,8 +1654,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "bey_lb",
-    name: "Beirut",
-    country: "Lebanon",
+    name: "Beyrut",
+    country: "Lübnan",
     countryCode: "LB",
     lat: 33.8198,
     lng: 35.4874,
@@ -1665,7 +1665,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "msu_ls",
     name: "Maseru",
-    country: "Lesotho",
+    country: "Lesoto",
     countryCode: "LS",
     lat: -29.4563,
     lng: 27.5545,
@@ -1675,7 +1675,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "rob_lr",
     name: "Monrovia",
-    country: "Liberia",
+    country: "Liberya",
     countryCode: "LR",
     lat: 6.2338,
     lng: -10.3623,
@@ -1684,7 +1684,7 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "mji_ly",
-    name: "Tripoli",
+    name: "Trablus",
     country: "Libya",
     countryCode: "LY",
     lat: 32.8918,
@@ -1695,7 +1695,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "fdh_li",
     name: "Vaduz",
-    country: "Liechtenstein",
+    country: "Lihtenştayn",
     countryCode: "LI",
     lat: 47.6713,
     lng: 9.5115,
@@ -1705,7 +1705,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "vno_lt",
     name: "Vilnius",
-    country: "Lithuania",
+    country: "Litvanya",
     countryCode: "LT",
     lat: 54.6341,
     lng: 25.2858,
@@ -1714,8 +1714,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "lux_lu",
-    name: "Luxembourg",
-    country: "Luxembourg",
+    name: "Lüksemburg",
+    country: "Lüksemburg",
     countryCode: "LU",
     lat: 49.6268,
     lng: 6.2121,
@@ -1725,7 +1725,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "tnr_mg",
     name: "Antananarivo",
-    country: "Madagascar",
+    country: "Madagaskar",
     countryCode: "MG",
     lat: -18.7969,
     lng: 47.4788,
@@ -1735,7 +1735,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "llw_mw",
     name: "Lilongwe",
-    country: "Malawi",
+    country: "Malavi",
     countryCode: "MW",
     lat: -13.7894,
     lng: 33.781,
@@ -1745,7 +1745,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "szb_my",
     name: "Kuala Lumpur",
-    country: "Malaysia",
+    country: "Malezya",
     countryCode: "MY",
     lat: 3.1306,
     lng: 101.549,
@@ -1754,8 +1754,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "mle_mv",
-    name: "Malé",
-    country: "Maldives",
+    name: "Male",
+    country: "Maldivler",
     countryCode: "MV",
     lat: 4.1918,
     lng: 73.5291,
@@ -1785,7 +1785,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "maj_mh",
     name: "Majuro",
-    country: "Marshall Islands",
+    country: "Marshall Adaları",
     countryCode: "MH",
     lat: 7.0651,
     lng: 171.2717,
@@ -1794,8 +1794,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "nkc_mr",
-    name: "Nouakchott",
-    country: "Mauritania",
+    name: "Nouakçott",
+    country: "Moritanya",
     countryCode: "MR",
     lat: 18.31,
     lng: -15.9697,
@@ -1824,8 +1824,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "mex_mx",
-    name: "Mexico City",
-    country: "Mexico",
+    name: "Meksika Şehri",
+    country: "Meksika",
     countryCode: "MX",
     lat: 19.4358,
     lng: -99.0703,
@@ -1835,7 +1835,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "pni_fm",
     name: "Palikir",
-    country: "Micronesia",
+    country: "Mikronezya",
     countryCode: "FM",
     lat: 6.9851,
     lng: 158.2099,
@@ -1844,7 +1844,7 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "rmo_md",
-    name: "Chișinău",
+    name: "Kişinev",
     country: "Moldova",
     countryCode: "MD",
     lat: 46.9277,
@@ -1854,8 +1854,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "nce_mc",
-    name: "Monaco",
-    country: "Monaco",
+    name: "Monako",
+    country: "Monako",
     countryCode: "MC",
     lat: 43.6584,
     lng: 7.2159,
@@ -1864,8 +1864,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "ubn_mn",
-    name: "Ulan Bator",
-    country: "Mongolia",
+    name: "Ulanbatur",
+    country: "Moğolistan",
     countryCode: "MN",
     lat: 47.6469,
     lng: 106.8198,
@@ -1875,7 +1875,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "tgd_me",
     name: "Podgorica",
-    country: "Montenegro",
+    country: "Karadağ",
     countryCode: "ME",
     lat: 42.3594,
     lng: 19.2519,
@@ -1895,7 +1895,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "rba_ma",
     name: "Rabat",
-    country: "Morocco",
+    country: "Fas",
     countryCode: "MA",
     lat: 34.0515,
     lng: -6.7515,
@@ -1905,7 +1905,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "mpm_mz",
     name: "Maputo",
-    country: "Mozambique",
+    country: "Mozambik",
     countryCode: "MZ",
     lat: -25.9208,
     lng: 32.5726,
@@ -1925,7 +1925,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "wdh_na",
     name: "Windhoek",
-    country: "Namibia",
+    country: "Namibya",
     countryCode: "NA",
     lat: -22.4799,
     lng: 17.4709,
@@ -1944,7 +1944,7 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "ktm_np",
-    name: "Kathmandu",
+    name: "Katmandu",
     country: "Nepal",
     countryCode: "NP",
     lat: 27.6966,
@@ -1955,7 +1955,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "ams_nl",
     name: "Amsterdam",
-    country: "Netherlands",
+    country: "Hollanda",
     countryCode: "NL",
     lat: 52.3086,
     lng: 4.7639,
@@ -1964,8 +1964,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "nou_nc",
-    name: "Nouméa",
-    country: "New Caledonia",
+    name: "Noumea",
+    country: "Yeni Kaledonya",
     countryCode: "NC",
     lat: -22.0146,
     lng: 166.213,
@@ -1975,7 +1975,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "wlg_nz",
     name: "Wellington",
-    country: "New Zealand",
+    country: "Yeni Zelanda",
     countryCode: "NZ",
     lat: -41.3268,
     lng: 174.8069,
@@ -1985,7 +1985,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "mga_ni",
     name: "Managua",
-    country: "Nicaragua",
+    country: "Nikaragua",
     countryCode: "NI",
     lat: 12.1415,
     lng: -86.1682,
@@ -1995,7 +1995,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "nim_ne",
     name: "Niamey",
-    country: "Niger",
+    country: "Nijer",
     countryCode: "NE",
     lat: 13.4815,
     lng: 2.1836,
@@ -2005,7 +2005,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "abv_ng",
     name: "Abuja",
-    country: "Nigeria",
+    country: "Nijerya",
     countryCode: "NG",
     lat: 9.0068,
     lng: 7.2632,
@@ -2025,7 +2025,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "nlk_nf",
     name: "Kingston",
-    country: "Norfolk Island",
+    country: "Norfolk Adası",
     countryCode: "NF",
     lat: -29.0418,
     lng: 167.9395,
@@ -2035,7 +2035,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "fnj_kp",
     name: "Pyongyang",
-    country: "North Korea",
+    country: "Kuzey Kore",
     countryCode: "KP",
     lat: 39.2241,
     lng: 125.67,
@@ -2044,8 +2044,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "skp_mk",
-    name: "Skopje",
-    country: "North Macedonia",
+    name: "Üsküp",
+    country: "Kuzey Makedonya",
     countryCode: "MK",
     lat: 41.9581,
     lng: 21.6226,
@@ -2055,7 +2055,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "tiq_mp",
     name: "Saipan",
-    country: "Northern Mariana Islands",
+    country: "Kuzey Mariana Adaları",
     countryCode: "MP",
     lat: 15.0005,
     lng: 145.619,
@@ -2065,7 +2065,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "osl_no",
     name: "Oslo",
-    country: "Norway",
+    country: "Norveç",
     countryCode: "NO",
     lat: 60.1939,
     lng: 11.1004,
@@ -2074,8 +2074,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "mct_om",
-    name: "Muscat",
-    country: "Oman",
+    name: "Maskat",
+    country: "Umman",
     countryCode: "OM",
     lat: 23.6002,
     lng: 58.2853,
@@ -2084,7 +2084,7 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "isb_pk",
-    name: "Islamabad",
+    name: "İslamabad",
     country: "Pakistan",
     countryCode: "PK",
     lat: 33.549,
@@ -2115,7 +2115,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "pom_pg",
     name: "Port Moresby",
-    country: "Papua New Guinea",
+    country: "Papua Yeni Gine",
     countryCode: "PG",
     lat: -9.4434,
     lng: 147.22,
@@ -2145,7 +2145,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "mnl_ph",
     name: "Manila",
-    country: "Philippines",
+    country: "Filipinler",
     countryCode: "PH",
     lat: 14.5086,
     lng: 121.02,
@@ -2154,8 +2154,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "waw_pl",
-    name: "Warsaw",
-    country: "Poland",
+    name: "Varşova",
+    country: "Polonya",
     countryCode: "PL",
     lat: 52.1657,
     lng: 20.9671,
@@ -2164,8 +2164,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "lis_pt",
-    name: "Lisbon",
-    country: "Portugal",
+    name: "Lizbon",
+    country: "Portekiz",
     countryCode: "PT",
     lat: 38.7813,
     lng: -9.1359,
@@ -2175,7 +2175,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "sju_pr",
     name: "San Juan",
-    country: "Puerto Rico",
+    country: "Porto Riko",
     countryCode: "PR",
     lat: 18.4394,
     lng: -66.0018,
@@ -2185,7 +2185,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "dia_qa",
     name: "Doha",
-    country: "Qatar",
+    country: "Katar",
     countryCode: "QA",
     lat: 25.2594,
     lng: 51.5655,
@@ -2204,8 +2204,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "bbu_ro",
-    name: "Bucharest",
-    country: "Romania",
+    name: "Bükreş",
+    country: "Romanya",
     countryCode: "RO",
     lat: 44.5031,
     lng: 26.1029,
@@ -2214,8 +2214,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "vko_ru",
-    name: "Moscow",
-    country: "Russia",
+    name: "Moskova",
+    country: "Rusya",
     countryCode: "RU",
     lat: 55.5915,
     lng: 37.2615,
@@ -2225,7 +2225,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "kgl_rw",
     name: "Kigali",
-    country: "Rwanda",
+    country: "Ruanda",
     countryCode: "RW",
     lat: -1.9686,
     lng: 30.1395,
@@ -2235,7 +2235,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "hle_sh",
     name: "Jamestown",
-    country: "Saint Helena, Ascension and Tristan da Cunha",
+    country: "Saint Helena",
     countryCode: "SH",
     lat: -15.9589,
     lng: -5.6461,
@@ -2245,7 +2245,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "skb_kn",
     name: "Basseterre",
-    country: "Saint Kitts and Nevis",
+    country: "Saint Kitts ve Nevis",
     countryCode: "KN",
     lat: 17.3108,
     lng: -62.7191,
@@ -2275,7 +2275,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "fsp_pm",
     name: "Saint-Pierre",
-    country: "Saint Pierre and Miquelon",
+    country: "Saint Pierre ve Miquelon",
     countryCode: "PM",
     lat: 46.7627,
     lng: -56.175,
@@ -2285,7 +2285,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "svd_vc",
     name: "Kingstown",
-    country: "Saint Vincent and the Grenadines",
+    country: "Saint Vincent ve Grenadinler",
     countryCode: "VC",
     lat: 13.1597,
     lng: -61.1488,
@@ -2305,7 +2305,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "tms_st",
     name: "São Tomé",
-    country: "São Tomé and Príncipe",
+    country: "São Tomé ve Príncipe",
     countryCode: "ST",
     lat: 0.3782,
     lng: 6.7122,
@@ -2314,8 +2314,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "ruh_sa",
-    name: "Riyadh",
-    country: "Saudi Arabia",
+    name: "Riyad",
+    country: "Suudi Arabistan",
     countryCode: "SA",
     lat: 24.9576,
     lng: 46.6988,
@@ -2334,8 +2334,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "beg_rs",
-    name: "Belgrade",
-    country: "Serbia",
+    name: "Belgrad",
+    country: "Sırbistan",
     countryCode: "RS",
     lat: 44.8184,
     lng: 20.3091,
@@ -2345,7 +2345,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "sez_sc",
     name: "Victoria",
-    country: "Seychelles",
+    country: "Seyşeller",
     countryCode: "SC",
     lat: -4.6743,
     lng: 55.5218,
@@ -2364,8 +2364,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "sin_sg",
-    name: "Singapore",
-    country: "Singapore",
+    name: "Singapur",
+    country: "Singapur",
     countryCode: "SG",
     lat: 1.3502,
     lng: 103.994,
@@ -2375,7 +2375,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "bts_sk",
     name: "Bratislava",
-    country: "Slovakia",
+    country: "Slovakya",
     countryCode: "SK",
     lat: 48.1702,
     lng: 17.2127,
@@ -2385,7 +2385,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "lju_si",
     name: "Ljubljana",
-    country: "Slovenia",
+    country: "Slovenya",
     countryCode: "SI",
     lat: 46.2237,
     lng: 14.4576,
@@ -2395,7 +2395,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "hir_sb",
     name: "Honiara",
-    country: "Solomon Islands",
+    country: "Solomon Adaları",
     countryCode: "SB",
     lat: -9.428,
     lng: 160.055,
@@ -2404,8 +2404,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "mgq_so",
-    name: "Mogadishu",
-    country: "Somalia",
+    name: "Mogadişu",
+    country: "Somali",
     countryCode: "SO",
     lat: 2.0144,
     lng: 45.3047,
@@ -2415,7 +2415,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "hla_za",
     name: "Pretoria",
-    country: "South Africa",
+    country: "Güney Afrika",
     countryCode: "ZA",
     lat: -25.939,
     lng: 27.9266,
@@ -2424,8 +2424,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "gmp_kr",
-    name: "Seoul",
-    country: "South Korea",
+    name: "Seul",
+    country: "Güney Kore",
     countryCode: "KR",
     lat: 37.5583,
     lng: 126.791,
@@ -2434,8 +2434,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "jub_ss",
-    name: "Juba",
-    country: "South Sudan",
+    name: "Cuba",
+    country: "Güney Sudan",
     countryCode: "SS",
     lat: 4.872,
     lng: 31.6011,
@@ -2445,7 +2445,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "mad_es",
     name: "Madrid",
-    country: "Spain",
+    country: "İspanya",
     countryCode: "ES",
     lat: 40.4934,
     lng: -3.5722,
@@ -2464,7 +2464,7 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "krt_sd",
-    name: "Khartoum",
+    name: "Hartum",
     country: "Sudan",
     countryCode: "SD",
     lat: 15.5895,
@@ -2475,7 +2475,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "pbm_sr",
     name: "Paramaribo",
-    country: "Suriname",
+    country: "Surinam",
     countryCode: "SR",
     lat: 5.4528,
     lng: -55.1878,
@@ -2485,7 +2485,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "lyr_sj",
     name: "Longyearbyen",
-    country: "Svalbard and Jan Mayen",
+    country: "Svalbard ve Jan Mayen",
     countryCode: "SJ",
     lat: 78.2461,
     lng: 15.4656,
@@ -2494,8 +2494,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "arn_se",
-    name: "Stockholm",
-    country: "Sweden",
+    name: "Stokholm",
+    country: "İsveç",
     countryCode: "SE",
     lat: 59.6485,
     lng: 17.9288,
@@ -2505,7 +2505,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "bsl_ch",
     name: "Bern",
-    country: "Switzerland",
+    country: "İsviçre",
     countryCode: "CH",
     lat: 47.6007,
     lng: 7.5211,
@@ -2514,8 +2514,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "dam_sy",
-    name: "Damascus",
-    country: "Syria",
+    name: "Şam",
+    country: "Suriye",
     countryCode: "SY",
     lat: 33.4115,
     lng: 36.5156,
@@ -2525,7 +2525,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "tsa_tw",
     name: "Taipei",
-    country: "Taiwan",
+    country: "Tayvan",
     countryCode: "TW",
     lat: 25.0672,
     lng: 121.5528,
@@ -2534,8 +2534,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "dyu_tj",
-    name: "Dushanbe",
-    country: "Tajikistan",
+    name: "Duşanbe",
+    country: "Tacikistan",
     countryCode: "TJ",
     lat: 38.5437,
     lng: 68.823,
@@ -2545,7 +2545,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "dod_tz",
     name: "Dodoma",
-    country: "Tanzania",
+    country: "Tanzanya",
     countryCode: "TZ",
     lat: -6.1706,
     lng: 35.756,
@@ -2555,7 +2555,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "dmk_th",
     name: "Bangkok",
-    country: "Thailand",
+    country: "Tayland",
     countryCode: "TH",
     lat: 13.9126,
     lng: 100.607,
@@ -2565,7 +2565,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "dil_tl",
     name: "Dili",
-    country: "Timor-Leste",
+    country: "Doğu Timor",
     countryCode: "TL",
     lat: -8.5466,
     lng: 125.5245,
@@ -2574,7 +2574,7 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "lfw_tg",
-    name: "Lomé",
+    name: "Lome",
     country: "Togo",
     countryCode: "TG",
     lat: 6.1656,
@@ -2595,7 +2595,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "pos_tt",
     name: "Port of Spain",
-    country: "Trinidad and Tobago",
+    country: "Trinidad ve Tobago",
     countryCode: "TT",
     lat: 10.5954,
     lng: -61.3376,
@@ -2604,8 +2604,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "tun_tn",
-    name: "Tunis",
-    country: "Tunisia",
+    name: "Tunus",
+    country: "Tunus",
     countryCode: "TN",
     lat: 36.851,
     lng: 10.2272,
@@ -2614,8 +2614,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "asb_tm",
-    name: "Ashgabat",
-    country: "Turkmenistan",
+    name: "Aşkabat",
+    country: "Türkmenistan",
     countryCode: "TM",
     lat: 37.9868,
     lng: 58.361,
@@ -2625,7 +2625,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "pls_tc",
     name: "Cockburn Town",
-    country: "Turks and Caicos Islands",
+    country: "Turks ve Caicos Adaları",
     countryCode: "TC",
     lat: 21.7737,
     lng: -72.2683,
@@ -2655,7 +2655,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "iev_ua",
     name: "Kyiv",
-    country: "Ukraine",
+    country: "Ukrayna",
     countryCode: "UA",
     lat: 50.4019,
     lng: 30.4519,
@@ -2664,8 +2664,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "auh_ae",
-    name: "Abu Dhabi",
-    country: "United Arab Emirates",
+    name: "Abu Dabi",
+    country: "Birleşik Arap Emirlikleri",
     countryCode: "AE",
     lat: 24.441,
     lng: 54.6492,
@@ -2674,8 +2674,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "lhr_gb",
-    name: "London",
-    country: "United Kingdom",
+    name: "Londra",
+    country: "Birleşik Krallık",
     countryCode: "GB",
     lat: 51.4707,
     lng: -0.4599,
@@ -2684,8 +2684,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "dca_us",
-    name: "Washington, D.C.",
-    country: "United States",
+    name: "Washington D.C.",
+    country: "Amerika Birleşik Devletleri",
     countryCode: "US",
     lat: 38.8521,
     lng: -77.0377,
@@ -2695,7 +2695,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "stt_vi",
     name: "Charlotte Amalie",
-    country: "United States Virgin Islands",
+    country: "ABD Virjin Adaları",
     countryCode: "VI",
     lat: 18.3371,
     lng: -64.9773,
@@ -2714,8 +2714,8 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "tas_uz",
-    name: "Tashkent",
-    country: "Uzbekistan",
+    name: "Taşkent",
+    country: "Özbekistan",
     countryCode: "UZ",
     lat: 41.2579,
     lng: 69.2812,
@@ -2734,7 +2734,7 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "ccs_ve",
-    name: "Caracas",
+    name: "Karakas",
     country: "Venezuela",
     countryCode: "VE",
     lat: 10.6022,
@@ -2755,7 +2755,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "apw_wf",
     name: "Mata-Utu",
-    country: "Wallis and Futuna",
+    country: "Wallis ve Futuna",
     countryCode: "WF",
     lat: -13.83,
     lng: -172.008,
@@ -2765,7 +2765,7 @@ const CITIES_CAPITALS: City[] = [
   {
     id: "sli_eh",
     name: "El Aaiún",
-    country: "Western Sahara",
+    country: "Batı Sahra",
     countryCode: "EH",
     lat: -12.1737,
     lng: 26.3651,
@@ -2774,7 +2774,7 @@ const CITIES_CAPITALS: City[] = [
   },
   {
     id: "sah_ye",
-    name: "Sana'a",
+    name: "Sana",
     country: "Yemen",
     countryCode: "YE",
     lat: 15.4763,
