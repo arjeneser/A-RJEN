@@ -90,7 +90,7 @@ interface UserState {
   updateLastFlightNotes: (notes: string) => void;
 
   loadSnapshot: (snap: { profile: UserProfile; history: CompletedFlight[]; stamps: Stamp[]; achievements?: Achievement[] }) => void;
-  exportSnapshot: () => { profile: UserProfile; history: CompletedFlight[]; stamps: Stamp[]; achievements: Achievement[] };
+  exportSnapshot: () => { profile: UserProfile; history: CompletedFlight[]; stamps: Stamp[]; achievements: Achievement[]; lastUpdated: number };
   resetToDefault: () => void;
 }
 
@@ -186,7 +186,7 @@ export const useUserStore = create<UserState>()(
       // ── exportSnapshot ────────────────────────────────────────────────────
       exportSnapshot: () => {
         const { profile, history, stamps, achievements } = get();
-        return { profile, history, stamps, achievements };
+        return { profile, history, stamps, achievements, lastUpdated: Date.now() };
       },
 
       // ── resetToDefault ────────────────────────────────────────────────────

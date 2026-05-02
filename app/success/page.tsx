@@ -17,6 +17,7 @@ import {
 } from "@/store/user-store";
 import { useAuthStore } from "@/store/auth-store";
 import { syncStats, syncFlightDetail } from "@/lib/friends";
+import { saveUserSnapshot } from "@/lib/user-sync";
 
 export default function SuccessPage() {
   const router = useRouter();
@@ -72,26 +73,29 @@ export default function SuccessPage() {
       }
       // Check new achievements + sync stats (after profile update settled on next tick)
       setTimeout(() => {
-        const updatedProfile = useUserStore.getState().profile;
-        const updatedHistory = useUserStore.getState().history;
-        const updatedStamps  = useUserStore.getState().stamps;
-        const earnedIds      = useUserStore.getState().achievements.map((a) => a.id);
+        const updatedProfile     = useUserStore.getState().profile;
+        const updatedHistory     = useUserStore.getState().history;
+        const updatedStamps      = useUserStore.getState().stamps;
+        const updatedAchievements = useUserStore.getState().achievements;
+        const earnedIds          = updatedAchievements.map((a) => a.id);
         const newOnes = checkNewAchievements(updatedProfile, updatedHistory, updatedStamps, earnedIds);
         if (newOnes.length > 0) {
           addAchievements(newOnes);
           setNewAchievements(newOnes);
         }
-        // Push stats to Firebase for leaderboard
+
         if (currentUsername) {
+          // ── Firebase leaderboard stats ─────────────────────────────────────
           syncStats(currentUsername, {
             totalXP:       updatedProfile.totalXP,
             totalFlights:  updatedProfile.totalFlights,
             currentStreak: updatedProfile.currentStreak,
           });
-          // Detaylı uçuş istatistiği — duraklama sayısı + gerçek süre
+
+          // ── Detaylı uçuş istatistiği ───────────────────────────────────────
           const durationKey   = `${Math.round(session!.durationMs / 3600000)}h`;
           const durationLabel = `${Math.round(session!.durationMs / 3600000)} Saat`;
-          const actualMs      = Date.now() - session!.startTime; // gerçek geçen süre
+          const actualMs      = Date.now() - session!.startTime;
           syncFlightDetail(
             currentUsername,
             durationKey,
@@ -99,6 +103,19 @@ export default function SuccessPage() {
             session!.pauseCount ?? 0,
             actualMs
           );
+
+          // ── TAM SNAPSHOT Firebase'e kaydet (kritik — hemen senkronize) ─────
+          // Başarımlar newOnes eklendikten SONRA kaydedebilmek için kısa bekleme
+          const finalAchievements = newOnes.length > 0
+            ? [...updatedAchievements, ...newOnes.map((a) => ({ ...a, unlockedAt: Date.now() }))]
+            : updatedAchievements;
+
+          saveUserSnapshot(currentUsername, {
+            profile:      updatedProfile,
+            history:      updatedHistory,
+            stamps:       updatedStamps,
+            achievements: finalAchievements,
+          });
         }
       }, 200);
     }

@@ -6,9 +6,11 @@ import type { UserProfile, CompletedFlight, Stamp } from "@/types";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface UserSnapshot {
-  profile: UserProfile;
-  history: CompletedFlight[];
-  stamps: Stamp[];
+  profile:      UserProfile;
+  history:      CompletedFlight[];
+  stamps:       Stamp[];
+  achievements?: import("@/types").Achievement[];
+  lastUpdated?:  number;
 }
 
 /** Şifreyi string olarak saklayan eski format ile uyumluluk için union */
