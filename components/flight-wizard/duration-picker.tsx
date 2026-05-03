@@ -151,9 +151,6 @@ export function DurationPicker({ value, onChange, accentColor = "#1D4ED8" }: Dur
                       {opt.label}
                     </div>
                     <div className="text-[11px] text-slate-400 mb-2">{opt.subtitle}</div>
-                    <div className="text-[10px] text-slate-500 mb-2">
-                      {opt.minDistanceKm}–{opt.maxDistanceKm} km
-                    </div>
                     <div
                       className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold"
                       style={{
@@ -192,8 +189,6 @@ export function DurationPicker({ value, onChange, accentColor = "#1D4ED8" }: Dur
           <span className="text-green-400">✓</span>
           <span>
             <span className="text-white font-medium">{value.label}</span> seçildi
-            {" · "}
-            {value.minDistanceKm}–{value.maxDistanceKm} km arası destinasyonlar
           </span>
         </motion.div>
       )}

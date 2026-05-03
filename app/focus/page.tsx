@@ -84,14 +84,14 @@ export default function FocusPage() {
   useEffect(() => {
     if (!session || breakInitRef.current) return;
     breakInitRef.current = true;
-    if (session.breakIntervalMinutes > 0) {
-      setNextBreakMs(session.breakIntervalMinutes * 60 * 1000);
+    if ((session.breakIntervalMinutes ?? 0) > 0) {
+      setNextBreakMs((session.breakIntervalMinutes ?? 0) * 60 * 1000);
     }
   }, [session]);
 
   // ── Mola kontrol ─────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!session || !nextBreakMs || session.breakIntervalMinutes === 0) return;
+    if (!session || !nextBreakMs || (session.breakIntervalMinutes ?? 0) === 0) return;
     if (isPaused) return; // durakken kontrol etme
     if (breakModalOpen || isOnBreak) return;
 
@@ -125,8 +125,8 @@ export default function FocusPage() {
   function handleResumeFromBreak() {
     setIsOnBreak(false);
     resume();
-    if (session && session.breakIntervalMinutes > 0) {
-      setNextBreakMs(elapsedMs + session.breakIntervalMinutes * 60 * 1000);
+    if (session && (session.breakIntervalMinutes ?? 0) > 0) {
+      setNextBreakMs(elapsedMs + (session.breakIntervalMinutes ?? 0) * 60 * 1000);
     }
   }
 
@@ -134,8 +134,8 @@ export default function FocusPage() {
   function handleEmergencyBreak() {
     setIsOnBreak(true);
     pause();
-    if (session && session.breakIntervalMinutes > 0) {
-      setNextBreakMs(elapsedMs + session.breakIntervalMinutes * 60 * 1000);
+    if (session && (session.breakIntervalMinutes ?? 0) > 0) {
+      setNextBreakMs(elapsedMs + (session.breakIntervalMinutes ?? 0) * 60 * 1000);
     }
   }
 
@@ -197,7 +197,9 @@ export default function FocusPage() {
 
   if (!mounted || !session) return null;
 
-  const { departure, destination, durationMs, seat, breakIntervalMinutes, breakDurationMinutes } = session;
+  const { departure, destination, durationMs, seat } = session;
+  const breakIntervalMinutes = session.breakIntervalMinutes ?? 0;
+  const breakDurationMinutes = session.breakDurationMinutes ?? 0;
   const percent = Math.round(progress * 100);
 
   // Kalan mola süresini göstermek için (bilgi amaçlı)
@@ -402,7 +404,7 @@ export default function FocusPage() {
             {!isPaused && (
               <button
                 onClick={handleEmergencyBreak}
-                className="px-4 py-3.5 rounded-2xl text-sm font-semibold transition-all"
+                className="flex flex-col items-center gap-1 px-4 py-2.5 rounded-2xl transition-all"
                 style={{
                   background: "rgba(245,158,11,0.1)",
                   border: "1px solid rgba(245,158,11,0.25)",
@@ -410,7 +412,8 @@ export default function FocusPage() {
                 }}
                 title="Acil mola"
               >
-                ☕
+                <span className="text-lg leading-none">☕</span>
+                <span className="text-[10px] font-semibold leading-none">Acil Mola</span>
               </button>
             )}
 

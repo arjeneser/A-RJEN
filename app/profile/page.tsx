@@ -560,7 +560,7 @@ export default function ProfilePage() {
               )}
             </motion.div>
 
-            {/* Ülke dağılımı + seviye yolu */}
+            {/* Seviye yolu + Tüm İstatistikler */}
             <div className="space-y-6">
               {/* Seviye yolu */}
               <motion.div
@@ -608,47 +608,47 @@ export default function ProfilePage() {
                   </div>
                 </div>
               </motion.div>
+
+              {/* Tüm İstatistikler */}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="rounded-3xl p-5"
+                style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
+              >
+                <h2 className="text-base font-bold text-white mb-4" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                  Tüm İstatistikler
+                </h2>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { icon: "✈️",  label: "Toplam Uçuş",         value: profile.totalFlights },
+                    { icon: "⭐",  label: "Toplam XP",            value: profile.totalXP },
+                    { icon: "⏱️", label: "Toplam Odak",          value: formatMinutes(profile.totalFocusMinutes) },
+                    { icon: "🔥",  label: "Mevcut Seri",          value: `${profile.currentStreak} gün` },
+                    { icon: "🏆",  label: "En İyi Seri",          value: `${profile.longestStreak} gün` },
+                    { icon: "🌍",  label: "Ziyaret Edilen Ülke",  value: visitedCountries },
+                    { icon: "📖",  label: "Pasaport Damgası",     value: stamps.length },
+                    { icon: "🏅",  label: "Kazanılan Başarım",    value: earned.length },
+                  ].map((s) => (
+                    <div
+                      key={s.label}
+                      className="flex items-center gap-3 p-3 rounded-2xl"
+                      style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}
+                    >
+                      <span className="text-xl shrink-0">{s.icon}</span>
+                      <div>
+                        <div className="text-sm font-bold text-white" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                          {s.value}
+                        </div>
+                        <div className="text-[10px] text-slate-600">{s.label}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
             </div>
           </div>
-
-          {/* ══════════════════ TAM İSTATİSTİK TABLOSU ══════════════════ */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="rounded-3xl p-5 sm:p-6"
-            style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
-          >
-            <h2 className="text-base font-bold text-white mb-4" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
-              Tüm İstatistikler
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {[
-                { icon: "✈️",  label: "Toplam Uçuş",         value: profile.totalFlights },
-                { icon: "⭐",  label: "Toplam XP",            value: profile.totalXP },
-                { icon: "⏱️", label: "Toplam Odak",          value: formatMinutes(profile.totalFocusMinutes) },
-                { icon: "🔥",  label: "Mevcut Seri",          value: `${profile.currentStreak} gün` },
-                { icon: "🏆",  label: "En İyi Seri",          value: `${profile.longestStreak} gün` },
-                { icon: "🌍",  label: "Ziyaret Edilen Ülke",  value: visitedCountries },
-                { icon: "📖",  label: "Pasaport Damgası",     value: stamps.length },
-                { icon: "🏅",  label: "Kazanılan Başarım",    value: earned.length },
-              ].map((s) => (
-                <div
-                  key={s.label}
-                  className="flex items-center gap-3 p-3 rounded-2xl"
-                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}
-                >
-                  <span className="text-xl shrink-0">{s.icon}</span>
-                  <div>
-                    <div className="text-sm font-bold text-white" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
-                      {s.value}
-                    </div>
-                    <div className="text-[10px] text-slate-600">{s.label}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
 
         </div>
       </div>
