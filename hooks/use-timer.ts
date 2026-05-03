@@ -24,7 +24,17 @@ export function useTimer(onComplete: () => void) {
       return;
 
     const interval = setInterval(() => {
-      if (session.status === "paused") return;
+      if (session.status === "paused") {
+        // Even when paused, auto-complete if time has expired
+        const elapsed = getElapsedMs();
+        if (elapsed >= session.durationMs && !completedRef.current) {
+          completedRef.current = true;
+          completeSession();
+          clearInterval(interval);
+          onComplete();
+        }
+        return;
+      }
 
       const elapsed = getElapsedMs();
       if (elapsed >= session.durationMs && !completedRef.current) {

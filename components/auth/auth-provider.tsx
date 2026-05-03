@@ -67,11 +67,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loadUserSnapshot(currentUsername).then((cloudSnap) => {
       if (!cloudSnap) return;
 
-      const localUpdated = (localSnap as any)?.lastUpdated ?? 0;
+      // CRITICAL: Firebase yanıtı geldiğinde en güncel local snapshot'ı kullan.
+      // Başlangıçta yakalanan `localSnap` bu sürede güncellenmiş olabilir
+      // (örn. başarı sayfasından yeni uçuş kaydedilmiş olabilir).
+      const currentLocalSnap = useAuthStore.getState().getSnapshot(currentUsername);
+      const localUpdated = (currentLocalSnap as any)?.lastUpdated ?? 0;
       const cloudUpdated = cloudSnap.lastUpdated ?? 0;
 
       // Firebase daha yeni ya da local hiç yoksa Firebase'i kullan
-      if (cloudUpdated > localUpdated || !localSnap) {
+      if (cloudUpdated > localUpdated || !currentLocalSnap) {
         loadSnapshot({
           profile:      cloudSnap.profile,
           history:      cloudSnap.history,
