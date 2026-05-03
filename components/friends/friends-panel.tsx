@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuthStore } from "@/store/auth-store";
 import { useFlightSetup, useActiveSession } from "@/store/flight-store";
 import { useUserStore } from "@/store/user-store";
@@ -1131,19 +1132,24 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                             }}
                           >
                             <div className="flex items-center justify-between mb-1.5">
-                              <button
-                                onClick={() => openChat(f.username)}
-                                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-                              >
-                                <div
-                                  className="w-6 h-6 rounded-full flex items-center justify-center text-xs"
-                                  style={{
-                                    background: "rgba(14,165,233,0.2)",
-                                    border: "1px solid rgba(14,165,233,0.4)",
-                                  }}
-                                >✈</div>
-                                <span className="text-sm font-semibold text-white">{f.username}</span>
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => openChat(f.username)}
+                                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                                >
+                                  <div
+                                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs"
+                                    style={{
+                                      background: "rgba(14,165,233,0.2)",
+                                      border: "1px solid rgba(14,165,233,0.4)",
+                                    }}
+                                  >✈</div>
+                                  <span className="text-sm font-semibold text-white">{f.username}</span>
+                                </button>
+                                <Link href={`/profile/${f.username}`}>
+                                  <span className="text-[10px] text-slate-600 hover:text-slate-400 transition-colors cursor-pointer">👤</span>
+                                </Link>
+                              </div>
                               <div className="flex items-center gap-1.5">
                                 {(unreadCounts[f.username] ?? 0) > 0 && (
                                   <div
@@ -1229,7 +1235,13 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                                   />
                                 )}
                               </div>
-                              <span className="text-sm text-slate-300">{f.username}</span>
+                              <Link
+                                href={`/profile/${f.username}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-sm text-slate-300 hover:text-white transition-colors"
+                              >
+                                {f.username}
+                              </Link>
                             </div>
                             <div className="flex items-center gap-2">
                               {(unreadCounts[f.username] ?? 0) > 0 && (
@@ -2470,6 +2482,19 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                       </div>
                     );
                   })()}
+
+                  {/* Tam Profili Aç butonu */}
+                  <Link href={`/profile/${activeFriend}`}>
+                    <button
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95"
+                      style={{
+                        background: "linear-gradient(135deg, rgba(14,165,233,0.18), rgba(109,40,217,0.18))",
+                        border: "1px solid rgba(139,92,246,0.3)",
+                      }}
+                    >
+                      Tam Profili Aç <span className="text-base">→</span>
+                    </button>
+                  </Link>
 
                   {/* Uçuş detay istatistikleri */}
                   <div>
