@@ -17,11 +17,13 @@ const WorldMap = dynamic(
   { ssr: false, loading: () => <div className="w-full h-full bg-[#070918]" /> }
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Mola kronometresi — mount anından itibaren sayar
-// ─────────────────────────────────────────────────────────────────────────────
-
-function BreakTimer() {
+// ── Kronometre (sıfırdan sayar) ───────────────────────────────────────────────
+function Stopwatch({ label, color = "#F87171", bg = "rgba(220,38,38,0.1)", border = "rgba(220,38,38,0.25)" }: {
+  label: string;
+  color?: string;
+  bg?: string;
+  border?: string;
+}) {
   const [secs, setSecs] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setSecs((s) => s + 1), 1000);
@@ -34,15 +36,15 @@ function BreakTimer() {
   return (
     <div
       className="px-6 py-3 rounded-2xl text-center"
-      style={{ background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.25)" }}
+      style={{ background: bg, border: `1px solid ${border}` }}
     >
       <div
         className="text-4xl font-bold tabular-nums"
-        style={{ color: "#F87171", fontFamily: "Space Grotesk, sans-serif", letterSpacing: 2 }}
+        style={{ color, fontFamily: "Space Grotesk, sans-serif", letterSpacing: 2 }}
       >
         {h > 0 ? `${fmt(h)}:${fmt(m)}:${fmt(s)}` : `${fmt(m)}:${fmt(s)}`}
       </div>
-      <div className="text-[10px] text-slate-600 mt-1 uppercase tracking-widest">mola süresi</div>
+      <div className="text-[10px] text-slate-600 mt-1 uppercase tracking-widest">{label}</div>
     </div>
   );
 }
@@ -52,14 +54,21 @@ function BreakTimer() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function FocusPage() {
-  const router = useRouter();
-  const { session, abandonSession } = useActiveSession();
-  const { currentUsername } = useAuthStore();
-  const { notes, setNotes } = useFlightSetup();
-  const hasCompletedRef = useRef(false);
-  const [mounted, setMounted] = useState(false);
-  const [otherFlights, setOtherFlights] = useState<LiveFlight[]>([]);
-  const [notesOpen, setNotesOpen] = useState(false);
+  const router                              = useRouter();
+  const { session, abandonSession }         = useActiveSession();
+  const { currentUsername }                 = useAuthStore();
+  const { notes, setNotes }                 = useFlightSetup();
+  const hasCompletedRef                     = useRef(false);
+  const [mounted, setMounted]               = useState(false);
+  const [otherFlights, setOtherFlights]     = useState<LiveFlight[]>([]);
+  const [notesOpen, setNotesOpen]           = useState(false);
+
+  // ── Break state ───────────────────────────────────────────────────────────
+  const [nextBreakMs, setNextBreakMs]       = useState<number | null>(null);
+  const [breakWarning, setBreakWarning]     = useState(false); // 4dk önce uyarı
+  const [breakModalOpen, setBreakModalOpen] = useState(false); // "Mola vermek ister misin?"
+  const [isOnBreak, setIsOnBreak]           = useState(false); // planlı mola
+  const breakInitRef                        = useRef(false);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -73,35 +82,93 @@ export default function FocusPage() {
   const { elapsedMs, remainingMs, progress, isPaused, pause, resume } =
     useTimer(onComplete);
 
-  // ── Sekme başlığı: arka plandaysa "Odağını kaybetme" ────────────────────
+  // ── nextBreakMs ilk değeri ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!session || breakInitRef.current) return;
+    breakInitRef.current = true;
+    if (session.breakIntervalMinutes > 0) {
+      setNextBreakMs(session.breakIntervalMinutes * 60 * 1000);
+    }
+  }, [session]);
+
+  // ── Mola kontrol ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!session || !nextBreakMs || session.breakIntervalMinutes === 0) return;
+    if (isPaused) return; // durakken kontrol etme
+    if (breakModalOpen || isOnBreak) return;
+
+    const warnAt = nextBreakMs - 4 * 60 * 1000; // 4dk önce
+
+    if (elapsedMs >= warnAt && !breakWarning) {
+      setBreakWarning(true);
+    }
+    if (elapsedMs >= nextBreakMs) {
+      setBreakModalOpen(true);
+      setBreakWarning(false);
+    }
+  }, [elapsedMs, nextBreakMs, isPaused, breakWarning, breakModalOpen, isOnBreak, session]);
+
+  // Mola ver
+  function handleTakeBreak() {
+    setBreakModalOpen(false);
+    setBreakWarning(false);
+    setIsOnBreak(true);
+    pause();
+  }
+
+  // Mola atla (5 dk sonra tekrar sor)
+  function handleSkipBreak() {
+    setBreakModalOpen(false);
+    setBreakWarning(false);
+    setNextBreakMs((prev) => (prev !== null ? prev + 5 * 60 * 1000 : null));
+  }
+
+  // Mola bitti — devam et
+  function handleResumeFromBreak() {
+    setIsOnBreak(false);
+    resume();
+    if (session && session.breakIntervalMinutes > 0) {
+      setNextBreakMs(elapsedMs + session.breakIntervalMinutes * 60 * 1000);
+    }
+  }
+
+  // Acil mola (notes drawer'dan tetiklenir)
+  function handleEmergencyBreak() {
+    setNotesOpen(false);
+    setIsOnBreak(true);
+    pause();
+    if (session && session.breakIntervalMinutes > 0) {
+      setNextBreakMs(elapsedMs + session.breakIntervalMinutes * 60 * 1000);
+    }
+  }
+
+  // Manuel duraklat
+  function handleManualPause() {
+    setIsOnBreak(false);
+    pause();
+  }
+
+  // Manuel devam
+  function handleManualResume() {
+    resume();
+  }
+
+  // ── Sekme başlığı ─────────────────────────────────────────────────────────
   useEffect(() => {
     function updateTitle() {
-      if (document.hidden) {
-        document.title = "✈ Odağını kaybetme — AIRJEN";
-        return;
-      }
-      if (session?.status === "completed") {
-        document.title = "✅ TAMAMLANDI — AIRJEN";
-        return;
-      }
-      if (!session || session.status === "abandoned") {
-        document.title = "AIRJEN";
-        return;
-      }
+      if (document.hidden) { document.title = "✈ Odağını kaybetme — AIRJEN"; return; }
+      if (session?.status === "completed") { document.title = "✅ TAMAMLANDI — AIRJEN"; return; }
+      if (!session || session.status === "abandoned") { document.title = "AIRJEN"; return; }
       document.title = `⏱ ${formatDuration(remainingMs)} — AIRJEN`;
     }
-
     updateTitle();
     document.addEventListener("visibilitychange", updateTitle);
     return () => document.removeEventListener("visibilitychange", updateTitle);
   }, [remainingMs, session]);
 
-  // Sayfa unmount olunca başlığı sıfırla
-  useEffect(() => {
-    return () => { document.title = "AIRJEN"; };
-  }, []);
+  useEffect(() => { return () => { document.title = "AIRJEN"; }; }, []);
 
-  // ── Firebase: kendi konumunu yayınla (her progress değişiminde + 5s interval)
+  // ── Firebase broadcast ────────────────────────────────────────────────────
   useEffect(() => {
     if (!session || !currentUsername) return;
     broadcastFlight(currentUsername, session.departure, session.destination, progress);
@@ -116,21 +183,14 @@ export default function FocusPage() {
     return () => clearInterval(id);
   }, [session, currentUsername]);
 
-  // ── Firebase: diğer kullanıcıları dinle ──────────────────────────────────
   useEffect(() => {
     if (!currentUsername) return;
     const unsub = subscribeToFlights(currentUsername, setOtherFlights);
-    return () => {
-      unsub();
-      if (currentUsername) clearFlight(currentUsername);
-    };
+    return () => { unsub(); if (currentUsername) clearFlight(currentUsername); };
   }, [currentUsername]);
 
   // ── Guards ────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (mounted && !session) router.push("/");
-  }, [session, router, mounted]);
-
+  useEffect(() => { if (mounted && !session) router.push("/"); }, [session, router, mounted]);
   useEffect(() => {
     if (mounted && session?.status === "completed" && !hasCompletedRef.current) {
       hasCompletedRef.current = true;
@@ -140,8 +200,13 @@ export default function FocusPage() {
 
   if (!mounted || !session) return null;
 
-  const { departure, destination, durationMs, seat } = session;
+  const { departure, destination, durationMs, seat, breakIntervalMinutes, breakDurationMinutes } = session;
   const percent = Math.round(progress * 100);
+
+  // Kalan mola süresini göstermek için (bilgi amaçlı)
+  const minsUntilBreak = nextBreakMs !== null
+    ? Math.max(0, Math.ceil((nextBreakMs - elapsedMs) / 60000))
+    : null;
 
   function handleAbandon() {
     if (!confirm("Bu uçuşu terk etmek istiyor musunuz? İlerlemeniz kaybolacak.")) return;
@@ -149,56 +214,36 @@ export default function FocusPage() {
     router.push("/");
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Render
-  // ─────────────────────────────────────────────────────────────────────────
+  // Overlay kinds
+  const showBreakOverlay    = isPaused && isOnBreak;
+  const showPausedOverlay   = isPaused && !isOnBreak;
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* ── Outer wrapper — pointer-events-none so the friends panel above can receive clicks ── */}
       <div className="fixed inset-0 bg-[#070918] flex flex-col pointer-events-none">
 
-        {/* ── World Map ─────────────────────────────────────────────────── */}
+        {/* World Map */}
         <div className="absolute inset-0 pointer-events-none">
-          <WorldMap
-            departure={departure}
-            destination={destination}
-            progress={progress}
-            otherFlights={otherFlights}
-          />
+          <WorldMap departure={departure} destination={destination} progress={progress} otherFlights={otherFlights} />
         </div>
 
-        {/* ── Vignette overlays ─────────────────────────────────────────── */}
-        <div
-          className="absolute top-0 left-0 right-0 h-32 pointer-events-none z-10"
-          style={{
-            background:
-              "linear-gradient(to bottom, rgba(7,9,24,0.92) 0%, transparent 100%)",
-          }}
-        />
-        <div
-          className="absolute bottom-0 left-0 right-0 h-64 pointer-events-none z-[15]"
-          style={{
-            background:
-              "linear-gradient(to top, rgba(7,9,24,0.97) 0%, transparent 100%)",
-          }}
-        />
-        <div
-          className="absolute inset-0 pointer-events-none z-[5]"
-          style={{ background: "rgba(7,9,24,0.35)" }}
-        />
+        {/* Vignette */}
+        <div className="absolute top-0 left-0 right-0 h-32 pointer-events-none z-10"
+          style={{ background: "linear-gradient(to bottom, rgba(7,9,24,0.92) 0%, transparent 100%)" }} />
+        <div className="absolute bottom-0 left-0 right-0 h-64 pointer-events-none z-[15]"
+          style={{ background: "linear-gradient(to top, rgba(7,9,24,0.97) 0%, transparent 100%)" }} />
+        <div className="absolute inset-0 pointer-events-none z-[5]"
+          style={{ background: "rgba(7,9,24,0.35)" }} />
 
-        {/* ── Top HUD ───────────────────────────────────────────────────── */}
+        {/* Top HUD */}
         <div className="relative z-20 p-4 pt-6 flex items-start justify-between pointer-events-auto">
           {/* Route chip */}
           <motion.div
             initial={{ opacity: 0, y: -16 }}
             animate={{ opacity: 1, y: 0 }}
             className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium"
-            style={{
-              background: "rgba(22,26,53,0.85)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              backdropFilter: "blur(12px)",
-            }}
+            style={{ background: "rgba(22,26,53,0.85)", border: "1px solid rgba(255,255,255,0.1)", backdropFilter: "blur(12px)" }}
           >
             <span>{flagEmoji(departure.countryCode)}</span>
             <span className="text-white">{departure.name}</span>
@@ -207,25 +252,21 @@ export default function FocusPage() {
             <span className="text-white">{destination.name}</span>
           </motion.div>
 
-          {/* Abandon button */}
+          {/* Abandon */}
           <motion.button
             initial={{ opacity: 0, y: -16 }}
             animate={{ opacity: 1, y: 0 }}
             onClick={handleAbandon}
             className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-white transition-colors"
-            style={{
-              background: "rgba(22,26,53,0.85)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              backdropFilter: "blur(12px)",
-            }}
+            style={{ background: "rgba(22,26,53,0.85)", border: "1px solid rgba(255,255,255,0.1)", backdropFilter: "blur(12px)" }}
             title="Uçuşu terk et"
           >
             ✕
           </motion.button>
         </div>
 
-        {/* ── Focus status pill ──────────────────────────────────────────── */}
-        <div className="relative z-20 flex justify-center mt-2">
+        {/* Status pill */}
+        <div className="relative z-20 flex justify-center mt-2 flex-col items-center gap-2">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -233,49 +274,72 @@ export default function FocusPage() {
             className="flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium"
             style={{
               background: "rgba(22,26,53,0.85)",
-              border: isPaused
+              border: showBreakOverlay
                 ? "1px solid rgba(245,158,11,0.4)"
-                : "1px solid rgba(34,197,94,0.4)",
+                : showPausedOverlay
+                  ? "1px solid rgba(239,68,68,0.4)"
+                  : "1px solid rgba(34,197,94,0.4)",
               backdropFilter: "blur(8px)",
             }}
           >
-            <span className={`relative flex h-2 w-2 ${isPaused ? "opacity-60" : ""}`}>
+            <span className="relative flex h-2 w-2">
               {!isPaused && (
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
               )}
-              <span
-                className={`relative inline-flex rounded-full h-2 w-2 ${
-                  isPaused ? "bg-yellow-500" : "bg-green-500"
-                }`}
-              />
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                showBreakOverlay ? "bg-yellow-500"
+                : showPausedOverlay ? "bg-red-500"
+                : "bg-green-500"
+              }`} />
             </span>
-            <span style={{ color: isPaused ? "#F59E0B" : "#22C55E" }}>
-              {isPaused ? "DURAKLATILDI" : "ODAK MODU AKTİF"}
+            <span style={{
+              color: showBreakOverlay ? "#F59E0B"
+                : showPausedOverlay ? "#EF4444"
+                : "#22C55E",
+            }}>
+              {showBreakOverlay ? "MOLADA"
+                : showPausedOverlay ? "DURDURULDU"
+                : "ODAK MODU AKTİF"}
             </span>
             <span className="text-slate-500">· Koltuk {seat}</span>
           </motion.div>
+
+          {/* Mola yaklaşıyor uyarısı */}
+          <AnimatePresence>
+            {breakWarning && !isPaused && (
+              <motion.div
+                key="break-warning"
+                initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold"
+                style={{
+                  background: "rgba(245,158,11,0.15)",
+                  border: "1px solid rgba(245,158,11,0.35)",
+                  color: "#FCD34D",
+                }}
+              >
+                ⏰ Mola zamanı yaklaşıyor
+                {minsUntilBreak !== null && minsUntilBreak > 0 && (
+                  <span className="text-yellow-500/70">· {minsUntilBreak} dk</span>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
       </div>
 
-      {/* ── Bottom Timer Panel — fixed, always visible ────────────────────── */}
+      {/* ── Bottom Timer Panel ─────────────────────────────────────────────────── */}
       <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-8 pointer-events-none">
-        {/* Bottom fade */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: "linear-gradient(to top, rgba(7,9,24,1) 0%, rgba(7,9,24,0.85) 60%, transparent 100%)",
-          }}
-        />
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: "linear-gradient(to top, rgba(7,9,24,1) 0%, rgba(7,9,24,0.85) 60%, transparent 100%)" }} />
 
         <div className="relative max-w-lg mx-auto pointer-events-auto">
           {/* Progress bar */}
           <div className="mb-4">
             <div className="progress-track h-1.5">
-              <div
-                className="progress-fill"
-                style={{ width: `${percent}%`, transition: "width 1s linear" }}
-              />
+              <div className="progress-fill" style={{ width: `${percent}%`, transition: "width 1s linear" }} />
             </div>
           </div>
 
@@ -288,41 +352,33 @@ export default function FocusPage() {
               {formatDuration(remainingMs)}
             </div>
             <div className="text-slate-500 text-sm mt-2">kalan süre</div>
+
+            {/* Sonraki mola bilgisi */}
+            {breakIntervalMinutes > 0 && !isPaused && minsUntilBreak !== null && minsUntilBreak > 0 && (
+              <div className="text-[11px] text-slate-600 mt-1">
+                Sonraki mola: <span className="text-slate-500">{minsUntilBreak} dk sonra</span>
+              </div>
+            )}
           </div>
 
           {/* Stats row */}
           <div
             className="flex items-center justify-between px-6 py-3 rounded-2xl mb-4"
-            style={{
-              background: "rgba(14,18,42,0.95)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
-            }}
+            style={{ background: "rgba(14,18,42,0.95)", border: "1px solid rgba(255,255,255,0.1)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}
           >
             <div className="text-center">
-              <div className="text-xs text-slate-500 uppercase tracking-widest mb-0.5">
-                Geçen Süre
-              </div>
-              <div className="text-sm font-semibold text-white">
-                {formatDuration(elapsedMs)}
-              </div>
+              <div className="text-xs text-slate-500 uppercase tracking-widest mb-0.5">Geçen Süre</div>
+              <div className="text-sm font-semibold text-white">{formatDuration(elapsedMs)}</div>
             </div>
             <div className="w-px h-8 bg-white/[0.07]" />
             <div className="text-center">
-              <div className="text-xs text-slate-500 uppercase tracking-widest mb-0.5">
-                İlerleme
-              </div>
+              <div className="text-xs text-slate-500 uppercase tracking-widest mb-0.5">İlerleme</div>
               <div className="text-sm font-semibold text-white">{percent}%</div>
             </div>
             <div className="w-px h-8 bg-white/[0.07]" />
             <div className="text-center">
-              <div className="text-xs text-slate-500 uppercase tracking-widest mb-0.5">
-                Süre
-              </div>
-              <div className="text-sm font-semibold text-white">
-                {formatMinutes(durationMs / 60000)}
-              </div>
+              <div className="text-xs text-slate-500 uppercase tracking-widest mb-0.5">Süre</div>
+              <div className="text-sm font-semibold text-white">{formatMinutes(durationMs / 60000)}</div>
             </div>
           </div>
 
@@ -331,18 +387,18 @@ export default function FocusPage() {
             <motion.button
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
-              onClick={isPaused ? resume : pause}
+              onClick={isPaused ? (isOnBreak ? handleResumeFromBreak : handleManualResume) : handleManualPause}
               className="flex-1 max-w-[200px] py-3.5 rounded-2xl font-semibold text-white transition-all"
               style={{
                 background: isPaused
                   ? "linear-gradient(135deg, #22C55E, #16A34A)"
-                  : "linear-gradient(135deg, #F59E0B, #D97706)",
+                  : "linear-gradient(135deg, #EF4444, #DC2626)",
                 boxShadow: isPaused
                   ? "0 4px 20px rgba(34,197,94,0.3)"
-                  : "0 4px 20px rgba(245,158,11,0.3)",
+                  : "0 4px 20px rgba(239,68,68,0.3)",
               }}
             >
-              {isPaused ? "▶ Devam Et" : "⏸ Duraklat"}
+              {isPaused ? "▶ Devam Et" : "⏹ Durdur"}
             </motion.button>
 
             {/* Notes button */}
@@ -358,20 +414,14 @@ export default function FocusPage() {
             >
               📝
               {notes && (
-                <span
-                  className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full"
-                  style={{ background: "#FCD34D" }}
-                />
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full" style={{ background: "#FCD34D" }} />
               )}
             </button>
 
             <button
               onClick={handleAbandon}
               className="px-5 py-3.5 rounded-2xl text-sm text-slate-500 hover:text-slate-300 transition-colors"
-              style={{
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.07)",
-              }}
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
             >
               Terk Et
             </button>
@@ -379,11 +429,79 @@ export default function FocusPage() {
         </div>
       </div>
 
-      {/* ── Mola Overlay (duraklatılınca) ────────────────────────────────────── */}
+      {/* ── Mola Sorusu Modal ─────────────────────────────────────────────────── */}
       <AnimatePresence>
-        {isPaused && (
+        {breakModalOpen && (
           <motion.div
-            key="pause-overlay"
+            key="break-modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[65] flex items-center justify-center"
+            style={{ background: "rgba(7,9,24,0.7)", backdropFilter: "blur(6px)" }}
+          >
+            <motion.div
+              initial={{ scale: 0.88, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.88, y: 20 }}
+              transition={{ type: "spring", stiffness: 340, damping: 26 }}
+              className="flex flex-col items-center gap-4 px-7 py-8 rounded-3xl mx-4"
+              style={{
+                background: "linear-gradient(160deg, rgba(245,158,11,0.1) 0%, rgba(7,9,24,0.97) 100%)",
+                border: "1px solid rgba(245,158,11,0.3)",
+                boxShadow: "0 0 60px rgba(245,158,11,0.1), 0 24px 64px rgba(0,0,0,0.6)",
+                minWidth: 280, maxWidth: 340,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
+                style={{ background: "linear-gradient(135deg, #D97706, #92400E)", boxShadow: "0 8px 24px rgba(217,119,6,0.4)" }}
+              >
+                ☕
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-white mb-1" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                  Mola zamanı!
+                </div>
+                <div className="text-sm text-slate-400 leading-relaxed">
+                  {breakIntervalMinutes} dakika geçti.{" "}
+                  {breakDurationMinutes > 0 && (
+                    <span>{breakDurationMinutes} dk mola vermek ister misin?</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 w-full">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={handleTakeBreak}
+                  className="w-full py-3.5 rounded-2xl font-bold text-white text-sm"
+                  style={{ background: "linear-gradient(135deg, #D97706, #B45309)", boxShadow: "0 4px 16px rgba(217,119,6,0.35)" }}
+                >
+                  ☕ Evet, {breakDurationMinutes > 0 ? `${breakDurationMinutes} dk ` : ""}mola ver
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={handleSkipBreak}
+                  className="w-full py-3 rounded-2xl text-sm font-medium text-slate-400 hover:text-white transition-colors"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                >
+                  Hayır, devam ediyorum
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Mola (planlı) Overlay ─────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showBreakOverlay && (
+          <motion.div
+            key="break-overlay"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -398,49 +516,46 @@ export default function FocusPage() {
               transition={{ type: "spring", stiffness: 340, damping: 26 }}
               className="flex flex-col items-center gap-5 px-8 py-10 rounded-3xl"
               style={{
-                background: "linear-gradient(160deg, rgba(220,38,38,0.12) 0%, rgba(7,9,24,0.95) 100%)",
-                border: "1px solid rgba(239,68,68,0.3)",
-                boxShadow: "0 0 60px rgba(239,68,68,0.15), 0 24px 64px rgba(0,0,0,0.6)",
+                background: "linear-gradient(160deg, rgba(217,119,6,0.12) 0%, rgba(7,9,24,0.95) 100%)",
+                border: "1px solid rgba(245,158,11,0.3)",
+                boxShadow: "0 0 60px rgba(245,158,11,0.12), 0 24px 64px rgba(0,0,0,0.6)",
                 minWidth: 280,
               }}
             >
-              {/* Uçak ikonu (kırmızı arka plan) */}
               <div
                 className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl"
-                style={{
-                  background: "linear-gradient(135deg, #DC2626, #991B1B)",
-                  boxShadow: "0 8px 32px rgba(220,38,38,0.5)",
-                }}
+                style={{ background: "linear-gradient(135deg, #D97706, #92400E)", boxShadow: "0 8px 32px rgba(217,119,6,0.45)" }}
               >
-                ✈
+                ☕
               </div>
-
-              {/* Başlık */}
               <div className="text-center">
-                <div
-                  className="text-xl font-bold text-white mb-1"
-                  style={{ fontFamily: "Space Grotesk, sans-serif" }}
-                >
+                <div className="text-xl font-bold text-white mb-1" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
                   Mola Zamanı
                 </div>
                 <div className="text-sm text-slate-500">
-                  Uçuşun duraklatıldı
+                  Uçuşun duraklatıldı · dinlen biraz
                 </div>
               </div>
 
-              {/* Mola kronometresi */}
-              <BreakTimer />
+              <Stopwatch
+                label="mola süresi"
+                color="#FCD34D"
+                bg="rgba(217,119,6,0.1)"
+                border="rgba(217,119,6,0.3)"
+              />
 
-              {/* Devam Et butonu */}
+              {breakDurationMinutes > 0 && (
+                <div className="text-xs text-slate-600 text-center">
+                  Önerilen mola: <span className="text-slate-400">{breakDurationMinutes} dakika</span>
+                </div>
+              )}
+
               <motion.button
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.96 }}
-                onClick={resume}
+                onClick={handleResumeFromBreak}
                 className="w-full py-3.5 rounded-2xl font-bold text-white text-base"
-                style={{
-                  background: "linear-gradient(135deg, #22C55E, #16A34A)",
-                  boxShadow: "0 4px 20px rgba(34,197,94,0.4)",
-                }}
+                style={{ background: "linear-gradient(135deg, #22C55E, #16A34A)", boxShadow: "0 4px 20px rgba(34,197,94,0.4)" }}
               >
                 ▶ Devam Et
               </motion.button>
@@ -449,7 +564,66 @@ export default function FocusPage() {
         )}
       </AnimatePresence>
 
-      {/* ── Notes Drawer ────────────────────────────────────────────────────── */}
+      {/* ── Durduruldu Overlay (manuel duraklat) ─────────────────────────────── */}
+      <AnimatePresence>
+        {showPausedOverlay && (
+          <motion.div
+            key="paused-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-[55] flex items-center justify-center"
+            style={{ background: "rgba(7,9,24,0.88)", backdropFilter: "blur(8px)" }}
+          >
+            <motion.div
+              initial={{ scale: 0.88, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.88, y: 20 }}
+              transition={{ type: "spring", stiffness: 340, damping: 26 }}
+              className="flex flex-col items-center gap-5 px-8 py-10 rounded-3xl"
+              style={{
+                background: "linear-gradient(160deg, rgba(239,68,68,0.1) 0%, rgba(7,9,24,0.95) 100%)",
+                border: "1px solid rgba(239,68,68,0.25)",
+                boxShadow: "0 0 60px rgba(239,68,68,0.1), 0 24px 64px rgba(0,0,0,0.6)",
+                minWidth: 280,
+              }}
+            >
+              <div
+                className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl"
+                style={{ background: "linear-gradient(135deg, #DC2626, #991B1B)", boxShadow: "0 8px 32px rgba(220,38,38,0.45)" }}
+              >
+                ⏹
+              </div>
+              <div className="text-center">
+                <div className="text-xl font-bold text-white mb-1" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                  Durduruldu
+                </div>
+                <div className="text-sm text-slate-500">Uçuşun durduruldu</div>
+              </div>
+
+              <Stopwatch
+                label="durduruldu süresi"
+                color="#F87171"
+                bg="rgba(220,38,38,0.1)"
+                border="rgba(220,38,38,0.25)"
+              />
+
+              <motion.button
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={handleManualResume}
+                className="w-full py-3.5 rounded-2xl font-bold text-white text-base"
+                style={{ background: "linear-gradient(135deg, #22C55E, #16A34A)", boxShadow: "0 4px 20px rgba(34,197,94,0.4)" }}
+              >
+                ▶ Devam Et
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Notes Drawer ──────────────────────────────────────────────────────── */}
       <AnimatePresence>
         {notesOpen && (
           <>
@@ -509,8 +683,8 @@ export default function FocusPage() {
                 style={{
                   background: "rgba(255,255,255,0.05)",
                   border: "1px solid rgba(255,255,255,0.09)",
-                  minHeight: 140,
-                  maxHeight: 300,
+                  minHeight: 120,
+                  maxHeight: 240,
                   lineHeight: 1.6,
                 }}
               />
@@ -519,13 +693,26 @@ export default function FocusPage() {
                 <button
                   onClick={() => setNotesOpen(false)}
                   className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white"
-                  style={{
-                    background: "linear-gradient(135deg, #3B82F6, #1D4ED8)",
-                    boxShadow: "0 4px 16px rgba(59,130,246,0.25)",
-                  }}
+                  style={{ background: "linear-gradient(135deg, #3B82F6, #1D4ED8)", boxShadow: "0 4px 16px rgba(59,130,246,0.25)" }}
                 >
                   ✓ Kaydet
                 </button>
+
+                {/* Acil Mola butonu */}
+                {!isPaused && (
+                  <button
+                    onClick={handleEmergencyBreak}
+                    className="px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors"
+                    style={{
+                      background: "rgba(245,158,11,0.12)",
+                      border: "1px solid rgba(245,158,11,0.25)",
+                      color: "#FCD34D",
+                    }}
+                  >
+                    ☕ Acil Mola
+                  </button>
+                )}
+
                 {notes && (
                   <button
                     onClick={() => setNotes("")}
