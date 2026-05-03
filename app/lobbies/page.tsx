@@ -14,8 +14,8 @@ import {
   getReachableDestinations,
   haversineKm,
   flagEmoji,
-  FLIGHT_DURATIONS,
 } from "@/data/cities";
+import { DurationPicker } from "@/components/flight-wizard/duration-picker";
 import type { City, FlightDurationOption } from "@/types";
 
 // ── SSR-safe harita bileşeni ──────────────────────────────────────────────────
@@ -289,43 +289,11 @@ export default function LobbiesPage() {
                               <span className="text-white font-medium">{departure?.name}</span>'dan kalkış · Sürenizi seçin.
                             </p>
                           </div>
-                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
-                            {FLIGHT_DURATIONS.map((opt, i) => {
-                              const isSel = duration?.key === opt.key;
-                              return (
-                                <motion.button
-                                  key={opt.key}
-                                  initial={{ opacity: 0, y: 10 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ delay: i * 0.03 }}
-                                  onClick={() => setDuration(opt)}
-                                  className="relative text-center p-3.5 rounded-2xl transition-all duration-200"
-                                  style={{
-                                    background: isSel ? "linear-gradient(135deg,#4C1D95,#3B0764)" : "rgba(255,255,255,0.04)",
-                                    border: isSel ? "1px solid rgba(124,58,237,0.6)" : "1px solid rgba(255,255,255,0.07)",
-                                    boxShadow: isSel ? "0 0 20px rgba(124,58,237,0.3)" : undefined,
-                                    transform: isSel ? "scale(1.05)" : undefined,
-                                  }}
-                                >
-                                  <div className="text-2xl mb-1.5">{opt.icon}</div>
-                                  <div className="font-bold text-sm text-white leading-tight" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
-                                    {opt.label}
-                                  </div>
-                                  <div className="text-[10px] text-slate-400 mt-0.5">{opt.subtitle}</div>
-                                  <div className="mt-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
-                                    style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.2)", color: "#FCD34D" }}>
-                                    +{opt.xpReward} XP
-                                  </div>
-                                  {isSel && (
-                                    <div className="absolute top-2 right-2 w-4 h-4 rounded-full flex items-center justify-center"
-                                      style={{ background: "#7C3AED" }}>
-                                      <span className="text-white text-[9px]">✓</span>
-                                    </div>
-                                  )}
-                                </motion.button>
-                              );
-                            })}
-                          </div>
+                          <DurationPicker
+                            value={duration}
+                            onChange={setDuration}
+                            accentColor="#4C1D95"
+                          />
                         </div>
                       )}
 

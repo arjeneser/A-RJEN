@@ -94,8 +94,19 @@ export default function SuccessPage() {
           });
 
           // ── Detaylı uçuş istatistiği ───────────────────────────────────────
-          const durationKey   = `${Math.round(session!.durationMs / 3600000)}h`;
-          const durationLabel = `${Math.round(session!.durationMs / 3600000)} Saat`;
+          const totalMinutes  = Math.round(session!.durationMs / 60000);
+          const durationHours = Math.floor(totalMinutes / 60);
+          const isHalf        = totalMinutes % 60 === 30;
+          const durationKey   = totalMinutes === 30
+            ? "30m"
+            : isHalf
+              ? `${durationHours}h30`
+              : `${durationHours}h`;
+          const durationLabel = totalMinutes === 30
+            ? "30 Dakika"
+            : isHalf
+              ? `${durationHours} Saat 30 Dk`
+              : `${durationHours} Saat`;
           const actualMs      = Date.now() - session!.startTime;
           syncFlightDetail(
             currentUsername,

@@ -2813,43 +2813,66 @@ export const CITIES: City[] = [
 //
 // Uçak hızı: 850 km/h  →  x = v × t
 //
-// TAVAN (ceiling) mantığı:
-//   "N saat" butonu = (N-1)×850 km < mesafe ≤ N×850 km
-//   Örnek: 7s 01dk – 8s 00dk arası → "8 Saat"; 8s 01dk – 9s 00dk → "9 Saat"
+// YENİ mesafe bantları (kullanıcı tanımlı):
+//   "30 Dakika" → 0–500 km
+//   "1 Saat"    → 500–900 km
+//   "1 Saat 30 Dk" → 900–1300 km
+//   Sonraki her adım +400 km (toplam 25 seçenek: 30dk + 1h..12h30)
 //
-const SPEED = 850; // km/h
+const STEP_KM   = 400; // km per 30-min step (except first)
+const BASE_KM   = 500; // upper bound of "30 Dakika" band
 
-const HOUR_META: Record<number, { subtitle: string; icon: string }> = {
-  1:  { subtitle: "Sprint",        icon: "⚡" },
-  2:  { subtitle: "Odak Bloğu",    icon: "🎯" },
-  3:  { subtitle: "Derin Çalışma", icon: "🧠" },
-  4:  { subtitle: "Güç Seansı",    icon: "🔥" },
-  5:  { subtitle: "Yarım Gün",     icon: "💪" },
-  6:  { subtitle: "Yarım Gün+",    icon: "🌙" },
-  7:  { subtitle: "Uzun Yolculuk", icon: "🚀" },
-  8:  { subtitle: "Tam Gün",       icon: "🌍" },
-  9:  { subtitle: "Ultra Seans",   icon: "⭐" },
-  10: { subtitle: "Maraton",       icon: "🏆" },
-  11: { subtitle: "Efsane",        icon: "💎" },
-  12: { subtitle: "Dünya Turu",    icon: "👑" },
+// Metadata for each hour pair (shared between :00 and :30 variants)
+const PAIR_META: Record<number, { subtitle0: string; subtitle30: string; icon: string }> = {
+  1:  { icon: "⚡", subtitle0: "Sprint",        subtitle30: "Sprint+"        },
+  2:  { icon: "🎯", subtitle0: "Odak Bloğu",    subtitle30: "Odak Bloğu+"    },
+  3:  { icon: "🧠", subtitle0: "Derin Çalışma", subtitle30: "Derin Çalışma+" },
+  4:  { icon: "🔥", subtitle0: "Güç Seansı",    subtitle30: "Güç Seansı+"    },
+  5:  { icon: "💪", subtitle0: "Yarım Gün",     subtitle30: "Yarım Gün+"     },
+  6:  { icon: "🌙", subtitle0: "Yarım Gün+",    subtitle30: "Gece Seansı"    },
+  7:  { icon: "🚀", subtitle0: "Uzun Yolculuk", subtitle30: "Uzun Yolculuk+" },
+  8:  { icon: "🌍", subtitle0: "Tam Gün",       subtitle30: "Tam Gün+"       },
+  9:  { icon: "⭐", subtitle0: "Ultra Seans",   subtitle30: "Ultra Seans+"   },
+  10: { icon: "🏆", subtitle0: "Maraton",       subtitle30: "Maraton+"       },
+  11: { icon: "💎", subtitle0: "Efsane",        subtitle30: "Efsane+"        },
+  12: { icon: "👑", subtitle0: "Dünya Turu",    subtitle30: "Dünya Turu+"    },
 };
 
-export const FLIGHT_DURATIONS: FlightDurationOption[] = Array.from(
-  { length: 12 },
-  (_, i) => {
-    const h = i + 1;
+export const FLIGHT_DURATIONS: FlightDurationOption[] = [
+  // ── 30 Dakika (özel ilk bant: 0–500 km) ─────────────────────────────────
+  {
+    key:            "30m",
+    label:          "30 Dakika",
+    subtitle:       "Hızlı Sprint",
+    minutes:        30,
+    minDistanceKm:  0,
+    maxDistanceKm:  BASE_KM,
+    xpReward:       10,
+    icon:           "🌟",
+  },
+  // ── 1 Saat … 12 Saat 30 Dk (her adım +400 km) ───────────────────────────
+  ...Array.from({ length: 24 }, (_, i) => {
+    // i=0 → "1 Saat" (60 dk)  | i=1 → "1 Saat 30 Dk" (90 dk)
+    // i=2 → "2 Saat" (120 dk) | i=3 → "2 Saat 30 Dk" (150 dk) … etc.
+    const isHalf  = i % 2 === 1;                  // odd index = :30 variant
+    const hours   = Math.floor(i / 2) + 1;        // 1,1,2,2,3,3,...,12,12
+    const minutes = (i + 2) * 30;                 // 60,90,120,...,750
+    const key     = (isHalf ? `${hours}h30` : `${hours}h`) as FlightDurationOption["key"];
+    const label   = isHalf ? `${hours} Saat 30 Dk` : `${hours} Saat`;
+    const meta    = PAIR_META[hours];
+
     return {
-      key: `${h}h` as FlightDurationOption["key"],
-      label: `${h} Saat`,
-      subtitle: HOUR_META[h].subtitle,
-      minutes: h * 60,
-      minDistanceKm: (h - 1) * SPEED,  // exclusive lower bound
-      maxDistanceKm: h * SPEED,         // inclusive upper bound
-      xpReward: h * 20,
-      icon: HOUR_META[h].icon,
+      key,
+      label,
+      subtitle:      isHalf ? meta.subtitle30 : meta.subtitle0,
+      minutes,
+      minDistanceKm: BASE_KM + i * STEP_KM,        // 500, 900, 1300, 1700 …
+      maxDistanceKm: BASE_KM + (i + 1) * STEP_KM,  // 900, 1300, 1700, 2100 …
+      xpReward:      Math.round(minutes / 3),       // 20, 30, 40, 50 …
+      icon:          meta.icon,
     };
-  }
-);
+  }),
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

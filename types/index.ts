@@ -15,8 +15,11 @@ export interface City {
 // ─── Flight ───────────────────────────────────────────────────────────────────
 
 export type FlightDurationKey =
-  | "1h" | "2h" | "3h" | "4h" | "5h" | "6h"
-  | "7h" | "8h" | "9h" | "10h" | "11h" | "12h";
+  | "30m"
+  | "1h" | "1h30" | "2h" | "2h30" | "3h" | "3h30"
+  | "4h" | "4h30" | "5h" | "5h30" | "6h" | "6h30"
+  | "7h" | "7h30" | "8h" | "8h30" | "9h" | "9h30"
+  | "10h" | "10h30" | "11h" | "11h30" | "12h" | "12h30";
 
 export interface FlightDurationOption {
   key: FlightDurationKey;
