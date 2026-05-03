@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { useActiveSession, useFlightSetup } from "@/store/flight-store";
+import { useActiveSession } from "@/store/flight-store";
 import { useAuthStore } from "@/store/auth-store";
 import { useTimer } from "@/hooks/use-timer";
 import { formatDuration, formatMinutes } from "@/lib/utils";
@@ -57,11 +57,9 @@ export default function FocusPage() {
   const router                              = useRouter();
   const { session, abandonSession }         = useActiveSession();
   const { currentUsername }                 = useAuthStore();
-  const { notes, setNotes }                 = useFlightSetup();
   const hasCompletedRef                     = useRef(false);
   const [mounted, setMounted]               = useState(false);
   const [otherFlights, setOtherFlights]     = useState<LiveFlight[]>([]);
-  const [notesOpen, setNotesOpen]           = useState(false);
 
   // ── Break state ───────────────────────────────────────────────────────────
   const [nextBreakMs, setNextBreakMs]       = useState<number | null>(null);
@@ -132,9 +130,8 @@ export default function FocusPage() {
     }
   }
 
-  // Acil mola (notes drawer'dan tetiklenir)
+  // Acil mola
   function handleEmergencyBreak() {
-    setNotesOpen(false);
     setIsOnBreak(true);
     pause();
     if (session && session.breakIntervalMinutes > 0) {
@@ -401,22 +398,21 @@ export default function FocusPage() {
               {isPaused ? "▶ Devam Et" : "⏹ Durdur"}
             </motion.button>
 
-            {/* Notes button */}
-            <button
-              onClick={() => setNotesOpen(true)}
-              className="relative px-4 py-3.5 rounded-2xl text-sm transition-colors"
-              style={{
-                background: notes ? "rgba(251,191,36,0.1)" : "rgba(255,255,255,0.04)",
-                border: notes ? "1px solid rgba(251,191,36,0.3)" : "1px solid rgba(255,255,255,0.07)",
-                color: notes ? "#FCD34D" : "#64748B",
-              }}
-              title="Uçuş notları"
-            >
-              📝
-              {notes && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full" style={{ background: "#FCD34D" }} />
-              )}
-            </button>
+            {/* Acil Mola butonu */}
+            {!isPaused && (
+              <button
+                onClick={handleEmergencyBreak}
+                className="px-4 py-3.5 rounded-2xl text-sm font-semibold transition-all"
+                style={{
+                  background: "rgba(245,158,11,0.1)",
+                  border: "1px solid rgba(245,158,11,0.25)",
+                  color: "#FCD34D",
+                }}
+                title="Acil mola"
+              >
+                ☕
+              </button>
+            )}
 
             <button
               onClick={handleAbandon}
@@ -623,110 +619,6 @@ export default function FocusPage() {
         )}
       </AnimatePresence>
 
-      {/* ── Notes Drawer ──────────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {notesOpen && (
-          <>
-            <motion.div
-              key="notes-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[60]"
-              style={{ background: "rgba(0,0,0,0.4)" }}
-              onClick={() => setNotesOpen(false)}
-            />
-            <motion.div
-              key="notes-drawer"
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", stiffness: 350, damping: 32 }}
-              className="fixed bottom-0 left-0 right-0 z-[61] rounded-t-3xl p-5 pb-8"
-              style={{
-                background: "linear-gradient(180deg, #111827 0%, #0A0F1E 100%)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                boxShadow: "0 -20px 60px rgba(0,0,0,0.5)",
-                maxHeight: "70vh",
-              }}
-            >
-              {/* Handle */}
-              <div className="flex justify-center mb-4">
-                <div className="w-10 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
-              </div>
-
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">📝</span>
-                  <span className="font-bold text-white text-sm" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
-                    Uçuş Notları
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-600">{notes.length} karakter</span>
-                  <button
-                    onClick={() => setNotesOpen(false)}
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-slate-500 hover:text-white"
-                    style={{ background: "rgba(255,255,255,0.05)" }}
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-
-              <textarea
-                autoFocus
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Bu uçuşta neler düşündün? Görevler, fikirler, hedefler..."
-                className="w-full rounded-2xl px-4 py-3 text-sm text-white placeholder-slate-600 outline-none resize-none"
-                style={{
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.09)",
-                  minHeight: 120,
-                  maxHeight: 240,
-                  lineHeight: 1.6,
-                }}
-              />
-
-              <div className="flex gap-2 mt-3">
-                <button
-                  onClick={() => setNotesOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white"
-                  style={{ background: "linear-gradient(135deg, #3B82F6, #1D4ED8)", boxShadow: "0 4px 16px rgba(59,130,246,0.25)" }}
-                >
-                  ✓ Kaydet
-                </button>
-
-                {/* Acil Mola butonu */}
-                {!isPaused && (
-                  <button
-                    onClick={handleEmergencyBreak}
-                    className="px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors"
-                    style={{
-                      background: "rgba(245,158,11,0.12)",
-                      border: "1px solid rgba(245,158,11,0.25)",
-                      color: "#FCD34D",
-                    }}
-                  >
-                    ☕ Acil Mola
-                  </button>
-                )}
-
-                {notes && (
-                  <button
-                    onClick={() => setNotes("")}
-                    className="px-4 py-2.5 rounded-xl text-xs text-slate-600 hover:text-red-400 transition-colors"
-                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
-                  >
-                    Temizle
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </>
   );
 }
