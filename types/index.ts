@@ -90,6 +90,8 @@ export interface UserProfile {
   completedSessionIds: string[];
   avatarEmoji?: string;   // seçilmiş avatar emoji
   bio?: string;           // kısa biyografi (max 140 karakter)
+  streakFreezes?: number; // kullanılabilir dondurma hakkı sayısı
+  frozenDates?: string[]; // ISO tarih listesi (dondurulmuş günler)
 }
 
 export interface CompletedFlight {

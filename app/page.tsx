@@ -6,6 +6,7 @@ import { useActiveSession } from "@/store/flight-store";
 import { getCityById, flagEmoji } from "@/data/cities";
 import { formatMinutes } from "@/lib/utils";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { StreakBanner } from "@/components/streak-banner";
 
 const FADE_UP = {
   hidden: { opacity: 0, y: 24 },
@@ -37,6 +38,9 @@ export default function HomePage() {
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-12">
+        {/* ── Streak koruma banner'ı ───────────────────────────────── */}
+        <StreakBanner />
+
         {/* ── Active flight banner ──────────────────────────────────── */}
         {isFlightActive && session && (
           <motion.div

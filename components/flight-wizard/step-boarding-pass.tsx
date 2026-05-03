@@ -5,6 +5,7 @@ import { useFlightSetup } from "@/store/flight-store";
 import { useAuthStore } from "@/store/auth-store";
 import { flagEmoji } from "@/data/cities";
 import { generateFlightNumber } from "@/lib/utils";
+import { useWeatherPair } from "@/hooks/use-weather";
 
 export function StepBoardingPass() {
   const { departure, destination, duration, seat, passengerName, setPassengerName } =
@@ -18,6 +19,7 @@ export function StepBoardingPass() {
     }
   }, [currentUsername, passengerName, setPassengerName]);
 
+  const { departure: depWeather, destination: dstWeather } = useWeatherPair(departure, destination);
   const flightNumber = useMemo(() => generateFlightNumber(), []);
   const now = new Date();
   const boardingTime = now.toLocaleTimeString("tr-TR", {
@@ -158,6 +160,37 @@ export function StepBoardingPass() {
             style={{ borderColor: "rgba(255,255,255,0.07)", borderStyle: "dashed" }}
           />
         </div>
+
+        {/* Weather row */}
+        {(depWeather.weather || dstWeather.weather) && (
+          <div className="px-6 py-3 flex items-center justify-between">
+            {/* Departure weather */}
+            <div className="flex items-center gap-1.5">
+              {depWeather.weather ? (
+                <>
+                  <span className="text-lg">{depWeather.weather.icon}</span>
+                  <span className="text-xs font-semibold text-white">{depWeather.weather.temp}°C</span>
+                  <span className="text-[10px] text-slate-500">{depWeather.weather.label}</span>
+                </>
+              ) : (
+                <span className="text-[10px] text-slate-600">—</span>
+              )}
+            </div>
+            <span className="text-[10px] text-slate-600 tracking-widest uppercase">Hava Durumu</span>
+            {/* Destination weather */}
+            <div className="flex items-center gap-1.5 text-right">
+              {dstWeather.weather ? (
+                <>
+                  <span className="text-[10px] text-slate-500">{dstWeather.weather.label}</span>
+                  <span className="text-xs font-semibold text-white">{dstWeather.weather.temp}°C</span>
+                  <span className="text-lg">{dstWeather.weather.icon}</span>
+                </>
+              ) : (
+                <span className="text-[10px] text-slate-600">—</span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Detail fields */}
         <div className="p-6 pt-5">

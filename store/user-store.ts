@@ -62,6 +62,8 @@ export const DEFAULT_PROFILE: UserProfile = {
   completedSessionIds: [],
   avatarEmoji: "✈️",
   bio: "",
+  streakFreezes: 0,
+  frozenDates: [],
 };
 
 // ─── Store interface ──────────────────────────────────────────────────────────
@@ -92,6 +94,11 @@ interface UserState {
 
   /** Uçuş notunu sonradan güncelle (history'deki son uçuşa) */
   updateLastFlightNotes: (notes: string) => void;
+
+  /** 20 XP harcayarak 1 streak dondurma hakkı satın al */
+  buyStreakFreeze: () => boolean;
+  /** Bugünü dondur — 1 hak harca, lastFlightDate'i bugün yap (streak korunur) */
+  applyStreakFreeze: () => boolean;
 
   loadSnapshot: (snap: { profile: UserProfile; history: CompletedFlight[]; stamps: Stamp[]; achievements?: Achievement[] }) => void;
   exportSnapshot: () => { profile: UserProfile; history: CompletedFlight[]; stamps: Stamp[]; achievements: Achievement[]; lastUpdated: number };
@@ -196,6 +203,36 @@ export const useUserStore = create<UserState>()(
 
       // ── resetToDefault ────────────────────────────────────────────────────
       resetToDefault: () => set({ profile: DEFAULT_PROFILE, history: [], stamps: [], achievements: [] }),
+
+      // ── buyStreakFreeze ───────────────────────────────────────────────────
+      buyStreakFreeze: () => {
+        const s = get();
+        if (s.profile.totalXP < 20) return false;
+        set({
+          profile: {
+            ...s.profile,
+            totalXP: s.profile.totalXP - 20,
+            streakFreezes: (s.profile.streakFreezes ?? 0) + 1,
+          },
+        });
+        return true;
+      },
+
+      // ── applyStreakFreeze ─────────────────────────────────────────────────
+      applyStreakFreeze: () => {
+        const s = get();
+        if ((s.profile.streakFreezes ?? 0) <= 0) return false;
+        const today = todayISO();
+        set({
+          profile: {
+            ...s.profile,
+            streakFreezes: (s.profile.streakFreezes ?? 0) - 1,
+            lastFlightDate: today,                               // streak sayacı için "bugün uçmuş gibi" işaretle
+            frozenDates: [...(s.profile.frozenDates ?? []), today],
+          },
+        });
+        return true;
+      },
 
       // ── addStamp ─────────────────────────────────────────────────────────
       addStamp: ({ countryCode, city, timestamp }) => {

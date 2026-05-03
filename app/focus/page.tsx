@@ -10,6 +10,7 @@ import { useTimer } from "@/hooks/use-timer";
 import { formatDuration, formatMinutes } from "@/lib/utils";
 import { flagEmoji } from "@/data/cities";
 import { broadcastFlight, clearFlight, subscribeToFlights, type LiveFlight } from "@/lib/flight-sync";
+import { useWeatherPair } from "@/hooks/use-weather";
 
 // ── Map is client-only ────────────────────────────────────────────────────────
 const WorldMap = dynamic(
@@ -200,6 +201,9 @@ export default function FocusPage() {
   const { departure, destination, durationMs, seat } = session;
   const breakIntervalMinutes = session.breakIntervalMinutes ?? 0;
   const breakDurationMinutes = session.breakDurationMinutes ?? 0;
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const { departure: depWeather, destination: dstWeather } = useWeatherPair(departure, destination);
   const percent = Math.round(progress * 100);
 
   // Kalan mola süresini göstermek için (bilgi amaçlı)
@@ -251,17 +255,47 @@ export default function FocusPage() {
             <span className="text-white">{destination.name}</span>
           </motion.div>
 
-          {/* Abandon */}
-          <motion.button
-            initial={{ opacity: 0, y: -16 }}
-            animate={{ opacity: 1, y: 0 }}
-            onClick={handleAbandon}
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-white transition-colors"
-            style={{ background: "rgba(22,26,53,0.85)", border: "1px solid rgba(255,255,255,0.1)", backdropFilter: "blur(12px)" }}
-            title="Uçuşu terk et"
-          >
-            ✕
-          </motion.button>
+          {/* Weather + Abandon */}
+          <div className="flex items-center gap-2">
+            {/* Weather chips */}
+            {(depWeather.weather || dstWeather.weather) && (
+              <motion.div
+                initial={{ opacity: 0, y: -16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs"
+                style={{ background: "rgba(22,26,53,0.85)", border: "1px solid rgba(255,255,255,0.1)", backdropFilter: "blur(12px)" }}
+              >
+                {depWeather.weather && (
+                  <span className="flex items-center gap-1">
+                    <span>{depWeather.weather.icon}</span>
+                    <span className="text-slate-300 font-semibold">{depWeather.weather.temp}°</span>
+                  </span>
+                )}
+                {depWeather.weather && dstWeather.weather && (
+                  <span className="text-slate-700">·</span>
+                )}
+                {dstWeather.weather && (
+                  <span className="flex items-center gap-1">
+                    <span>{dstWeather.weather.icon}</span>
+                    <span className="text-slate-300 font-semibold">{dstWeather.weather.temp}°</span>
+                  </span>
+                )}
+              </motion.div>
+            )}
+
+            {/* Abandon */}
+            <motion.button
+              initial={{ opacity: 0, y: -16 }}
+              animate={{ opacity: 1, y: 0 }}
+              onClick={handleAbandon}
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+              style={{ background: "rgba(22,26,53,0.85)", border: "1px solid rgba(255,255,255,0.1)", backdropFilter: "blur(12px)" }}
+              title="Uçuşu terk et"
+            >
+              ✕
+            </motion.button>
+          </div>
         </div>
 
         {/* Status pill */}
