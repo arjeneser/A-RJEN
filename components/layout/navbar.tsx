@@ -56,6 +56,7 @@ export function Navbar() {
   const [friendsPanelOpen, setFriendsPanelOpen]   = useState(false);
   const [friendsNotifCount, setFriendsNotifCount] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen]       = useState(false);
+  const [logoutConfirm, setLogoutConfirm]         = useState(false);
 
   // ── Arkadaş butonu popup ───────────────────────────────────────────────────
   const { toasts, remove } = useToastStore();
@@ -444,7 +445,7 @@ export function Navbar() {
               {/* Logout — sadece desktop */}
               {currentUsername && (
                 <button
-                  onClick={handleLogout}
+                  onClick={() => setLogoutConfirm(true)}
                   className="hidden md:block px-3 py-1.5 rounded-full text-xs text-slate-500 hover:text-slate-300 transition-colors"
                   style={{
                     background: "rgba(255,255,255,0.03)",
@@ -504,7 +505,7 @@ export function Navbar() {
                   );
                 })}
 
-                {/* Çıkış — sadece mobile menüde */}
+                {/* Çıkış Yap — sadece mobile menüde */}
                 {currentUsername && (
                   <motion.div
                     initial={{ opacity: 0, x: -12 }}
@@ -513,7 +514,7 @@ export function Navbar() {
                   >
                     <div className="h-px my-2" style={{ background: "rgba(255,255,255,0.06)" }} />
                     <button
-                      onClick={() => { setMobileMenuOpen(false); handleLogout(); }}
+                      onClick={() => { setMobileMenuOpen(false); setLogoutConfirm(true); }}
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400/70 hover:text-red-400 hover:bg-red-500/[0.06] transition-all"
                     >
                       <span className="w-1.5 h-1.5 shrink-0" />
@@ -526,6 +527,67 @@ export function Navbar() {
           )}
         </AnimatePresence>
       </header>
+
+      {/* ── Çıkış Onay Modalı ───────────────────────────────────────────── */}
+      <AnimatePresence>
+        {logoutConfirm && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="logout-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
+              onClick={() => setLogoutConfirm(false)}
+            />
+            {/* Modal */}
+            <motion.div
+              key="logout-modal"
+              initial={{ opacity: 0, scale: 0.9, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 16 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[61] w-[280px] rounded-3xl p-6 flex flex-col items-center gap-4"
+              style={{
+                background: "linear-gradient(135deg, #0D1B2A 0%, #070918 100%)",
+                border: "1px solid rgba(239,68,68,0.25)",
+                boxShadow: "0 24px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(239,68,68,0.1)",
+              }}
+            >
+              <div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl"
+                style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}
+              >
+                ⏏
+              </div>
+              <div className="text-center">
+                <h3 className="text-base font-bold text-white mb-1" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                  Çıkış yapmak istiyor musun?
+                </h3>
+                <p className="text-xs text-slate-500">Oturumun kapatılacak.</p>
+              </div>
+              <div className="flex gap-2 w-full">
+                <button
+                  onClick={() => setLogoutConfirm(false)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition-colors"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                >
+                  İptal
+                </button>
+                <button
+                  onClick={() => { setLogoutConfirm(false); handleLogout(); }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+                  style={{ background: "rgba(239,68,68,0.2)", border: "1px solid rgba(239,68,68,0.35)", color: "#F87171" }}
+                >
+                  Çıkış Yap
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Friends panel */}
       <FriendsPanel
