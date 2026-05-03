@@ -116,16 +116,42 @@ export function Navbar() {
         <div className="glass border-b border-white/[0.06]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
 
-            {/* Logo */}
-            <Link href="/" className="flex items-center gap-2 group">
-              <span className="text-xl">✈</span>
-              <span
-                className="font-display font-bold text-lg tracking-widest text-brand-sky"
-                style={{ fontFamily: "Space Grotesk, sans-serif" }}
+            {/* Sol: Hamburger (mobile) + Logo */}
+            <div className="flex items-center gap-2">
+              {/* Hamburger butonu — sadece mobile, logonun SOLUNDA */}
+              <button
+                onClick={() => setMobileMenuOpen((p) => !p)}
+                className="md:hidden flex flex-col items-center justify-center w-8 h-8 gap-1.5 rounded-lg transition-colors hover:bg-white/[0.06]"
+                aria-label="Menü"
               >
-                AIRJEN
-              </span>
-            </Link>
+                <motion.span
+                  animate={mobileMenuOpen ? { rotate: 45, y: 7 } : { rotate: 0, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="block w-5 h-0.5 bg-slate-400 rounded-full origin-center"
+                />
+                <motion.span
+                  animate={mobileMenuOpen ? { opacity: 0, scaleX: 0 } : { opacity: 1, scaleX: 1 }}
+                  transition={{ duration: 0.15 }}
+                  className="block w-5 h-0.5 bg-slate-400 rounded-full"
+                />
+                <motion.span
+                  animate={mobileMenuOpen ? { rotate: -45, y: -7 } : { rotate: 0, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="block w-5 h-0.5 bg-slate-400 rounded-full origin-center"
+                />
+              </button>
+
+              {/* Logo */}
+              <Link href="/" className="flex items-center gap-2 group">
+                <span className="text-xl">✈</span>
+                <span
+                  className="font-display font-bold text-lg tracking-widest text-brand-sky"
+                  style={{ fontFamily: "Space Grotesk, sans-serif" }}
+                >
+                  AIRJEN
+                </span>
+              </Link>
+            </div>
 
             {/* Nav links — desktop */}
             <nav className="hidden md:flex items-center gap-1">
@@ -154,29 +180,6 @@ export function Navbar() {
                 );
               })}
             </nav>
-
-            {/* Hamburger butonu — sadece mobile */}
-            <button
-              onClick={() => setMobileMenuOpen((p) => !p)}
-              className="md:hidden flex flex-col items-center justify-center w-8 h-8 gap-1.5 rounded-lg transition-colors hover:bg-white/[0.06]"
-              aria-label="Menü"
-            >
-              <motion.span
-                animate={mobileMenuOpen ? { rotate: 45, y: 7 } : { rotate: 0, y: 0 }}
-                transition={{ duration: 0.2 }}
-                className="block w-5 h-0.5 bg-slate-400 rounded-full origin-center"
-              />
-              <motion.span
-                animate={mobileMenuOpen ? { opacity: 0, scaleX: 0 } : { opacity: 1, scaleX: 1 }}
-                transition={{ duration: 0.15 }}
-                className="block w-5 h-0.5 bg-slate-400 rounded-full"
-              />
-              <motion.span
-                animate={mobileMenuOpen ? { rotate: -45, y: -7 } : { rotate: 0, y: 0 }}
-                transition={{ duration: 0.2 }}
-                className="block w-5 h-0.5 bg-slate-400 rounded-full origin-center"
-              />
-            </button>
 
             {/* Right side */}
             <div className="flex items-center gap-3">
@@ -223,9 +226,9 @@ export function Navbar() {
                 </Link>
               )}
 
-              {/* User level pill */}
+              {/* User level pill — sadece desktop */}
               {currentUsername && (
-                <Link href="/passport">
+                <Link href="/passport" className="hidden md:block">
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.08] transition-colors cursor-pointer">
                     <span className="text-sm">{level.emoji}</span>
                     <span className="text-xs font-medium text-slate-300">{currentUsername}</span>
@@ -438,11 +441,11 @@ export function Navbar() {
                 </div>
               )}
 
-              {/* Logout */}
+              {/* Logout — sadece desktop */}
               {currentUsername && (
                 <button
                   onClick={handleLogout}
-                  className="px-3 py-1.5 rounded-full text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                  className="hidden md:block px-3 py-1.5 rounded-full text-xs text-slate-500 hover:text-slate-300 transition-colors"
                   style={{
                     background: "rgba(255,255,255,0.03)",
                     border: "1px solid rgba(255,255,255,0.07)",
@@ -500,6 +503,24 @@ export function Navbar() {
                     </motion.div>
                   );
                 })}
+
+                {/* Çıkış — sadece mobile menüde */}
+                {currentUsername && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: NAV_LINKS.length * 0.05, duration: 0.18 }}
+                  >
+                    <div className="h-px my-2" style={{ background: "rgba(255,255,255,0.06)" }} />
+                    <button
+                      onClick={() => { setMobileMenuOpen(false); handleLogout(); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400/70 hover:text-red-400 hover:bg-red-500/[0.06] transition-all"
+                    >
+                      <span className="w-1.5 h-1.5 shrink-0" />
+                      ⏏ Çıkış Yap
+                    </button>
+                  </motion.div>
+                )}
               </nav>
             </motion.div>
           )}
