@@ -52,9 +52,10 @@ export function Navbar() {
   const { currentUsername, logout } = useAuthStore();
   const level = getLevel(profile.totalFlights);
 
-  const [remainingMs, setRemainingMs]         = useState(0);
-  const [friendsPanelOpen, setFriendsPanelOpen] = useState(false);
+  const [remainingMs, setRemainingMs]             = useState(0);
+  const [friendsPanelOpen, setFriendsPanelOpen]   = useState(false);
   const [friendsNotifCount, setFriendsNotifCount] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen]       = useState(false);
 
   // ── Arkadaş butonu popup ───────────────────────────────────────────────────
   const { toasts, remove } = useToastStore();
@@ -126,7 +127,7 @@ export function Navbar() {
               </span>
             </Link>
 
-            {/* Nav links */}
+            {/* Nav links — desktop */}
             <nav className="hidden md:flex items-center gap-1">
               {NAV_LINKS.map((link) => {
                 const isActive = pathname === link.href;
@@ -153,6 +154,29 @@ export function Navbar() {
                 );
               })}
             </nav>
+
+            {/* Hamburger butonu — sadece mobile */}
+            <button
+              onClick={() => setMobileMenuOpen((p) => !p)}
+              className="md:hidden flex flex-col items-center justify-center w-8 h-8 gap-1.5 rounded-lg transition-colors hover:bg-white/[0.06]"
+              aria-label="Menü"
+            >
+              <motion.span
+                animate={mobileMenuOpen ? { rotate: 45, y: 7 } : { rotate: 0, y: 0 }}
+                transition={{ duration: 0.2 }}
+                className="block w-5 h-0.5 bg-slate-400 rounded-full origin-center"
+              />
+              <motion.span
+                animate={mobileMenuOpen ? { opacity: 0, scaleX: 0 } : { opacity: 1, scaleX: 1 }}
+                transition={{ duration: 0.15 }}
+                className="block w-5 h-0.5 bg-slate-400 rounded-full"
+              />
+              <motion.span
+                animate={mobileMenuOpen ? { rotate: -45, y: -7 } : { rotate: 0, y: 0 }}
+                transition={{ duration: 0.2 }}
+                className="block w-5 h-0.5 bg-slate-400 rounded-full origin-center"
+              />
+            </button>
 
             {/* Right side */}
             <div className="flex items-center gap-3">
@@ -431,6 +455,55 @@ export function Navbar() {
             </div>
           </div>
         </div>
+
+        {/* ── Mobile accordion menü ───────────────────────────────────────── */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              key="mobile-menu"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+              className="md:hidden overflow-hidden border-t border-white/[0.06]"
+              style={{ background: "rgba(7,9,24,0.97)", backdropFilter: "blur(12px)" }}
+            >
+              <nav className="flex flex-col px-4 py-3 gap-1">
+                {NAV_LINKS.map((link, i) => {
+                  const isActive = pathname === link.href;
+                  return (
+                    <motion.div
+                      key={link.href}
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.05, duration: 0.18 }}
+                    >
+                      <Link
+                        href={link.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
+                          isActive
+                            ? "text-white bg-white/[0.08]"
+                            : "text-slate-400 hover:text-white hover:bg-white/[0.05]"
+                        )}
+                      >
+                        {isActive && (
+                          <span
+                            className="w-1.5 h-1.5 rounded-full shrink-0"
+                            style={{ background: "#818CF8", boxShadow: "0 0 6px #818CF8" }}
+                          />
+                        )}
+                        {!isActive && <span className="w-1.5 h-1.5 shrink-0" />}
+                        {link.label}
+                      </Link>
+                    </motion.div>
+                  );
+                })}
+              </nav>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
       {/* Friends panel */}

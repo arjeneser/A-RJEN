@@ -7,92 +7,6 @@ import { useAuthStore } from "@/store/auth-store";
 import { getCityById, flagEmoji } from "@/data/cities";
 import { formatMinutes } from "@/lib/utils";
 
-// ─── Accordion Section Component ─────────────────────────────────────────────
-function AccordionSection({
-  id,
-  icon,
-  title,
-  subtitle,
-  openId,
-  setOpenId,
-  children,
-  delay = 0,
-}: {
-  id: string;
-  icon: string;
-  title: string;
-  subtitle?: string;
-  openId: string | null;
-  setOpenId: (id: string | null) => void;
-  children: React.ReactNode;
-  delay?: number;
-}) {
-  const isOpen = openId === id;
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay }}
-      className="rounded-3xl overflow-hidden"
-      style={{
-        background: isOpen ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.02)",
-        border: isOpen
-          ? "1px solid rgba(139,92,246,0.25)"
-          : "1px solid rgba(255,255,255,0.06)",
-        transition: "border-color 0.2s, background 0.2s",
-      }}
-    >
-      {/* Header */}
-      <button
-        onClick={() => setOpenId(isOpen ? null : id)}
-        className="w-full flex items-center gap-3 px-5 py-4 text-left group"
-      >
-        <span className="text-2xl">{icon}</span>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-bold text-white" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
-            {title}
-          </div>
-          {subtitle && (
-            <div className="text-[11px] text-slate-600 mt-0.5">{subtitle}</div>
-          )}
-        </div>
-        <motion.div
-          animate={{ rotate: isOpen ? 180 : 0 }}
-          transition={{ duration: 0.25 }}
-          className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center"
-          style={{
-            background: isOpen ? "rgba(139,92,246,0.2)" : "rgba(255,255,255,0.05)",
-            border: isOpen ? "1px solid rgba(139,92,246,0.4)" : "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-            <path d="M2 3.5L5 6.5L8 3.5" stroke={isOpen ? "#A78BFA" : "#475569"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </motion.div>
-      </button>
-
-      {/* Content */}
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            key="content"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-            style={{ overflow: "hidden" }}
-          >
-            <div className="px-5 pb-5 pt-1">
-              <div className="h-px mb-4" style={{ background: "rgba(255,255,255,0.05)" }} />
-              {children}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
-}
-
 // ─── Avatar seçenekleri ───────────────────────────────────────────────────────
 const AVATARS = [
   "✈️","🚀","🛩️","🌍","🏔️","🌊","🦅","⭐","🔥","💫",
@@ -140,7 +54,6 @@ export default function ProfilePage() {
   const [editingBio, setEditingBio]     = useState(false);
   const [bioInput, setBioInput]         = useState(profile.bio ?? "");
   const [avatarOpen, setAvatarOpen]     = useState(false);
-  const [openSection, setOpenSection]   = useState<string | null>("heatmap");
 
   const level     = getLevel(profile.totalFlights);
   const visitedCountries = useMemo(
@@ -150,14 +63,12 @@ export default function ProfilePage() {
 
   // ── Aktivite ısı haritası ─────────────────────────────────────────────────
   const heatmapData = useMemo(() => {
-    // history'den gün → uçuş sayısı
     const byDate: Record<string, number> = {};
     history.forEach((f) => {
       const d = f.completedAt.split("T")[0];
       byDate[d] = (byDate[d] ?? 0) + 1;
     });
 
-    // 52 hafta geriye git, Pazartesi hizala
     const today  = new Date();
     today.setHours(0, 0, 0, 0);
     const start  = getMonday(new Date(today.getTime() - 51 * 7 * 24 * 3600 * 1000));
@@ -450,65 +361,85 @@ export default function ProfilePage() {
             </div>
           </motion.div>
 
-          {/* ══════════════════ AKORDİYON MENÜ ══════════════════ */}
-          <div className="space-y-3">
-
-            {/* 1 — Uçuş Aktivitesi */}
-            <AccordionSection
-              id="heatmap"
-              icon="📊"
-              title="Uçuş Aktivitesi"
-              subtitle={`Son 52 hafta · ${totalHeatFlights} uçuş`}
-              openId={openSection}
-              setOpenId={setOpenSection}
-              delay={0.1}
-            >
-              <div className="flex justify-end mb-3">
-                <div className="flex items-center gap-1.5 text-[10px] text-slate-600">
-                  <span>Az</span>
-                  {[0,1,2,3].map((l) => (
-                    <div key={l} className="w-3 h-3 rounded-sm" style={{ background: heatColor(l) }} />
-                  ))}
-                  <span>Çok</span>
-                </div>
+          {/* ══════════════════ AKTİVİTE ISISI ══════════════════ */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="rounded-3xl p-5 sm:p-6"
+            style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-base font-bold text-white" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                  Uçuş Aktivitesi
+                </h2>
+                <p className="text-xs text-slate-600 mt-0.5">Son 52 hafta · {totalHeatFlights} uçuş</p>
               </div>
-              <div className="overflow-x-auto pb-1">
-                <div className="flex gap-[3px]" style={{ minWidth: "fit-content" }}>
-                  <div className="flex flex-col gap-[3px] mr-1 pt-5">
-                    {["", "Pzt", "", "Çar", "", "Cum", ""].map((d, i) => (
-                      <div key={i} className="h-[11px] text-[8px] text-slate-700 leading-none flex items-center">{d}</div>
-                    ))}
-                  </div>
-                  {heatmapData.map((week, wi) => (
-                    <div key={wi} className="flex flex-col gap-[3px]">
-                      <div className="h-4 text-[9px] text-slate-600 leading-none flex items-end">{week.label}</div>
-                      {week.days.map((day, di) => (
-                        <div
-                          key={di}
-                          title={`${day.date}: ${day.count} uçuş`}
-                          className="w-[11px] h-[11px] rounded-[2px] transition-all hover:scale-125 cursor-default"
-                          style={{
-                            background: day.isFuture ? "transparent" : heatColor(day.count),
-                            border: day.isFuture ? "none" : "1px solid rgba(255,255,255,0.04)",
-                          }}
-                        />
-                      ))}
+              {/* Legend */}
+              <div className="flex items-center gap-1.5 text-[10px] text-slate-600">
+                <span>Az</span>
+                {[0,1,2,3].map((l) => (
+                  <div
+                    key={l}
+                    className="w-3 h-3 rounded-sm"
+                    style={{ background: heatColor(l) }}
+                  />
+                ))}
+                <span>Çok</span>
+              </div>
+            </div>
+
+            {/* Heatmap */}
+            <div className="overflow-x-auto pb-1">
+              <div className="flex gap-[3px]" style={{ minWidth: "fit-content" }}>
+                {/* Gün etiketleri (sol sütun) */}
+                <div className="flex flex-col gap-[3px] mr-1 pt-5">
+                  {["", "Pzt", "", "Çar", "", "Cum", ""].map((d, i) => (
+                    <div key={i} className="h-[11px] text-[8px] text-slate-700 leading-none flex items-center">
+                      {d}
                     </div>
                   ))}
                 </div>
+                {/* Hafta sütunları */}
+                {heatmapData.map((week, wi) => (
+                  <div key={wi} className="flex flex-col gap-[3px]">
+                    {/* Ay etiketi */}
+                    <div className="h-4 text-[9px] text-slate-600 leading-none flex items-end">
+                      {week.label}
+                    </div>
+                    {week.days.map((day, di) => (
+                      <div
+                        key={di}
+                        title={`${day.date}: ${day.count} uçuş`}
+                        className="w-[11px] h-[11px] rounded-[2px] transition-all hover:scale-125 cursor-default"
+                        style={{
+                          background: day.isFuture ? "transparent" : heatColor(day.count),
+                          border: day.isFuture ? "none" : "1px solid rgba(255,255,255,0.04)",
+                        }}
+                      />
+                    ))}
+                  </div>
+                ))}
               </div>
-            </AccordionSection>
+            </div>
+          </motion.div>
 
-            {/* 2 — Haftalık XP */}
-            <AccordionSection
-              id="weekly-xp"
-              icon="📈"
-              title="Haftalık XP"
-              subtitle="Son 8 haftalık performans"
-              openId={openSection}
-              setOpenId={setOpenSection}
-              delay={0.12}
+          {/* ══════════════════ ORTA SATIR ══════════════════ */}
+          <div className="grid lg:grid-cols-2 gap-6">
+
+            {/* Haftalık XP grafiği */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="rounded-3xl p-5"
+              style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
             >
+              <h2 className="text-base font-bold text-white mb-1" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                Haftalık XP
+              </h2>
+              <p className="text-xs text-slate-600 mb-4">Son 8 hafta</p>
               <div className="flex items-end gap-2 h-32">
                 {weeklyStats.map((w, i) => {
                   const pct = maxWeekXP > 0 ? (w.xp / maxWeekXP) : 0;
@@ -533,27 +464,35 @@ export default function ProfilePage() {
                           }}
                         />
                       </div>
-                      <div className="text-[8px] text-center truncate w-full" style={{ color: isLast ? "#A78BFA" : "#475569" }}>
+                      <div
+                        className="text-[8px] text-center truncate w-full"
+                        style={{ color: isLast ? "#A78BFA" : "#475569" }}
+                      >
                         {w.label}
                       </div>
                     </div>
                   );
                 })}
               </div>
-            </AccordionSection>
+            </motion.div>
 
-            {/* 3 — Süre Dağılımı */}
-            <AccordionSection
-              id="duration"
-              icon="⏱️"
-              title="Süre Dağılımı"
-              subtitle="Hangi sürelerde uçtun?"
-              openId={openSection}
-              setOpenId={setOpenSection}
-              delay={0.14}
+            {/* Uçuş süresi dağılımı */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="rounded-3xl p-5"
+              style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
             >
+              <h2 className="text-base font-bold text-white mb-1" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                Süre Dağılımı
+              </h2>
+              <p className="text-xs text-slate-600 mb-4">Hangi sürelerde uçtun?</p>
+
               {durationDist.length === 0 ? (
-                <div className="flex items-center justify-center h-20 text-slate-700 text-sm">Henüz uçuş yok</div>
+                <div className="flex items-center justify-center h-28 text-slate-700 text-sm">
+                  Henüz uçuş yok
+                </div>
               ) : (
                 <div className="space-y-2.5">
                   {durationDist.map((d) => (
@@ -573,18 +512,25 @@ export default function ProfilePage() {
                   ))}
                 </div>
               )}
-            </AccordionSection>
+            </motion.div>
+          </div>
 
-            {/* 4 — Favori Destinasyonlar */}
-            <AccordionSection
-              id="destinations"
-              icon="🌍"
-              title="Favori Destinasyonlar"
-              subtitle="En çok uçtuğun şehirler"
-              openId={openSection}
-              setOpenId={setOpenSection}
-              delay={0.16}
+          {/* ══════════════════ ALT SATIR ══════════════════ */}
+          <div className="grid lg:grid-cols-2 gap-6">
+
+            {/* En çok gidilen şehirler */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+              className="rounded-3xl p-5"
+              style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
             >
+              <h2 className="text-base font-bold text-white mb-1" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                Favori Destinasyonlar
+              </h2>
+              <p className="text-xs text-slate-600 mb-4">En çok uçtuğun şehirler</p>
+
               {topDests.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 text-slate-700">
                   <span className="text-3xl mb-2">🌍</span>
@@ -610,8 +556,13 @@ export default function ProfilePage() {
                         <div className="text-sm font-semibold text-slate-200 truncate">{city!.name}</div>
                         <div className="text-xs text-slate-600 truncate">{city!.country}</div>
                       </div>
-                      <div className="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full"
-                        style={{ background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.2)", color: "#60A5FA" }}
+                      <div
+                        className="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full"
+                        style={{
+                          background: "rgba(59,130,246,0.12)",
+                          border: "1px solid rgba(59,130,246,0.2)",
+                          color: "#60A5FA",
+                        }}
                       >
                         {count}×
                       </div>
@@ -619,113 +570,130 @@ export default function ProfilePage() {
                   ))}
                 </div>
               )}
-            </AccordionSection>
+            </motion.div>
 
-            {/* 5 — En Çok Ziyaret Edilen Ülkeler */}
-            <AccordionSection
-              id="countries"
-              icon="🗺️"
-              title="Ziyaret Edilen Ülkeler"
-              subtitle={`${visitedCountries} ülke keşfedildi`}
-              openId={openSection}
-              setOpenId={setOpenSection}
-              delay={0.18}
-            >
-              {topCountries.length === 0 ? (
-                <p className="text-sm text-slate-700 py-2">Henüz yurt dışı uçuşu yok</p>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {topCountries.map(({ code, count }) => (
-                    <div
-                      key={code}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
-                      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
-                    >
-                      <span className="text-base">{flagEmoji(code)}</span>
-                      <span className="text-slate-300">{count}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </AccordionSection>
-
-            {/* 6 — Seviye Yolu */}
-            <AccordionSection
-              id="levels"
-              icon="⭐"
-              title="Seviye Yolu"
-              subtitle={`Şu an: ${getLevel(profile.totalFlights).name} ${getLevel(profile.totalFlights).emoji}`}
-              openId={openSection}
-              setOpenId={setOpenSection}
-              delay={0.2}
-            >
-              <div className="relative">
-                <div className="absolute top-5 left-5 right-5 h-0.5" style={{ background: "rgba(255,255,255,0.06)" }} />
-                <div className="flex justify-between relative">
-                  {LEVEL_CONFIG.map((l) => {
-                    const unlocked = profile.totalFlights >= l.requiredFlights;
-                    const isCurrent = getLevel(profile.totalFlights).name === l.name;
-                    return (
-                      <div key={l.name} className="flex flex-col items-center gap-2">
-                        <div
-                          className="w-10 h-10 rounded-full flex items-center justify-center text-lg border-2 transition-all z-10"
-                          style={{
-                            background: unlocked ? `${l.color}20` : "rgba(255,255,255,0.03)",
-                            borderColor: isCurrent ? l.color : unlocked ? `${l.color}60` : "rgba(255,255,255,0.08)",
-                            opacity: unlocked ? 1 : 0.35,
-                            boxShadow: isCurrent ? `0 0 16px ${l.color}40` : undefined,
-                          }}
-                        >
-                          {l.emoji}
-                        </div>
-                        <div className="text-center">
-                          <div className="text-[9px] font-bold" style={{ color: unlocked ? l.color : "#334155" }}>{l.name}</div>
-                          <div className="text-[8px] text-slate-700">{l.requiredFlights}✈</div>
-                        </div>
+            {/* Ülke dağılımı + seviye yolu */}
+            <div className="space-y-6">
+              {/* En çok ziyaret edilen ülkeler */}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="rounded-3xl p-5"
+                style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
+              >
+                <h2 className="text-base font-bold text-white mb-1" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                  En Çok Ziyaret Edilen Ülkeler
+                </h2>
+                <p className="text-xs text-slate-600 mb-3">Damga sayısına göre</p>
+                {topCountries.length === 0 ? (
+                  <p className="text-sm text-slate-700 py-2">Henüz yurt dışı uçuşu yok</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {topCountries.map(({ code, count }) => (
+                      <div
+                        key={code}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+                        style={{
+                          background: "rgba(255,255,255,0.04)",
+                          border: "1px solid rgba(255,255,255,0.08)",
+                        }}
+                      >
+                        <span className="text-base">{flagEmoji(code)}</span>
+                        <span className="text-slate-300">{count}</span>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </AccordionSection>
-
-            {/* 7 — Tüm İstatistikler */}
-            <AccordionSection
-              id="stats"
-              icon="🏅"
-              title="Tüm İstatistikler"
-              subtitle="Detaylı performans özeti"
-              openId={openSection}
-              setOpenId={setOpenSection}
-              delay={0.22}
-            >
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {[
-                  { icon: "✈️",  label: "Toplam Uçuş",         value: profile.totalFlights },
-                  { icon: "⭐",  label: "Toplam XP",            value: profile.totalXP },
-                  { icon: "⏱️", label: "Toplam Odak",          value: formatMinutes(profile.totalFocusMinutes) },
-                  { icon: "🔥",  label: "Mevcut Seri",          value: `${profile.currentStreak} gün` },
-                  { icon: "🏆",  label: "En İyi Seri",          value: `${profile.longestStreak} gün` },
-                  { icon: "🌍",  label: "Ziyaret Edilen Ülke",  value: visitedCountries },
-                  { icon: "📖",  label: "Pasaport Damgası",     value: stamps.length },
-                  { icon: "🏅",  label: "Kazanılan Başarım",    value: `${earned.length}/${earned.length > 0 ? earned.length : "?"}` },
-                ].map((s) => (
-                  <div
-                    key={s.label}
-                    className="flex items-center gap-3 p-3 rounded-2xl"
-                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}
-                  >
-                    <span className="text-xl shrink-0">{s.icon}</span>
-                    <div>
-                      <div className="text-sm font-bold text-white" style={{ fontFamily: "Space Grotesk, sans-serif" }}>{s.value}</div>
-                      <div className="text-[10px] text-slate-600">{s.label}</div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </AccordionSection>
+                )}
+              </motion.div>
 
+              {/* Seviye yolu */}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="rounded-3xl p-5"
+                style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
+              >
+                <h2 className="text-base font-bold text-white mb-4" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                  Seviye Yolu
+                </h2>
+                <div className="relative">
+                  {/* bağlantı çizgisi */}
+                  <div className="absolute top-5 left-5 right-5 h-0.5" style={{ background: "rgba(255,255,255,0.06)" }} />
+                  <div className="flex justify-between relative">
+                    {LEVEL_CONFIG.map((l) => {
+                      const unlocked = profile.totalFlights >= l.requiredFlights;
+                      const isCurrent = getLevel(profile.totalFlights).name === l.name;
+                      return (
+                        <div key={l.name} className="flex flex-col items-center gap-2">
+                          <div
+                            className="w-10 h-10 rounded-full flex items-center justify-center text-lg border-2 transition-all z-10"
+                            style={{
+                              background: unlocked ? `${l.color}20` : "rgba(255,255,255,0.03)",
+                              borderColor: isCurrent ? l.color : unlocked ? `${l.color}60` : "rgba(255,255,255,0.08)",
+                              opacity: unlocked ? 1 : 0.35,
+                              boxShadow: isCurrent ? `0 0 16px ${l.color}40` : undefined,
+                            }}
+                          >
+                            {l.emoji}
+                          </div>
+                          <div className="text-center">
+                            <div
+                              className="text-[9px] font-bold"
+                              style={{ color: unlocked ? l.color : "#334155" }}
+                            >
+                              {l.name}
+                            </div>
+                            <div className="text-[8px] text-slate-700">{l.requiredFlights}✈</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            </div>
           </div>
+
+          {/* ══════════════════ TAM İSTATİSTİK TABLOSU ══════════════════ */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="rounded-3xl p-5 sm:p-6"
+            style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            <h2 className="text-base font-bold text-white mb-4" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+              Tüm İstatistikler
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {[
+                { icon: "✈️",  label: "Toplam Uçuş",         value: profile.totalFlights },
+                { icon: "⭐",  label: "Toplam XP",            value: profile.totalXP },
+                { icon: "⏱️", label: "Toplam Odak",          value: formatMinutes(profile.totalFocusMinutes) },
+                { icon: "🔥",  label: "Mevcut Seri",          value: `${profile.currentStreak} gün` },
+                { icon: "🏆",  label: "En İyi Seri",          value: `${profile.longestStreak} gün` },
+                { icon: "🌍",  label: "Ziyaret Edilen Ülke",  value: visitedCountries },
+                { icon: "📖",  label: "Pasaport Damgası",     value: stamps.length },
+                { icon: "🏅",  label: "Kazanılan Başarım",    value: earned.length },
+              ].map((s) => (
+                <div
+                  key={s.label}
+                  className="flex items-center gap-3 p-3 rounded-2xl"
+                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}
+                >
+                  <span className="text-xl shrink-0">{s.icon}</span>
+                  <div>
+                    <div className="text-sm font-bold text-white" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                      {s.value}
+                    </div>
+                    <div className="text-[10px] text-slate-600">{s.label}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
 
         </div>
       </div>
