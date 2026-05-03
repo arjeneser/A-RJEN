@@ -158,18 +158,6 @@ export default function ProfilePage() {
   }, [history]);
   const maxDurCount = useMemo(() => Math.max(...durationDist.map((d) => d.count), 1), [durationDist]);
 
-  // ── En çok ziyaret edilen ülkeler ─────────────────────────────────────────
-  const topCountries = useMemo(() => {
-    const counts: Record<string, number> = {};
-    stamps.forEach((s) => {
-      counts[s.countryCode] = (counts[s.countryCode] ?? 0) + 1;
-    });
-    return Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([code, count]) => ({ code, count }));
-  }, [stamps]);
-
   function saveNameFn() {
     updateName(nameInput.trim() || "Pilot");
     setEditingName(false);
@@ -574,39 +562,6 @@ export default function ProfilePage() {
 
             {/* Ülke dağılımı + seviye yolu */}
             <div className="space-y-6">
-              {/* En çok ziyaret edilen ülkeler */}
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="rounded-3xl p-5"
-                style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
-              >
-                <h2 className="text-base font-bold text-white mb-1" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
-                  En Çok Ziyaret Edilen Ülkeler
-                </h2>
-                <p className="text-xs text-slate-600 mb-3">Damga sayısına göre</p>
-                {topCountries.length === 0 ? (
-                  <p className="text-sm text-slate-700 py-2">Henüz yurt dışı uçuşu yok</p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {topCountries.map(({ code, count }) => (
-                      <div
-                        key={code}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
-                        style={{
-                          background: "rgba(255,255,255,0.04)",
-                          border: "1px solid rgba(255,255,255,0.08)",
-                        }}
-                      >
-                        <span className="text-base">{flagEmoji(code)}</span>
-                        <span className="text-slate-300">{count}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-
               {/* Seviye yolu */}
               <motion.div
                 initial={{ opacity: 0, y: 16 }}

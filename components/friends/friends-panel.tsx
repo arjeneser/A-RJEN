@@ -1383,7 +1383,8 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
 
                   {/* Messages */}
                   <div
-                    className="flex-1 overflow-y-auto px-3 py-3 space-y-2"
+                    className="flex-1 overflow-y-auto px-3 py-4 space-y-1"
+                    style={{ background: "rgba(6,8,20,0.4)" }}
                     onClick={() => { setEmojiPickerMsgId(null); setContextMenu(null); }}
                   >
                     {messages.length === 0 && (
@@ -1395,20 +1396,53 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                       </div>
                     )}
 
-                    {messages.map((msg) => {
+                    {messages.map((msg, idx) => {
+                      const prevMsg = messages[idx - 1];
+                      const nextMsg = messages[idx + 1];
                       const isOwn = msg.from === currentUsername;
+                      const isFirst = !prevMsg || prevMsg.from !== msg.from;
+                      const isLast = !nextMsg || nextMsg.from !== msg.from;
                       const reactions = msg.reactions ?? {};
                       const reactionEntries = Object.entries(reactions).filter(([, users]) => users.length > 0);
+
+                      // Corner radii based on group position
+                      let bubbleRadius: string;
+                      if (isOwn) {
+                        if (isFirst && isLast) bubbleRadius = "18px 18px 4px 18px";
+                        else if (isFirst) bubbleRadius = "18px 18px 18px 18px";
+                        else if (isLast) bubbleRadius = "18px 18px 4px 18px";
+                        else bubbleRadius = "18px 18px 18px 18px";
+                      } else {
+                        if (isFirst && isLast) bubbleRadius = "18px 18px 18px 4px";
+                        else if (isFirst) bubbleRadius = "18px 18px 18px 18px";
+                        else if (isLast) bubbleRadius = "18px 18px 18px 4px";
+                        else bubbleRadius = "18px 18px 18px 18px";
+                      }
+
+                      // Override radius when there's a replyTo (keep existing visual)
+                      const finalRadius = msg.replyTo ? (isOwn ? "0 0 4px 18px" : "0 0 18px 4px") : bubbleRadius;
 
                       return (
                         <div
                           key={msg.id}
-                          className={`flex flex-col ${isOwn ? "items-end" : "items-start"} group`}
+                          className={`flex flex-col ${isOwn ? "items-end" : "items-start"} group ${isFirst ? "mt-3" : ""}`}
                         >
-                          {/* Row: reply button + bubble */}
+                          {/* Row: avatar (incoming) + bubble */}
                           <div className={`flex items-end gap-1.5 max-w-[82%] ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
 
-                            {/* Reply button removed — long-press context menu ile yanıtla */}
+                            {/* Avatar placeholder for incoming — always reserve space to keep alignment */}
+                            {!isOwn && (
+                              <div className="w-6 shrink-0 self-end mb-0.5">
+                                {isLast ? (
+                                  <div
+                                    className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                                    style={{ background: "linear-gradient(135deg, #4C1D95, #7C3AED)" }}
+                                  >
+                                    {msg.from.charAt(0).toUpperCase()}
+                                  </div>
+                                ) : null}
+                              </div>
+                            )}
 
                             {/* Bubble */}
                             <div
@@ -1452,19 +1486,13 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                                     ? {
                                         background: "linear-gradient(135deg, #1D4ED8, #2563EB)",
                                         color: "white",
-                                        borderRadius: msg.replyTo ? "0 0 16px 16px" : "16px",
-                                        borderBottomRightRadius: msg.replyTo ? 4 : 4,
-                                        borderTopLeftRadius: msg.replyTo ? 0 : 16,
-                                        borderTopRightRadius: msg.replyTo ? 0 : 16,
+                                        borderRadius: msg.replyTo ? "0 0 4px 18px" : finalRadius,
                                       }
                                     : {
-                                        background: "rgba(255,255,255,0.07)",
-                                        border: "1px solid rgba(255,255,255,0.09)",
-                                        color: "#CBD5E1",
-                                        borderRadius: msg.replyTo ? "0 0 16px 16px" : "16px",
-                                        borderBottomLeftRadius: msg.replyTo ? 4 : 4,
-                                        borderTopLeftRadius: msg.replyTo ? 0 : 16,
-                                        borderTopRightRadius: msg.replyTo ? 0 : 16,
+                                        background: "rgba(22,28,55,0.98)",
+                                        border: "1px solid rgba(255,255,255,0.1)",
+                                        color: "#E2E8F0",
+                                        borderRadius: msg.replyTo ? "0 0 18px 4px" : finalRadius,
                                       }
                                 }
                               >
@@ -1519,32 +1547,32 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                                 ) : msg.type !== "flight_card" ? (
                                   <span>{msg.text}</span>
                                 ) : null}
+                              </div>
 
-                                {/* Timestamp + read receipt */}
-                                <div className="flex items-center justify-end gap-1 mt-0.5">
-                                  <span className="text-[9px] opacity-50">{timeAgo(msg.timestamp)}</span>
-                                  {isOwn && (
-                                    partnerReadAt >= msg.timestamp ? (
-                                      /* Okundu — göz ikonu (mavi) */
-                                      <svg width="14" height="10" viewBox="0 0 14 10" fill="none"
-                                        strokeLinecap="round" strokeLinejoin="round"
-                                        style={{ stroke: "#60A5FA", transition: "stroke 0.3s" }}
-                                      >
-                                        <path d="M1 5C1 5 3 1 7 1C11 1 13 5 13 5C13 5 11 9 7 9C3 9 1 5 1 5Z" strokeWidth="1.1" />
-                                        <circle cx="7" cy="5" r="1.8" strokeWidth="1.1" />
-                                        <circle cx="8.2" cy="3.8" r="0.5" fill="#60A5FA" stroke="none" />
-                                      </svg>
-                                    ) : (
-                                      /* Gönderildi — tek tik */
-                                      <svg width="10" height="8" viewBox="0 0 10 8" fill="none"
-                                        strokeLinecap="round" strokeLinejoin="round"
-                                        style={{ stroke: "rgba(255,255,255,0.35)" }}
-                                      >
-                                        <path d="M1 4L3.5 6.5L9 1.5" strokeWidth="1.4" />
-                                      </svg>
-                                    )
-                                  )}
-                                </div>
+                              {/* Timestamp + read receipt — below bubble */}
+                              <div className={`flex items-center gap-1 mt-0.5 ${isOwn ? "justify-end" : "justify-start"}`}>
+                                <span className="text-[10px] text-slate-600">{timeAgo(msg.timestamp)}</span>
+                                {isOwn && (
+                                  partnerReadAt >= msg.timestamp ? (
+                                    /* Okundu — göz ikonu (mavi) */
+                                    <svg width="14" height="10" viewBox="0 0 14 10" fill="none"
+                                      strokeLinecap="round" strokeLinejoin="round"
+                                      style={{ stroke: "#60A5FA", transition: "stroke 0.3s" }}
+                                    >
+                                      <path d="M1 5C1 5 3 1 7 1C11 1 13 5 13 5C13 5 11 9 7 9C3 9 1 5 1 5Z" strokeWidth="1.1" />
+                                      <circle cx="7" cy="5" r="1.8" strokeWidth="1.1" />
+                                      <circle cx="8.2" cy="3.8" r="0.5" fill="#60A5FA" stroke="none" />
+                                    </svg>
+                                  ) : (
+                                    /* Gönderildi — tek tik */
+                                    <svg width="10" height="8" viewBox="0 0 10 8" fill="none"
+                                      strokeLinecap="round" strokeLinejoin="round"
+                                      style={{ stroke: "rgba(255,255,255,0.35)" }}
+                                    >
+                                      <path d="M1 4L3.5 6.5L9 1.5" strokeWidth="1.4" />
+                                    </svg>
+                                  )
+                                )}
                               </div>
                             </div>
                           </div>
