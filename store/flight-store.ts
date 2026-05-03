@@ -18,6 +18,9 @@ interface FlightSetupState {
   lockedDestination: boolean; // true = joining a friend's flight (destination pre-set)
   journeyLeg: number;      // 1 = first flight, 2 = second, ...
   journeyCities: City[];   // full route so far
+  // Pomodoro mola ayarları (0 = mola yok)
+  breakIntervalMinutes: number;
+  breakDurationMinutes: number;
 
   setStep: (step: number) => void;
   setDeparture: (city: City) => void;
@@ -26,6 +29,7 @@ interface FlightSetupState {
   setSeat: (seat: string) => void;
   setPassengerName: (name: string) => void;
   setNotes: (notes: string) => void;
+  setBreakSettings: (intervalMinutes: number, durationMinutes: number) => void;
   /** Continue journey from arrived destination — skips departure step */
   continueJourney: (fromCity: City, passengerName: string) => void;
   /** Join a friend's flight — pre-fills departure + destination, goes to duration step */
@@ -45,6 +49,8 @@ export const useFlightSetup = create<FlightSetupState>((set) => ({
   lockedDestination: false,
   journeyLeg: 1,
   journeyCities: [],
+  breakIntervalMinutes: 50,
+  breakDurationMinutes: 15,
 
   setStep: (step) => set({ step }),
   setDeparture: (city) => set({ departure: city, destination: null, lockedDestination: false, step: 2 }),
@@ -58,6 +64,8 @@ export const useFlightSetup = create<FlightSetupState>((set) => ({
   setSeat: (seat) => set({ seat, step: 5 }),
   setPassengerName: (passengerName) => set({ passengerName }),
   setNotes: (notes) => set({ notes }),
+  setBreakSettings: (intervalMinutes, durationMinutes) =>
+    set({ breakIntervalMinutes: intervalMinutes, breakDurationMinutes: durationMinutes }),
 
   continueJourney: (fromCity, passengerName) =>
     set((s) => ({
@@ -99,6 +107,8 @@ export const useFlightSetup = create<FlightSetupState>((set) => ({
       lockedDestination: false,
       journeyLeg: 1,
       journeyCities: [],
+      breakIntervalMinutes: 50,
+      breakDurationMinutes: 15,
     }),
 }));
 
@@ -112,6 +122,8 @@ interface ActiveSessionState {
     durationMs: number;
     seat: string;
     passengerName: string;
+    breakIntervalMinutes?: number;
+    breakDurationMinutes?: number;
   }) => void;
   pauseSession: () => void;
   resumeSession: () => void;
@@ -130,7 +142,7 @@ export const useActiveSession = create<ActiveSessionState>()(
     (set, get) => ({
       session: null,
 
-      startSession: ({ departure, destination, durationMs, seat, passengerName }) => {
+      startSession: ({ departure, destination, durationMs, seat, passengerName, breakIntervalMinutes, breakDurationMinutes }) => {
         const session: FlightSession = {
           id: generateId(),
           departure,
@@ -142,6 +154,8 @@ export const useActiveSession = create<ActiveSessionState>()(
           seat,
           passengerName,
           status: "running",
+          breakIntervalMinutes: breakIntervalMinutes ?? 0,
+          breakDurationMinutes: breakDurationMinutes ?? 0,
         };
         set({ session });
       },

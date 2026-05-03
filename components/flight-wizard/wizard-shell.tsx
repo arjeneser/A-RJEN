@@ -23,6 +23,7 @@ export function WizardShell() {
     step, setStep,
     departure, duration, destination, seat, passengerName,
     isContinuation, lockedDestination, journeyLeg, journeyCities,
+    breakIntervalMinutes, breakDurationMinutes,
   } = useFlightSetup();
   const { startSession } = useActiveSession();
 
@@ -53,6 +54,8 @@ export function WizardShell() {
       durationMs: duration.minutes * 60 * 1000,
       seat,
       passengerName: passengerName || "FOCUS PILOT",
+      breakIntervalMinutes,
+      breakDurationMinutes,
     });
     router.push("/focus");
   }

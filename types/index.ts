@@ -57,6 +57,9 @@ export interface FlightSession {
   passengerName: string;
   status: SessionStatus;
   xpEarned?: number;
+  // Pomodoro mola ayarları (0 = mola yok)
+  breakIntervalMinutes: number;
+  breakDurationMinutes: number;
 }
 
 // ─── User / Gamification ──────────────────────────────────────────────────────
