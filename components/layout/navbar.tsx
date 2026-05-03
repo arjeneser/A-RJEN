@@ -531,30 +531,28 @@ export function Navbar() {
       {/* ── Çıkış Onay Modalı ───────────────────────────────────────────── */}
       <AnimatePresence>
         {logoutConfirm && (
-          <>
-            {/* Backdrop */}
+          <motion.div
+            key="logout-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center"
+            onClick={() => setLogoutConfirm(false)}
+          >
+            {/* Modal — tıklama olayının yayılmasını durdur */}
             <motion.div
-              key="logout-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
-              onClick={() => setLogoutConfirm(false)}
-            />
-            {/* Modal */}
-            <motion.div
-              key="logout-modal"
-              initial={{ opacity: 0, scale: 0.9, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 16 }}
+              initial={{ scale: 0.9, y: 16, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 16, opacity: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 28 }}
-              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[61] w-[280px] rounded-3xl p-6 flex flex-col items-center gap-4"
+              className="w-[280px] rounded-3xl p-6 flex flex-col items-center gap-4 mx-4"
               style={{
                 background: "linear-gradient(135deg, #0D1B2A 0%, #070918 100%)",
                 border: "1px solid rgba(239,68,68,0.25)",
-                boxShadow: "0 24px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(239,68,68,0.1)",
+                boxShadow: "0 24px 60px rgba(0,0,0,0.7)",
               }}
+              onClick={(e) => e.stopPropagation()}
             >
               <div
                 className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl"
@@ -578,14 +576,14 @@ export function Navbar() {
                 </button>
                 <button
                   onClick={() => { setLogoutConfirm(false); handleLogout(); }}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90"
                   style={{ background: "rgba(239,68,68,0.2)", border: "1px solid rgba(239,68,68,0.35)", color: "#F87171" }}
                 >
                   Çıkış Yap
                 </button>
               </div>
             </motion.div>
-          </>
+          </motion.div>
         )}
       </AnimatePresence>
 
