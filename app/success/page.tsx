@@ -44,7 +44,8 @@ export default function SuccessPage() {
     if (!session || recordedRef.current) return;
     if (
       session.status === "completed" ||
-      session.status === "running" // completed in bg, still "running" in store edge case
+      session.status === "running" ||  // completed in bg, still "running" in store edge case
+      session.status === "paused"       // timer expired while paused (e.g. mobile tab in bg)
     ) {
       // Aynı uçuş daha önce kaydedilmişse atla (sayfa tekrar mount edilse bile)
       const storageKey = `airjen_recorded_${session.startTime}`;

@@ -2484,16 +2484,15 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                   })()}
 
                   {/* Tam Profili Aç butonu */}
-                  <Link href={`/profile/${activeFriend}`}>
-                    <button
-                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95"
-                      style={{
-                        background: "linear-gradient(135deg, rgba(14,165,233,0.18), rgba(109,40,217,0.18))",
-                        border: "1px solid rgba(139,92,246,0.3)",
-                      }}
-                    >
-                      Tam Profili Aç <span className="text-base">→</span>
-                    </button>
+                  <Link
+                    href={`/profile/${activeFriend}`}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(14,165,233,0.18), rgba(109,40,217,0.18))",
+                      border: "1px solid rgba(139,92,246,0.3)",
+                    }}
+                  >
+                    Tam Profili Aç <span className="text-base">→</span>
                   </Link>
 
                   {/* Uçuş detay istatistikleri */}
