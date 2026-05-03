@@ -902,17 +902,6 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                   >
                     👤
                   </button>
-                  <button
-                    onClick={() => openPropose(activeFriend!)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90"
-                    style={{
-                      background: "linear-gradient(135deg, #7C3AED, #5B21B6)",
-                      boxShadow: "0 2px 10px rgba(124,58,237,0.3)",
-                    }}
-                    title="Uçuş Teklif Et"
-                  >
-                    ✈ Teklif Et
-                  </button>
                 </div>
               )}
               {view === "group" && activeGroup && (
@@ -1770,20 +1759,6 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                     className="px-3 py-3 flex gap-2 items-center shrink-0"
                     style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
                   >
-                    {/* Flight card share button */}
-                    {activeSession && !isRecording && !recordedPreview && (
-                      <button
-                        onClick={handleSendFlightCard}
-                        className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all hover:opacity-80 active:scale-90"
-                        style={{
-                          background: "rgba(124,58,237,0.15)",
-                          border: "1px solid rgba(124,58,237,0.3)",
-                        }}
-                        title="Uçuşumu Paylaş"
-                      >
-                        <span className="text-sm">✈</span>
-                      </button>
-                    )}
 
                     {/* Kayıt modu — waveform göster */}
                     {isRecording && (
@@ -1862,7 +1837,12 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                         }}
                         title="Sesli Mesaj"
                       >
-                        🎤
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
+                          <rect x="9" y="2" width="6" height="12" rx="3" />
+                          <path d="M5 10a7 7 0 0 0 14 0" />
+                          <line x1="12" y1="19" x2="12" y2="22" />
+                          <line x1="9" y1="22" x2="15" y2="22" />
+                        </svg>
                       </button>
                     )}
 
