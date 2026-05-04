@@ -734,9 +734,8 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
       onClose();
       router.push(`/lobby/${invite.lobbyId}`);
     } else {
-      // Tekli davet — doğrudan uçuşa başla
-      joinFlight(invite.departure, invite.destination);
-      setDuration(invite.durationOption);
+      // Tekli davet — süre kilitli şekilde uçuşa başla
+      joinFlight(invite.departure, invite.destination, invite.durationOption);
       router.push("/new-flight");
       onClose();
     }

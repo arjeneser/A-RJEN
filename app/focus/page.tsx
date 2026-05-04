@@ -208,6 +208,14 @@ export default function FocusPage() {
   const breakIntervalMinutes = session.breakIntervalMinutes ?? 0;
   const breakDurationMinutes = session.breakDurationMinutes ?? 0;
 
+  // Aynı rotada uçanlar → tek uçakta göster; farklı rotadakiler → ayrı uçak
+  const crewmates        = otherFlights
+    .filter((f) => f.departure.id === departure.id && f.destination.id === destination.id)
+    .map((f) => f.username);
+  const differentRoutes  = otherFlights.filter(
+    (f) => !(f.departure.id === departure.id && f.destination.id === destination.id)
+  );
+
   const percent = Math.round(progress * 100);
 
   // Kalan mola süresini göstermek için (bilgi amaçlı)
@@ -232,7 +240,7 @@ export default function FocusPage() {
 
         {/* World Map */}
         <div className="absolute inset-0 pointer-events-none">
-          <WorldMap departure={departure} destination={destination} progress={progress} otherFlights={otherFlights} />
+          <WorldMap departure={departure} destination={destination} progress={progress} otherFlights={differentRoutes} crewmates={crewmates} />
         </div>
 
         {/* Vignette */}

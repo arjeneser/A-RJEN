@@ -13,18 +13,20 @@ interface WorldMapProps {
   destination: City;
   progress: number;
   otherFlights?: LiveFlight[];
+  /** Aynı rotada uçan arkadaşların kullanıcı adları */
+  crewmates?: string[];
 }
 
-export function WorldMap({ departure, destination, progress, otherFlights = [] }: WorldMapProps) {
-  const containerRef    = useRef<HTMLDivElement>(null);
-  const mapRef          = useRef<maplibregl.Map | null>(null);
-  const markerRef       = useRef<maplibregl.Marker | null>(null);
-  const planeElRef      = useRef<HTMLDivElement | null>(null);
-  const initRef         = useRef(false);
-  const mapLoadedRef    = useRef(false);
-  // otherFlights'ı ref'te de tut — map load sonrası işlenebilsin
-  const otherFlightsRef = useRef<LiveFlight[]>([]);
-  const otherMarkersRef = useRef<Map<string, { marker: maplibregl.Marker; innerEl: HTMLDivElement }>>(new Map());
+export function WorldMap({ departure, destination, progress, otherFlights = [], crewmates = [] }: WorldMapProps) {
+  const containerRef     = useRef<HTMLDivElement>(null);
+  const mapRef           = useRef<maplibregl.Map | null>(null);
+  const markerRef        = useRef<maplibregl.Marker | null>(null);
+  const planeElRef       = useRef<HTMLDivElement | null>(null);
+  const crewBadgeElRef   = useRef<HTMLDivElement | null>(null);
+  const initRef          = useRef(false);
+  const mapLoadedRef     = useRef(false);
+  const otherFlightsRef  = useRef<LiveFlight[]>([]);
+  const otherMarkersRef  = useRef<Map<string, { marker: maplibregl.Marker; innerEl: HTMLDivElement }>>(new Map());
 
   const t        = Math.max(0, Math.min(1, progress));
   const planePos = greatCircleInterpolate(departure, destination, t);
@@ -180,7 +182,28 @@ export function WorldMap({ departure, destination, progress, otherFlights = [] }
 
       // Kendi uçak
       const outerEl = document.createElement("div");
-      outerEl.style.cssText = "width:72px;height:72px;background:transparent;";
+      outerEl.style.cssText = "width:72px;height:72px;background:transparent;position:relative;";
+
+      // Crew badge — hover'da görünür
+      const crewBadge = document.createElement("div");
+      crewBadge.style.cssText = [
+        "position:absolute;bottom:76px;left:50%;transform:translateX(-50%);",
+        "background:rgba(10,14,40,0.95);border:1px solid rgba(139,92,246,0.5);",
+        "border-radius:12px;padding:5px 10px;white-space:nowrap;",
+        "pointer-events:none;display:none;z-index:20;",
+        "box-shadow:0 4px 16px rgba(0,0,0,0.7);",
+      ].join("");
+      crewBadgeElRef.current = crewBadge;
+      outerEl.appendChild(crewBadge);
+
+      outerEl.addEventListener("mouseenter", () => {
+        if (crewBadgeElRef.current && crewBadgeElRef.current.dataset.count !== "0")
+          crewBadgeElRef.current.style.display = "block";
+      });
+      outerEl.addEventListener("mouseleave", () => {
+        if (crewBadgeElRef.current) crewBadgeElRef.current.style.display = "none";
+      });
+
       const innerEl = document.createElement("div");
       innerEl.style.cssText = `width:72px;height:72px;background:transparent;transform:rotate(${bearing + 45}deg);transition:transform 0.4s ease;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.7));`;
       innerEl.innerHTML = `<img src="/airplane-top.png" style="width:100%;height:100%;object-fit:contain;display:block;mix-blend-mode:multiply;" />`;
@@ -228,6 +251,22 @@ export function WorldMap({ departure, destination, progress, otherFlights = [] }
     applyOtherFlights(otherFlights);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [otherFlights]);
+
+  // ── Aynı rotadaki katılımcıları badge'e yaz ───────────────────────────────
+  useEffect(() => {
+    const badge = crewBadgeElRef.current;
+    if (!badge) return;
+    badge.dataset.count = String(crewmates.length);
+    if (crewmates.length === 0) {
+      badge.style.display = "none";
+      badge.innerHTML = "";
+    } else {
+      const names = crewmates
+        .map((u) => `<span style="display:inline-flex;align-items:center;gap:4px;"><span style="width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#4C1D95,#7C3AED);display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:white;">${u[0]?.toUpperCase() ?? "?"}</span><span style="color:#E2E8F0;font-size:11px;font-weight:600;font-family:system-ui;">${u}</span></span>`)
+        .join(`<span style="color:#475569;margin:0 4px;">·</span>`);
+      badge.innerHTML = `<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:13px;">👥</span><div style="display:flex;align-items:center;gap:6px;">${names}</div></div>`;
+    }
+  }, [crewmates]);
 
   return <div ref={containerRef} className="w-full h-full" />;
 }

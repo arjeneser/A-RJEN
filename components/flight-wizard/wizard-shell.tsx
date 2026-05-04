@@ -78,7 +78,9 @@ export function WizardShell() {
             👥 Arkadaşınla Uç
           </span>
           <span className="text-xs text-slate-400">
-            {departure.name} → {destination.name} güzergahı seçildi · Süre seç ve uçuşa katıl!
+            {departure.name} → {destination.name} güzergahı seçildi
+            {duration && <span className="text-purple-300 font-semibold"> · {duration.label}</span>}
+            {duration ? " · Koltuk seç ve uçuşa katıl!" : " · Süre seç ve uçuşa katıl!"}
           </span>
         </motion.div>
       )}

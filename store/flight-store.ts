@@ -32,8 +32,8 @@ interface FlightSetupState {
   setBreakSettings: (intervalMinutes: number, durationMinutes: number) => void;
   /** Continue journey from arrived destination — skips departure step */
   continueJourney: (fromCity: City, passengerName: string) => void;
-  /** Join a friend's flight — pre-fills departure + destination, goes to duration step */
-  joinFlight: (departure: City, destination: City) => void;
+  /** Join a friend's flight — pre-fills departure + destination + duration (locked) */
+  joinFlight: (departure: City, destination: City, durationOption?: FlightDurationOption) => void;
   reset: () => void;
 }
 
@@ -81,12 +81,12 @@ export const useFlightSetup = create<FlightSetupState>((set) => ({
       journeyCities: [...s.journeyCities, fromCity],
     })),
 
-  joinFlight: (departure, destination) =>
+  joinFlight: (departure, destination, durationOption) =>
     set({
-      step: 2, // user picks duration, departure + destination pre-set
+      step: durationOption ? 4 : 2, // süre kilitliyse direkt koltuk seçimine
       departure,
       destination,
-      duration: null,
+      duration: durationOption ?? null,
       seat: null,
       isContinuation: false,
       lockedDestination: true,
