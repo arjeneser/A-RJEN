@@ -71,6 +71,12 @@ export default function FocusPage() {
 
   useEffect(() => { setMounted(true); }, []);
 
+  // ── Weather (session null olsa da hook her zaman çalışmalı) ──────────────
+  const { departure: depWeather, destination: dstWeather } = useWeatherPair(
+    session?.departure,
+    session?.destination
+  );
+
   // ── Timer ─────────────────────────────────────────────────────────────────
   const onComplete = useCallback(() => {
     if (hasCompletedRef.current) return;
@@ -202,8 +208,6 @@ export default function FocusPage() {
   const breakIntervalMinutes = session.breakIntervalMinutes ?? 0;
   const breakDurationMinutes = session.breakDurationMinutes ?? 0;
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { departure: depWeather, destination: dstWeather } = useWeatherPair(departure, destination);
   const percent = Math.round(progress * 100);
 
   // Kalan mola süresini göstermek için (bilgi amaçlı)
