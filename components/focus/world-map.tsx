@@ -136,8 +136,8 @@ export function WorldMap({ departure, destination, progress, otherFlights = [], 
         layers: [{ id: "carto-voyager-layer", type: "raster", source: "carto-voyager" }],
       },
       center: [midPos.lng, midPos.lat],
-      zoom: 3,            // ← zoom 10 → 3: rota tamamı görünsün, az tile
-      maxZoom: 5,         // ← yakınlaşmayı sınırla
+      zoom: 4,            // ← zoom 10 → 4: rota tamamı görünsün, az tile
+      maxZoom: 6,         // ← yakınlaşmayı sınırla
       bearing: 0,
       pitch: 0,
       interactive: false,
