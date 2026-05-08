@@ -352,7 +352,7 @@ export default function FocusPage() {
 
           {/* Mola yaklaşıyor uyarısı */}
           <AnimatePresence>
-            {breakWarning && !isPaused && (
+            {breakWarning && !isPaused && !breakModalOpen && (
               <motion.div
                 key="break-warning"
                 initial={{ opacity: 0, y: -8, scale: 0.95 }}
@@ -369,6 +369,42 @@ export default function FocusPage() {
                 {minsUntilBreak !== null && minsUntilBreak > 0 && (
                   <span className="text-yellow-500/70">· {minsUntilBreak} dk</span>
                 )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Mola zamanı — küçük pill (ekranı kararlatmaz) */}
+          <AnimatePresence>
+            {breakModalOpen && (
+              <motion.div
+                key="break-pill"
+                initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold"
+                style={{
+                  background: "rgba(245,158,11,0.15)",
+                  border: "1px solid rgba(245,158,11,0.4)",
+                  color: "#FCD34D",
+                  backdropFilter: "blur(8px)",
+                }}
+              >
+                <span>☕</span>
+                <span>Mola zamanı{breakDurationMinutes > 0 ? ` · ${breakDurationMinutes} dk` : ""}!</span>
+                <button
+                  onClick={handleTakeBreak}
+                  className="px-2 py-0.5 rounded-full text-[11px] font-bold transition-all hover:opacity-90"
+                  style={{ background: "rgba(245,158,11,0.35)", color: "#FCD34D" }}
+                >
+                  Ver
+                </button>
+                <button
+                  onClick={handleSkipBreak}
+                  className="px-2 py-0.5 rounded-full text-[11px] font-medium transition-all"
+                  style={{ background: "rgba(255,255,255,0.08)", color: "#94A3B8" }}
+                >
+                  Atla
+                </button>
               </motion.div>
             )}
           </AnimatePresence>
@@ -514,73 +550,6 @@ export default function FocusPage() {
         </div>
       </div>
 
-      {/* ── Mola Sorusu Modal ─────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {breakModalOpen && (
-          <motion.div
-            key="break-modal-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[65] flex items-center justify-center"
-            style={{ background: "rgba(7,9,24,0.7)", backdropFilter: "blur(6px)" }}
-          >
-            <motion.div
-              initial={{ scale: 0.88, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.88, y: 20 }}
-              transition={{ type: "spring", stiffness: 340, damping: 26 }}
-              className="flex flex-col items-center gap-4 px-7 py-8 rounded-3xl mx-4"
-              style={{
-                background: "linear-gradient(160deg, rgba(245,158,11,0.1) 0%, rgba(7,9,24,0.97) 100%)",
-                border: "1px solid rgba(245,158,11,0.3)",
-                boxShadow: "0 0 60px rgba(245,158,11,0.1), 0 24px 64px rgba(0,0,0,0.6)",
-                minWidth: 280, maxWidth: 340,
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div
-                className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
-                style={{ background: "linear-gradient(135deg, #D97706, #92400E)", boxShadow: "0 8px 24px rgba(217,119,6,0.4)" }}
-              >
-                ☕
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-bold text-white mb-1" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
-                  Mola zamanı!
-                </div>
-                <div className="text-sm text-slate-400 leading-relaxed">
-                  {breakIntervalMinutes} dakika geçti.{" "}
-                  {breakDurationMinutes > 0 && (
-                    <span>{breakDurationMinutes} dk mola vermek ister misin?</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2 w-full">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={handleTakeBreak}
-                  className="w-full py-3.5 rounded-2xl font-bold text-white text-sm"
-                  style={{ background: "linear-gradient(135deg, #D97706, #B45309)", boxShadow: "0 4px 16px rgba(217,119,6,0.35)" }}
-                >
-                  ☕ Evet, {breakDurationMinutes > 0 ? `${breakDurationMinutes} dk ` : ""}mola ver
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={handleSkipBreak}
-                  className="w-full py-3 rounded-2xl text-sm font-medium text-slate-400 hover:text-white transition-colors"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
-                >
-                  Hayır, devam ediyorum
-                </motion.button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* ── Mola (planlı) Overlay ─────────────────────────────────────────────── */}
       <AnimatePresence>
