@@ -209,9 +209,10 @@ export default function FocusPage() {
   const breakDurationMinutes = session.breakDurationMinutes ?? 0;
 
   // Aynı rotada uçanlar → tek uçakta göster; farklı rotadakiler → ayrı uçak
-  const crewmates        = otherFlights
-    .filter((f) => f.departure.id === departure.id && f.destination.id === destination.id)
-    .map((f) => f.username);
+  const crewFlights      = otherFlights.filter(
+    (f) => f.departure.id === departure.id && f.destination.id === destination.id
+  );
+  const crewmates        = crewFlights.map((f) => f.username);
   const differentRoutes  = otherFlights.filter(
     (f) => !(f.departure.id === departure.id && f.destination.id === destination.id)
   );
@@ -405,6 +406,45 @@ export default function FocusPage() {
               </div>
             )}
           </div>
+
+          {/* Crewmate ilerleme şeridi */}
+          <AnimatePresence>
+            {crewFlights.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                className="flex items-center gap-2 mb-3 px-3 py-2.5 rounded-2xl flex-wrap"
+                style={{
+                  background: "rgba(124,58,237,0.07)",
+                  border: "1px solid rgba(124,58,237,0.2)",
+                  backdropFilter: "blur(12px)",
+                }}
+              >
+                <span className="text-[10px] text-violet-400 font-semibold uppercase tracking-wider shrink-0">
+                  ✈ Mürettebat
+                </span>
+                {crewFlights.map((f) => {
+                  const pct = Math.round(f.progress * 100);
+                  return (
+                    <div key={f.username} className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-slate-300 font-medium">{f.username}</span>
+                      <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
+                        <div
+                          className="h-full rounded-full transition-all duration-1000"
+                          style={{
+                            width: `${pct}%`,
+                            background: "linear-gradient(90deg, #7C3AED, #3B82F6)",
+                          }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-slate-500">{pct}%</span>
+                    </div>
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Stats row */}
           <div

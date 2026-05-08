@@ -1,6 +1,14 @@
-import { ref, set, update, onValue, push, serverTimestamp } from "firebase/database";
+import { ref, set, update, onValue, push } from "firebase/database";
 import { getDb } from "./firebase";
 import type { City, FlightDurationOption } from "@/types";
+
+// ─── Lobi sohbet mesajı ────────────────────────────────────────────────────────
+export interface LobbyMessage {
+  id: string;
+  username: string;
+  text: string;
+  timestamp: number;
+}
 
 export interface LobbyMember {
   joinedAt: number;
@@ -128,5 +136,39 @@ export function subscribeToLobby(
   const r = ref(db, `lobbies/${lobbyId}`);
   return onValue(r, (snap) => {
     callback(snap.exists() ? (snap.val() as Lobby) : null);
+  });
+}
+
+/** Lobi sohbetine mesaj gönder */
+export async function sendLobbyMessage(
+  lobbyId: string,
+  username: string,
+  text: string
+): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  const msgRef = push(ref(db, `lobbies/${lobbyId}/chat`));
+  await set(msgRef, {
+    id: msgRef.key,
+    username,
+    text: text.trim(),
+    timestamp: Date.now(),
+  });
+}
+
+/** Lobi sohbet mesajlarını gerçek zamanlı dinle */
+export function subscribeToLobbyMessages(
+  lobbyId: string,
+  callback: (messages: LobbyMessage[]) => void
+): () => void {
+  const db = getDb();
+  if (!db) return () => {};
+  const r = ref(db, `lobbies/${lobbyId}/chat`);
+  return onValue(r, (snap) => {
+    const data = snap.val() as Record<string, LobbyMessage> | null;
+    const messages = data
+      ? Object.values(data).sort((a, b) => a.timestamp - b.timestamp)
+      : [];
+    callback(messages);
   });
 }
