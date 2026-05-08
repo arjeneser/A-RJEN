@@ -373,45 +373,48 @@ export default function FocusPage() {
             )}
           </AnimatePresence>
 
-          {/* Mola zamanı — küçük pill (ekranı kararlatmaz) */}
-          <AnimatePresence>
-            {breakModalOpen && (
-              <motion.div
-                key="break-pill"
-                initial={{ opacity: 0, y: -8, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold"
-                style={{
-                  background: "linear-gradient(135deg, rgba(217,119,6,0.55), rgba(180,83,9,0.45))",
-                  border: "1px solid rgba(251,191,36,0.6)",
-                  color: "#FEF3C7",
-                  backdropFilter: "blur(12px)",
-                  boxShadow: "0 0 20px rgba(245,158,11,0.3)",
-                }}
-              >
-                <span className="text-base">☕</span>
-                <span>Mola zamanı{breakDurationMinutes > 0 ? ` · ${breakDurationMinutes} dk` : ""}!</span>
-                <button
-                  onClick={handleTakeBreak}
-                  className="px-3 py-1 rounded-xl text-xs font-bold transition-all hover:opacity-90"
-                  style={{ background: "rgba(255,255,255,0.25)", color: "#FEF3C7" }}
-                >
-                  Ver
-                </button>
-                <button
-                  onClick={handleSkipBreak}
-                  className="px-3 py-1 rounded-xl text-xs font-medium transition-all hover:opacity-80"
-                  style={{ background: "rgba(255,255,255,0.12)", color: "#FDE68A" }}
-                >
-                  Atla
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
       </div>
+
+      {/* ── Mola zamanı pill — fixed, pointer-events-auto, root dışında ─────── */}
+      <AnimatePresence>
+        {breakModalOpen && (
+          <motion.div
+            key="break-pill"
+            initial={{ opacity: 0, y: 12, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.95 }}
+            className="fixed left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 px-5 py-3 rounded-2xl text-sm font-semibold"
+            style={{
+              bottom: "160px",
+              background: "linear-gradient(135deg, rgba(217,119,6,0.75), rgba(180,83,9,0.65))",
+              border: "1px solid rgba(251,191,36,0.7)",
+              color: "#FEF3C7",
+              backdropFilter: "blur(14px)",
+              boxShadow: "0 4px 24px rgba(245,158,11,0.4)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <span className="text-base">☕</span>
+            <span>Mola zamanı{breakDurationMinutes > 0 ? ` · ${breakDurationMinutes} dk` : ""}!</span>
+            <button
+              onClick={handleTakeBreak}
+              className="px-3 py-1 rounded-xl text-xs font-bold transition-all hover:opacity-90 active:scale-95"
+              style={{ background: "rgba(255,255,255,0.28)", color: "#FEF3C7" }}
+            >
+              Ver
+            </button>
+            <button
+              onClick={handleSkipBreak}
+              className="px-3 py-1 rounded-xl text-xs font-medium transition-all hover:opacity-80 active:scale-95"
+              style={{ background: "rgba(255,255,255,0.12)", color: "#FDE68A" }}
+            >
+              Atla
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Bottom Timer Panel ─────────────────────────────────────────────────── */}
       <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-8 pointer-events-none">
