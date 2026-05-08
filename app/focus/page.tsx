@@ -124,13 +124,13 @@ export default function FocusPage() {
     pause();
   }
 
-  // Mola atla (şu andan itibaren 5 dk sonra tekrar sor, o zamana kadar uyarı yok)
+  // Mola atla — bir sonraki mola zamanına kadar (tam interval) bir daha sorma
   function handleSkipBreak() {
-    const newBreak = elapsedMs + 5 * 60 * 1000;
+    const interval = (session?.breakIntervalMinutes ?? 0) * 60 * 1000;
+    const newBreak = elapsedMs + (interval > 0 ? interval : 30 * 60 * 1000);
     setBreakModalOpen(false);
     setBreakWarning(false);
     setNextBreakMs(newBreak);
-    // Yeni break time'a kadar "Mola yaklaşıyor" uyarısını bastır
     suppressWarnUntilRef.current = newBreak;
   }
 
@@ -403,7 +403,7 @@ export default function FocusPage() {
             }}
           >
             <span className="text-base">☕</span>
-            <span>Mola zamanı{breakDurationMinutes > 0 ? ` · ${breakDurationMinutes} dk` : ""}!</span>
+            <span>Ufak bir mola vermek ister misin?{breakDurationMinutes > 0 ? ` · ${breakDurationMinutes} dk` : ""}</span>
             <button
               onClick={handleTakeBreak}
               className="px-3 py-1 rounded-xl text-xs font-bold transition-all hover:opacity-90 active:scale-95"
