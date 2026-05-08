@@ -254,19 +254,19 @@ export default function FocusPage() {
           style={{ background: "rgba(7,9,24,0.35)" }} />
 
         {/* Top HUD */}
-        <div className="relative z-20 p-4 pt-6 flex items-start justify-between pointer-events-auto">
+        <div className="relative z-20 p-3 pt-safe sm:p-4 sm:pt-6 flex items-start justify-between pointer-events-auto gap-2">
           {/* Route chip */}
           <motion.div
             initial={{ opacity: 0, y: -16 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium"
+            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-medium min-w-0 max-w-[55vw] sm:max-w-none"
             style={{ background: "rgba(22,26,53,0.85)", border: "1px solid rgba(255,255,255,0.1)", backdropFilter: "blur(12px)" }}
           >
-            <span>{flagEmoji(departure.countryCode)}</span>
-            <span className="text-white">{departure.name}</span>
-            <span className="text-slate-500 text-xs">→</span>
-            <span>{flagEmoji(destination.countryCode)}</span>
-            <span className="text-white">{destination.name}</span>
+            <span className="shrink-0">{flagEmoji(departure.countryCode)}</span>
+            <span className="text-white truncate">{departure.name}</span>
+            <span className="text-slate-500 text-xs shrink-0">→</span>
+            <span className="shrink-0">{flagEmoji(destination.countryCode)}</span>
+            <span className="text-white truncate">{destination.name}</span>
           </motion.div>
 
           {/* Weather + Abandon */}
@@ -277,7 +277,7 @@ export default function FocusPage() {
                 initial={{ opacity: 0, y: -16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs"
                 style={{ background: "rgba(22,26,53,0.85)", border: "1px solid rgba(255,255,255,0.1)", backdropFilter: "blur(12px)" }}
               >
                 {depWeather.weather && (
@@ -381,13 +381,13 @@ export default function FocusPage() {
       {/* ── Mola zamanı pill — fixed, pointer-events-auto, root dışında ─────── */}
       <AnimatePresence>
         {breakModalOpen && (
-          <div className="fixed left-1/2 -translate-x-1/2 z-[60]" style={{ top: "128px", pointerEvents: "auto" }}>
+          <div className="fixed left-1/2 -translate-x-1/2 z-[60] w-[92vw] sm:w-auto flex justify-center" style={{ top: "118px", pointerEvents: "auto" }}>
           <motion.div
             key="break-pill"
             initial={{ opacity: 0, y: 12, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.95 }}
-            className="flex items-center gap-3 px-5 py-3 rounded-2xl text-sm font-semibold"
+            className="flex items-center gap-2 sm:gap-3 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-xs sm:text-sm font-semibold w-full sm:w-auto justify-center"
             style={{
               background: "linear-gradient(135deg, rgba(217,119,6,0.75), rgba(180,83,9,0.65))",
               border: "1px solid rgba(251,191,36,0.7)",
@@ -419,7 +419,7 @@ export default function FocusPage() {
       </AnimatePresence>
 
       {/* ── Bottom Timer Panel ─────────────────────────────────────────────────── */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-8 pointer-events-none">
+      <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-safe-focus pointer-events-none">
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: "linear-gradient(to top, rgba(7,9,24,1) 0%, rgba(7,9,24,0.85) 60%, transparent 100%)" }} />
 
@@ -456,7 +456,7 @@ export default function FocusPage() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 8 }}
-                className="flex items-center gap-2 mb-3 px-3 py-2.5 rounded-2xl flex-wrap"
+                className="flex items-center gap-2 mb-3 px-3 py-2 sm:py-2.5 rounded-2xl flex-wrap"
                 style={{
                   background: "rgba(124,58,237,0.07)",
                   border: "1px solid rgba(124,58,237,0.2)",
@@ -490,7 +490,7 @@ export default function FocusPage() {
 
           {/* Stats row */}
           <div
-            className="flex items-center justify-between px-6 py-3 rounded-2xl mb-4"
+            className="flex items-center justify-between px-3 sm:px-6 py-2.5 sm:py-3 rounded-2xl mb-3 sm:mb-4"
             style={{ background: "rgba(14,18,42,0.95)", border: "1px solid rgba(255,255,255,0.1)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}
           >
             <div className="text-center">
@@ -515,7 +515,7 @@ export default function FocusPage() {
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
               onClick={isPaused ? (isOnBreak ? handleResumeFromBreak : handleManualResume) : handleManualPause}
-              className="flex-1 max-w-[200px] py-3.5 rounded-2xl font-semibold text-white transition-all"
+              className="flex-1 max-w-[200px] py-3 sm:py-3.5 rounded-2xl font-semibold text-white transition-all"
               style={{
                 background: isPaused
                   ? "linear-gradient(135deg, #22C55E, #16A34A)"

@@ -298,5 +298,5 @@ export function WorldMap({ departure, destination, progress, otherFlights = [], 
     }
   }, [crewmates]);
 
-  return <div ref={containerRef} className="w-full h-full" />;
+  return <div ref={containerRef} className="w-full h-full" style={{ touchAction: "none" }} />;
 }

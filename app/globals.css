@@ -22,6 +22,27 @@
   --error: #EF4444;
 }
 
+/* ─── Mobile / Safe Area ────────────────────────────────────────────────────── */
+@supports (padding: max(0px)) {
+  .pb-safe { padding-bottom: max(1.5rem, env(safe-area-inset-bottom)); }
+  .pt-safe { padding-top:    max(0px,    env(safe-area-inset-top)); }
+  .pl-safe { padding-left:   max(0px,    env(safe-area-inset-left)); }
+  .pr-safe { padding-right:  max(0px,    env(safe-area-inset-right)); }
+
+  /* Focus sayfası bottom panel için tam safe-area */
+  .pb-safe-focus {
+    padding-bottom: max(2rem, calc(env(safe-area-inset-bottom) + 0.5rem));
+  }
+}
+
+/* Dokunma hedefleri — mobilde min 44×44px (Apple HIG) */
+@media (pointer: coarse) {
+  button, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
 /* ─── Base Reset ────────────────────────────────────────────────────────────── */
 * {
   box-sizing: border-box;
