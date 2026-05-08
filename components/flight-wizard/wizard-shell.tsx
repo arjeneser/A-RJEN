@@ -123,6 +123,8 @@ export function WizardShell() {
       <div className="flex items-center gap-2 mb-8">
         {STEPS.map((s) => {
           const isLocked = isContinuation && s.id === 1;
+          // Co-flight: departure(1), duration(2), destination(3) pre-filled from invite
+          const isPreFilled = lockedDestination && !!duration && s.id <= 3 && step >= 4;
           return (
             <div key={s.id} className="flex items-center gap-2 flex-1">
               <div className="flex flex-col items-center">
@@ -131,6 +133,8 @@ export function WizardShell() {
                     flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold border-2 transition-all duration-300
                     ${isLocked
                       ? "bg-slate-800 border-slate-700 text-slate-600"
+                      : isPreFilled
+                      ? "bg-purple-900/40 border-purple-500/50 text-purple-400"
                       : step === s.id
                       ? "bg-brand-sky border-brand-sky text-white scale-110 shadow-sky-glow"
                       : step > s.id
@@ -139,11 +143,12 @@ export function WizardShell() {
                     }
                   `}
                 >
-                  {isLocked ? "🔒" : step > s.id ? "✓" : s.id}
+                  {isLocked ? "🔒" : isPreFilled ? "✈" : step > s.id ? "✓" : s.id}
                 </div>
                 <span
                   className={`text-[10px] mt-1 hidden sm:block transition-colors ${
                     isLocked ? "text-slate-700"
+                    : isPreFilled ? "text-purple-500"
                     : step === s.id ? "text-brand-sky"
                     : step > s.id ? "text-slate-500"
                     : "text-slate-700"

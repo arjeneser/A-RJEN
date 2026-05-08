@@ -23,7 +23,7 @@ export default function SuccessPage() {
   const router = useRouter();
   const { session, clearSession } = useActiveSession();
   const { profile, history, stamps, achievements, recordFlight, addStamp, addAchievements } = useUserStore();
-  const { continueJourney, passengerName, notes } = useFlightSetup();
+  const { continueJourney, passengerName } = useFlightSetup();
   const { currentUsername } = useAuthStore();
   const recordedRef = useRef(false);
   const confettiRef = useRef(false);
@@ -62,7 +62,6 @@ export default function SuccessPage() {
         destinationId: session.destination.id,
         durationMinutes,
         xpEarned,
-        notes: notes || undefined,
       });
       // Passport stamp — only for international flights
       if (session.destination.countryCode !== "TR") {

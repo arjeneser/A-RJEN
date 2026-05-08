@@ -4,6 +4,7 @@ import "./globals.css";
 import { Navbar } from "@/components/layout/navbar";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { NotificationHub } from "@/components/notifications/notification-hub";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -49,9 +50,15 @@ export default function RootLayout({
     <html lang="tr" className={`dark ${inter.variable} ${spaceGrotesk.variable}`}>
       <body className="bg-[#070918] text-[#F8FAFC] antialiased min-h-screen">
         <AuthProvider>
-          <Navbar />
-          <NotificationHub />
-          <main>{children}</main>
+          <ErrorBoundary>
+            <Navbar />
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <main>{children}</main>
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <NotificationHub />
+          </ErrorBoundary>
         </AuthProvider>
       </body>
     </html>

@@ -28,12 +28,32 @@ interface AuthState {
   credentials: Record<string, UserCredential | string>; // string = eski format
   snapshots:   Record<string, UserSnapshot>;
 
-  login:          (username: string, password: string) => LoginResult;
-  register:       (username: string, password: string, securityQuestion: string, securityAnswer: string) => RegisterResult;
+  login:          (username: string, password: string) => Promise<LoginResult>;
+  register:       (username: string, password: string, securityQuestion: string, securityAnswer: string) => Promise<RegisterResult>;
   logout:         () => void;
   setCurrentUser: (username: string | null) => void;
   saveSnapshot:   (username: string, snap: UserSnapshot) => void;
   getSnapshot:    (username: string) => UserSnapshot | null;
+}
+
+// ─── Password hashing ─────────────────────────────────────────────────────────
+
+/** SHA-256 hash — 64-char hex string */
+async function hashPassword(password: string): Promise<string> {
+  if (typeof window === "undefined" || !crypto?.subtle) {
+    // SSR fallback: plain text (should never reach production login)
+    return password;
+  }
+  const data = new TextEncoder().encode(password);
+  const buf  = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/** Stored hash? 64-char lowercase hex */
+function isHash(s: string): boolean {
+  return /^[0-9a-f]{64}$/.test(s);
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -46,28 +66,46 @@ export const useAuthStore = create<AuthState>()(
       snapshots: {},
 
       // ── login ──────────────────────────────────────────────────────────────
-      login: (username, password) => {
+      login: async (username, password) => {
         const { credentials } = get();
         const key = username.trim().toLowerCase();
         const cred = credentials[key];
         if (!cred) return "not_found";
         // Eski format: string — yeni format: nesne
         const storedPw = typeof cred === "string" ? cred : cred.password;
-        if (storedPw !== password) return "wrong_password";
+
+        if (isHash(storedPw)) {
+          // Yeni format — hash karşılaştır
+          const hashed = await hashPassword(password);
+          if (storedPw !== hashed) return "wrong_password";
+        } else {
+          // Eski format (plain text) — doğrudan karşılaştır, ardından hash'e yükselt
+          if (storedPw !== password) return "wrong_password";
+          const hashed = await hashPassword(password);
+          const upgraded =
+            typeof cred === "string"
+              ? hashed
+              : { ...cred, password: hashed };
+          set((s) => ({
+            credentials: { ...s.credentials, [key]: upgraded },
+          }));
+        }
+
         set({ currentUsername: key });
         return "ok";
       },
 
       // ── register ───────────────────────────────────────────────────────────
-      register: (username, password, securityQuestion, securityAnswer) => {
+      register: async (username, password, securityQuestion, securityAnswer) => {
         const { credentials } = get();
         const key = username.trim().toLowerCase();
         if (credentials[key]) return "taken";
+        const hashed = await hashPassword(password);
         set((s) => ({
           credentials: {
             ...s.credentials,
             [key]: {
-              password,
+              password: hashed,
               securityQuestion,
               securityAnswer: securityAnswer.trim().toLowerCase(),
             },

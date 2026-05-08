@@ -25,7 +25,10 @@ export function StreakBanner() {
       applyStreakFreeze();
       setFreezeUsed(true);
     } else {
-      // Önce satın al, sonra uygula
+      // 20 XP harcanacak — onay iste
+      if (profile.totalXP < 20) return;
+      const ok = window.confirm(`20 XP harcayarak bugünkü seriyi dondurmak istiyor musunuz?\nMevcut XP: ${profile.totalXP}`);
+      if (!ok) return;
       const bought = buyStreakFreeze();
       if (bought) {
         applyStreakFreeze();

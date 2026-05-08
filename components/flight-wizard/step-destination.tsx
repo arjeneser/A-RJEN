@@ -109,7 +109,9 @@ export function StepDestination() {
 
   if (!departure || !duration) return null;
 
-  const destinations = getReachableDestinations(departure, duration);
+  const destinations = getReachableDestinations(departure, duration).filter(
+    (c) => c.id !== departure.id
+  );
 
   const distKm = destination
     ? Math.round(haversineKm(departure.lat, departure.lng, destination.lat, destination.lng))

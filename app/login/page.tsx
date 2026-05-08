@@ -49,7 +49,7 @@ export default function LoginPage() {
     if (currentUsername) router.replace("/");
   }, [currentUsername, router]);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
 
@@ -63,7 +63,9 @@ export default function LoginPage() {
     if (mode === "register") {
       if (p !== confirm) { setError("Şifreler eşleşmiyor."); return; }
       if (!securityAnswer.trim()) { setError("Güvenlik sorusu cevabı gerekli."); return; }
-      const res = register(u, p, securityQuestion, securityAnswer);
+      setLoading(true);
+      const res = await register(u, p, securityQuestion, securityAnswer);
+      setLoading(false);
       if (res === "taken") { setError("Bu kullanıcı adı zaten alınmış."); return; }
       // Yeni kayıt → her zaman kalıcı oturum
       localStorage.setItem("airjen-session", u.trim().toLowerCase());
@@ -74,25 +76,24 @@ export default function LoginPage() {
 
     // Login
     setLoading(true);
-    setTimeout(() => {
-      const res = login(u, p);
-      setLoading(false);
-      if (res === "not_found")      { setError("Kullanıcı bulunamadı."); return; }
-      if (res === "wrong_password") { setError("Şifre hatalı."); return; }
+    await new Promise((r) => setTimeout(r, 300)); // UX delay
+    const res = await login(u, p);
+    setLoading(false);
+    if (res === "not_found")      { setError("Kullanıcı bulunamadı."); return; }
+    if (res === "wrong_password") { setError("Şifre hatalı."); return; }
 
-      // Beni hatırla: localStorage (kalıcı) vs sessionStorage (sekme kapanınca sona erer)
-      const key = u.trim().toLowerCase();
-      if (remember) {
-        localStorage.setItem("airjen-session", key);
-        localStorage.setItem("airjen-remember", u);
-        sessionStorage.removeItem("airjen-session");
-      } else {
-        sessionStorage.setItem("airjen-session", key);
-        localStorage.removeItem("airjen-session");
-        localStorage.removeItem("airjen-remember");
-      }
-      router.replace("/");
-    }, 300);
+    // Beni hatırla: localStorage (kalıcı) vs sessionStorage (sekme kapanınca sona erer)
+    const key = u.trim().toLowerCase();
+    if (remember) {
+      localStorage.setItem("airjen-session", key);
+      localStorage.setItem("airjen-remember", u);
+      sessionStorage.removeItem("airjen-session");
+    } else {
+      sessionStorage.setItem("airjen-session", key);
+      localStorage.removeItem("airjen-session");
+      localStorage.removeItem("airjen-remember");
+    }
+    router.replace("/");
   }
 
   function switchMode(m: Mode) {

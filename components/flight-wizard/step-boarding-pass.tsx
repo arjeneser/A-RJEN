@@ -162,11 +162,16 @@ export function StepBoardingPass() {
         </div>
 
         {/* Weather row */}
-        {(depWeather.weather || dstWeather.weather) && (
+        {(depWeather.loading || dstWeather.loading || depWeather.weather || dstWeather.weather) && (
           <div className="px-6 py-3 flex items-center justify-between">
             {/* Departure weather */}
             <div className="flex items-center gap-1.5">
-              {depWeather.weather ? (
+              {depWeather.loading ? (
+                <div className="flex items-center gap-1.5 animate-pulse">
+                  <div className="w-6 h-6 rounded bg-white/10" />
+                  <div className="w-10 h-3 rounded bg-white/10" />
+                </div>
+              ) : depWeather.weather ? (
                 <>
                   <span className="text-lg">{depWeather.weather.icon}</span>
                   <span className="text-xs font-semibold text-white">{depWeather.weather.temp}°C</span>
@@ -179,7 +184,12 @@ export function StepBoardingPass() {
             <span className="text-[10px] text-slate-600 tracking-widest uppercase">Hava Durumu</span>
             {/* Destination weather */}
             <div className="flex items-center gap-1.5 text-right">
-              {dstWeather.weather ? (
+              {dstWeather.loading ? (
+                <div className="flex items-center gap-1.5 animate-pulse">
+                  <div className="w-10 h-3 rounded bg-white/10" />
+                  <div className="w-6 h-6 rounded bg-white/10" />
+                </div>
+              ) : dstWeather.weather ? (
                 <>
                   <span className="text-[10px] text-slate-500">{dstWeather.weather.label}</span>
                   <span className="text-xs font-semibold text-white">{dstWeather.weather.temp}°C</span>

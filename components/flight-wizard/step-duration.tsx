@@ -102,7 +102,11 @@ export function StepDuration() {
     breakIntervalMinutes, breakDurationMinutes, setBreakSettings,
   } = useFlightSetup();
 
-  const [breakEnabled, setBreakEnabled] = useState(true);
+  const [breakEnabled, setBreakEnabled] = useState(() => {
+    // Only enable breaks if duration is already set and >= 60 min
+    if (!duration) return false;
+    return duration.minutes > 30;
+  });
 
   // Süre değişince mola varsayılanlarını güncelle
   useEffect(() => {
