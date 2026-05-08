@@ -381,27 +381,28 @@ export default function FocusPage() {
                 initial={{ opacity: 0, y: -8, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold"
+                className="flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold"
                 style={{
-                  background: "rgba(245,158,11,0.15)",
-                  border: "1px solid rgba(245,158,11,0.4)",
-                  color: "#FCD34D",
-                  backdropFilter: "blur(8px)",
+                  background: "linear-gradient(135deg, rgba(217,119,6,0.55), rgba(180,83,9,0.45))",
+                  border: "1px solid rgba(251,191,36,0.6)",
+                  color: "#FEF3C7",
+                  backdropFilter: "blur(12px)",
+                  boxShadow: "0 0 20px rgba(245,158,11,0.3)",
                 }}
               >
-                <span>☕</span>
+                <span className="text-base">☕</span>
                 <span>Mola zamanı{breakDurationMinutes > 0 ? ` · ${breakDurationMinutes} dk` : ""}!</span>
                 <button
                   onClick={handleTakeBreak}
-                  className="px-2 py-0.5 rounded-full text-[11px] font-bold transition-all hover:opacity-90"
-                  style={{ background: "rgba(245,158,11,0.35)", color: "#FCD34D" }}
+                  className="px-3 py-1 rounded-xl text-xs font-bold transition-all hover:opacity-90"
+                  style={{ background: "rgba(255,255,255,0.25)", color: "#FEF3C7" }}
                 >
                   Ver
                 </button>
                 <button
                   onClick={handleSkipBreak}
-                  className="px-2 py-0.5 rounded-full text-[11px] font-medium transition-all"
-                  style={{ background: "rgba(255,255,255,0.08)", color: "#94A3B8" }}
+                  className="px-3 py-1 rounded-xl text-xs font-medium transition-all hover:opacity-80"
+                  style={{ background: "rgba(255,255,255,0.12)", color: "#FDE68A" }}
                 >
                   Atla
                 </button>
