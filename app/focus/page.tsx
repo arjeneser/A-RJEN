@@ -387,7 +387,7 @@ export default function FocusPage() {
             exit={{ opacity: 0, y: 12, scale: 0.95 }}
             className="fixed left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 px-5 py-3 rounded-2xl text-sm font-semibold"
             style={{
-              bottom: "160px",
+              top: "128px",
               background: "linear-gradient(135deg, rgba(217,119,6,0.75), rgba(180,83,9,0.65))",
               border: "1px solid rgba(251,191,36,0.7)",
               color: "#FEF3C7",
