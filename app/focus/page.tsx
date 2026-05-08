@@ -121,11 +121,12 @@ export default function FocusPage() {
     pause();
   }
 
-  // Mola atla (5 dk sonra tekrar sor)
+  // Mola atla (şu andan itibaren 5 dk sonra tekrar sor)
   function handleSkipBreak() {
     setBreakModalOpen(false);
     setBreakWarning(false);
-    setNextBreakMs((prev) => (prev !== null ? prev + 5 * 60 * 1000 : null));
+    // elapsedMs bazlı hesapla — prev bazlı hesap elapsed zaten geçmişse anında tekrar açar
+    setNextBreakMs(elapsedMs + 5 * 60 * 1000);
   }
 
   // Mola bitti — devam et
@@ -380,7 +381,7 @@ export default function FocusPage() {
       {/* ── Mola zamanı pill — fixed, pointer-events-auto, root dışında ─────── */}
       <AnimatePresence>
         {breakModalOpen && (
-          <div className="fixed left-1/2 -translate-x-1/2 z-[60]" style={{ top: "128px" }}>
+          <div className="fixed left-1/2 -translate-x-1/2 z-[60]" style={{ top: "128px", pointerEvents: "auto" }}>
           <motion.div
             key="break-pill"
             initial={{ opacity: 0, y: 12, scale: 0.95 }}
