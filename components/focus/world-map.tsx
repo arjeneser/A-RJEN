@@ -10,7 +10,7 @@ const OTHER_COLORS = ["#F97316", "#A855F7", "#22C55E", "#EC4899", "#EAB308"];
 
 // Güncelleme aralıkları (ms)
 const TRAIL_UPDATE_INTERVAL  = 20_000; // trail her 20 saniyede bir
-const CAMERA_UPDATE_INTERVAL = 10_000; // kamera her 10 saniyede bir
+const CAMERA_UPDATE_INTERVAL = 30_000; // kamera her 30 saniyede bir
 
 interface WorldMapProps {
   departure: City;
@@ -136,8 +136,8 @@ export function WorldMap({ departure, destination, progress, otherFlights = [], 
         layers: [{ id: "carto-voyager-layer", type: "raster", source: "carto-voyager" }],
       },
       center: [midPos.lng, midPos.lat],
-      zoom: 5,            // uçak hareketi görünsün
-      maxZoom: 7,         // ← yakınlaşmayı sınırla
+      zoom: 4,            // ← zoom 10 → 4: rota tamamı görünsün, az tile
+      maxZoom: 6,         // ← yakınlaşmayı sınırla
       bearing: 0,
       pitch: 0,
       interactive: false,
