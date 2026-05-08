@@ -68,6 +68,8 @@ export default function FocusPage() {
   const [breakModalOpen, setBreakModalOpen] = useState(false); // "Mola vermek ister misin?"
   const [isOnBreak, setIsOnBreak]           = useState(false); // planlı mola
   const breakInitRef                        = useRef(false);
+  // Atla sonrası uyarıyı bastır — break zamanına kadar tekrar gösterme
+  const suppressWarnUntilRef               = useRef<number>(0);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -104,7 +106,8 @@ export default function FocusPage() {
 
     const warnAt = nextBreakMs - 4 * 60 * 1000; // 4dk önce
 
-    if (elapsedMs >= warnAt && !breakWarning) {
+    // Atla sonrası: suppressWarnUntilRef doluysa uyarıyı bastır
+    if (elapsedMs >= warnAt && !breakWarning && elapsedMs >= suppressWarnUntilRef.current) {
       setBreakWarning(true);
     }
     if (elapsedMs >= nextBreakMs) {
@@ -121,12 +124,14 @@ export default function FocusPage() {
     pause();
   }
 
-  // Mola atla (şu andan itibaren 5 dk sonra tekrar sor)
+  // Mola atla (şu andan itibaren 5 dk sonra tekrar sor, o zamana kadar uyarı yok)
   function handleSkipBreak() {
+    const newBreak = elapsedMs + 5 * 60 * 1000;
     setBreakModalOpen(false);
     setBreakWarning(false);
-    // elapsedMs bazlı hesapla — prev bazlı hesap elapsed zaten geçmişse anında tekrar açar
-    setNextBreakMs(elapsedMs + 5 * 60 * 1000);
+    setNextBreakMs(newBreak);
+    // Yeni break time'a kadar "Mola yaklaşıyor" uyarısını bastır
+    suppressWarnUntilRef.current = newBreak;
   }
 
   // Mola bitti — devam et
