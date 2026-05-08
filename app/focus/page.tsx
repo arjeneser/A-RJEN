@@ -312,7 +312,7 @@ export default function FocusPage() {
         </div>
 
         {/* Status pill */}
-        <div className="relative z-20 flex justify-center mt-2 flex-col items-center gap-2">
+        <div className="relative z-20 flex justify-center mt-2 flex-col items-center gap-2 pointer-events-auto">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
