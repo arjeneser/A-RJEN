@@ -11,7 +11,7 @@ import { formatDuration, formatMinutes } from "@/lib/utils";
 import { flagEmoji, CITIES } from "@/data/cities";
 import { broadcastFlight, clearFlight, subscribeToFlights, type LiveFlight } from "@/lib/flight-sync";
 import { useWeatherPair } from "@/hooks/use-weather";
-import { findNearestCityAhead, type NearestCityResult } from "@/lib/geo";
+import { findNearestAirport, type NearestCityResult } from "@/lib/geo";
 
 // ── Map is client-only ────────────────────────────────────────────────────────
 const WorldMap = dynamic(
@@ -216,18 +216,19 @@ export default function FocusPage() {
   // En yakın havalimanı — hooks erken return'den ÖNCE olmalı
   const nearestAirportInfo = useMemo(() => {
     if (!session) return null;
-    const { departure, destination } = session;
-    const found = findNearestCityAhead(departure, destination, progress, remainingMs, CITIES);
+    const { departure, destination, durationMs: dur } = session;
+    const found = findNearestAirport(departure, destination, progress, dur, elapsedMs, CITIES);
     if (found) return found;
+    // Fallback: varış noktası
     const minsToDestination = Math.round(remainingMs / 60000);
     return {
       city: destination,
       distanceKm: 0,
       minutesAway: minsToDestination,
       isNearby: minsToDestination <= 5,
-      routeT: 1 as const,
+      planePos: { lat: 0, lng: 0 },
     };
-  }, [session, progress, remainingMs]);
+  }, [session, progress, elapsedMs, remainingMs]);
 
   if (!mounted || !session) return null;
 
@@ -281,7 +282,7 @@ export default function FocusPage() {
 
         {/* World Map */}
         <div className="absolute inset-0 pointer-events-none">
-          <WorldMap departure={departure} destination={destination} progress={progress} otherFlights={differentRoutes} crewmates={crewmates} />
+          <WorldMap departure={departure} destination={destination} progress={progress} otherFlights={differentRoutes} crewmates={crewmates} emergencyMode={abandonModalOpen} />
         </div>
 
         {/* Vignette */}
@@ -768,14 +769,13 @@ export default function FocusPage() {
                   {nearestCity ? (
                     <>
                       <h2 className="text-lg font-bold text-white mb-1" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
-                        {nearestCity.isNearby
-                          ? `${flagEmoji(nearestCity.city.countryCode)} ${nearestCity.city.name} semalarındasınız`
-                          : `${flagEmoji(nearestCity.city.countryCode)} ${nearestCity.city.name} havalimanına iniş`}
+                        Acil İniş
                       </h2>
-                      <p className="text-sm text-slate-400">
+                      <p className="text-sm text-slate-300 leading-relaxed">
                         {nearestCity.isNearby
-                          ? `Acil iniş ile ${nearestCity.city.name}'ye inmek ister misiniz?`
-                          : `${Math.round(nearestCity.minutesAway)} dk sonra ${nearestCity.city.name} havalimanına iniş yapabilirsiniz. ${nearestCity.city.name}'ye iniş yapalım mı?`}
+                          ? <>Şu an <span className="text-white font-semibold">{flagEmoji(nearestCity.city.countryCode)} {nearestCity.city.name}</span> semalarında uçuyorsunuz. Acil iniş için <span className="text-amber-400 font-semibold">{nearestCity.city.name} Havalimanı</span> uygun.</>
+                          : <>Şu anki konumunuza en yakın havalimanı <span className="text-amber-400 font-semibold">{flagEmoji(nearestCity.city.countryCode)} {nearestCity.city.name}</span> — yaklaşık <span className="text-white font-semibold">{Math.round(nearestCity.minutesAway)} dk</span> mesafede.</>
+                        }
                       </p>
                     </>
                   ) : (
@@ -783,9 +783,6 @@ export default function FocusPage() {
                       <h2 className="text-lg font-bold text-white mb-1" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
                         Uçuşu terk et
                       </h2>
-                      <p className="text-sm text-slate-400">
-                        Yakında uygun bir havalimanı bulunamadı.
-                      </p>
                     </>
                   )}
                 </div>
@@ -804,7 +801,7 @@ export default function FocusPage() {
                       boxShadow: "0 4px 20px rgba(217,119,6,0.4)",
                     }}
                   >
-                    ✈ Evet, {nearestCity.isNearby ? "acil iniş yap" : "devam edelim"}
+                    🛬 {nearestCity.city.name}'ya acil iniş yap
                   </motion.button>
                 )}
 

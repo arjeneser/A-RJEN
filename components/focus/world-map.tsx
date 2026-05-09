@@ -18,9 +18,10 @@ interface WorldMapProps {
   progress: number;
   otherFlights?: LiveFlight[];
   crewmates?: string[];
+  emergencyMode?: boolean; // acil iniş modalı açıkken C noktasına pin koy
 }
 
-export function WorldMap({ departure, destination, progress, otherFlights = [], crewmates = [] }: WorldMapProps) {
+export function WorldMap({ departure, destination, progress, otherFlights = [], crewmates = [], emergencyMode = false }: WorldMapProps) {
   const containerRef      = useRef<HTMLDivElement>(null);
   const mapRef            = useRef<maplibregl.Map | null>(null);
   const markerRef         = useRef<maplibregl.Marker | null>(null);
@@ -30,6 +31,7 @@ export function WorldMap({ departure, destination, progress, otherFlights = [], 
   const mapLoadedRef      = useRef(false);
   const otherFlightsRef   = useRef<LiveFlight[]>([]);
   const otherMarkersRef   = useRef<Map<string, { marker: maplibregl.Marker; innerEl: HTMLDivElement }>>(new Map());
+  const emergencyPinRef   = useRef<maplibregl.Marker | null>(null);
 
   // Throttle ref'leri
   const lastTrailUpdateRef  = useRef<number>(0);
@@ -281,6 +283,64 @@ export function WorldMap({ departure, destination, progress, otherFlights = [], 
     applyOtherFlights(otherFlights);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [otherFlights]);
+
+  // ── Acil iniş modu — C noktasına turuncu pin ────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoadedRef.current) return;
+
+    if (emergencyMode) {
+      // Var olan pini kaldır
+      emergencyPinRef.current?.remove();
+
+      const el = document.createElement("div");
+      el.style.cssText = [
+        "display:flex;flex-direction:column;align-items:center;gap:2px;",
+        "pointer-events:none;",
+      ].join("");
+
+      // Etiket
+      const label = document.createElement("div");
+      label.textContent = "📍 Mevcut Konum";
+      label.style.cssText = [
+        "background:rgba(239,68,68,0.9);color:white;font-size:10px;font-weight:700;",
+        "padding:2px 8px;border-radius:8px;white-space:nowrap;",
+        "box-shadow:0 2px 8px rgba(0,0,0,0.5);font-family:system-ui;",
+      ].join("");
+
+      // Pulsing daire
+      const dot = document.createElement("div");
+      dot.style.cssText = [
+        "width:16px;height:16px;border-radius:50%;",
+        "background:rgba(239,68,68,0.9);",
+        "box-shadow:0 0 0 0 rgba(239,68,68,0.7);",
+        "animation:emergencyPulse 1.2s ease-out infinite;",
+      ].join("");
+
+      // CSS animasyonu (bir kere inject et)
+      if (!document.getElementById("emergency-pulse-style")) {
+        const style = document.createElement("style");
+        style.id = "emergency-pulse-style";
+        style.textContent = `
+          @keyframes emergencyPulse {
+            0%   { box-shadow: 0 0 0 0 rgba(239,68,68,0.7); }
+            70%  { box-shadow: 0 0 0 14px rgba(239,68,68,0); }
+            100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+          }`;
+        document.head.appendChild(style);
+      }
+
+      el.appendChild(label);
+      el.appendChild(dot);
+
+      emergencyPinRef.current = new maplibregl.Marker({ element: el, anchor: "bottom" })
+        .setLngLat([planePos.lng, planePos.lat])
+        .addTo(map);
+    } else {
+      emergencyPinRef.current?.remove();
+      emergencyPinRef.current = null;
+    }
+  }, [emergencyMode, planePos.lng, planePos.lat]);
 
   // ── Crewmates badge ───────────────────────────────────────────────────────
   useEffect(() => {

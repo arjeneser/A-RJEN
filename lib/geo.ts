@@ -182,16 +182,57 @@ export function midpoint(from: City, to: City): LatLng {
 
 export interface NearestCityResult {
   city: City;
-  distanceKm: number;  // mesafe uçak pozisyonundan
-  minutesAway: number; // 0 = şu an üzerinde, >0 = X dakika sonra
-  isNearby: boolean;   // < 200km → "semalarındasınız"
-  routeT: number;      // rota üzerindeki t değeri (0-1)
+  distanceKm: number;  // uçak pozisyonundan km
+  minutesAway: number; // tahmini dakika (ortalama hıza göre)
+  isNearby: boolean;   // < 150km → "semalarındasınız"
+  planePos: { lat: number; lng: number }; // C noktası (harita pin'i için)
 }
 
 /**
- * Rota üzerinde ilerleyen uçağa en yakın şehri bulur.
- * Kalkış ve varış hariç, rota yakınındaki (< 400km) şehirler arasından seçer.
+ * Uçağın şu anki konumuna (C) en yakın havalimanını bulur.
+ * Rota dışında da olabilir — sadece düz mesafeye bakar.
+ * Süre tahmini: toplam rota km / toplam süre = ortalama hız.
  */
+export function findNearestAirport(
+  departure: City,
+  destination: City,
+  progress: number,
+  durationMs: number,    // toplam planlanan süre
+  elapsedMs: number,     // şimdiye kadar geçen süre
+  allCities: City[]
+): NearestCityResult | null {
+  const planePos = greatCircleInterpolate(departure, destination, progress);
+
+  // Ortalama hız (km/sa) — toplam rota / toplam süre
+  const routeKm    = calculateDistanceKm(departure, destination);
+  const durationH  = durationMs / 3_600_000;
+  const avgSpeedKmh = durationH > 0 ? routeKm / durationH : 800;
+
+  const NEARBY_KM = 150;
+
+  let best: NearestCityResult | null = null;
+
+  for (const city of allCities) {
+    if (city.id === departure.id) continue; // kalkışı önerme
+
+    const distKm = calculateDistanceKm(planePos, city);
+    const minutesAway = distKm < NEARBY_KM ? 0 : (distKm / avgSpeedKmh) * 60;
+
+    if (!best || distKm < best.distanceKm) {
+      best = {
+        city,
+        distanceKm: distKm,
+        minutesAway,
+        isNearby: distKm < NEARBY_KM,
+        planePos,
+      };
+    }
+  }
+
+  return best;
+}
+
+/** @deprecated findNearestCityAhead yerine findNearestAirport kullan */
 export function findNearestCityAhead(
   departure: City,
   destination: City,
@@ -199,56 +240,8 @@ export function findNearestCityAhead(
   remainingMs: number,
   allCities: City[]
 ): NearestCityResult | null {
-  const planePos = greatCircleInterpolate(departure, destination, progress);
-  const NEARBY_KM      = 200;  // bu mesafede "semalarındasınız"
-  const MAX_ROUTE_DIST = 400;  // rotadan max sapma (km)
-  const QUICK_SKIP     = 2500; // hızlı eleme eşiği (km)
-
-  const results: NearestCityResult[] = [];
-
-  for (const city of allCities) {
-    if (city.id === departure.id || city.id === destination.id) continue;
-
-    // Hızlı eleme: uçak pozisyonundan çok uzak şehirleri atla
-    const distFromPlane = calculateDistanceKm(planePos, city);
-    if (distFromPlane > QUICK_SKIP) continue;
-
-    // Rota üzerinde bu şehre en yakın t değerini bul (current → 1.0)
-    let bestT = progress;
-    let bestDist = Infinity;
-    const SAMPLES = 80;
-    for (let i = 0; i <= SAMPLES; i++) {
-      const t = progress + (i / SAMPLES) * (1 - progress);
-      const pt = greatCircleInterpolate(departure, destination, t);
-      const d = calculateDistanceKm(city, pt);
-      if (d < bestDist) { bestDist = d; bestT = t; }
-    }
-
-    if (bestDist > MAX_ROUTE_DIST) continue;
-    if (bestT <= progress + 0.005) continue; // geride kalan şehirleri atla
-
-    const minutesAway = distFromPlane < NEARBY_KM
-      ? 0
-      : ((bestT - progress) / Math.max(0.001, 1 - progress)) * (remainingMs / 60000);
-
-    results.push({
-      city,
-      distanceKm: distFromPlane,
-      minutesAway,
-      isNearby: distFromPlane < NEARBY_KM,
-      routeT: bestT,
-    });
-  }
-
-  if (results.length === 0) return null;
-
-  // Önce yakındakiler, sonra rota mesafesine göre sırala
-  results.sort((a, b) => {
-    if (a.isNearby !== b.isNearby) return a.isNearby ? -1 : 1;
-    return a.distanceKm - b.distanceKm;
-  });
-
-  return results[0];
+  const durationMs = remainingMs / Math.max(0.001, 1 - progress);
+  return findNearestAirport(departure, destination, progress, durationMs, 0, allCities);
 }
 
 /**
