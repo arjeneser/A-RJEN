@@ -118,37 +118,36 @@ export function WorldMap({ departure, destination, progress, otherFlights = [], 
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: {
-        version: 8,
-        sources: {
-          "carto-voyager": {
-            type: "raster",
-            tiles: [
-              "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
-              "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
-              "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
-            ],
-            tileSize: 256,
-            maxzoom: 6, // ← tile detayını sınırla (daha az tile = daha az GPU)
-            attribution: "© OpenStreetMap contributors © CARTO",
-          },
-        },
-        layers: [{ id: "carto-voyager-layer", type: "raster", source: "carto-voyager" }],
-      },
+      // OpenFreeMap vector tiles — ücretsiz, API key yok, Türkçe label desteği
+      style: "https://tiles.openfreemap.org/styles/liberty",
       center: [midPos.lng, midPos.lat],
-      zoom: 4,            // ← zoom 10 → 4: rota tamamı görünsün, az tile
-      maxZoom: 6,         // ← yakınlaşmayı sınırla
+      zoom: 4,
+      maxZoom: 6,
       bearing: 0,
       pitch: 0,
       interactive: false,
       attributionControl: false,
-      fadeDuration: 0,    // ← tile fade animasyonu kapat
+      fadeDuration: 0,
     });
 
     mapRef.current = map;
 
     map.on("load", () => {
       mapLoadedRef.current = true;
+
+      // ── Tüm sembol katmanlarını Türkçeye çevir ────────────────────────────
+      const styleLayers = map.getStyle()?.layers ?? [];
+      for (const layer of styleLayers) {
+        if (layer.type === "symbol") {
+          try {
+            map.setLayoutProperty(layer.id, "text-field", [
+              "coalesce",
+              ["get", "name:tr"],
+              ["get", "name"],
+            ]);
+          } catch { /* bazı katmanlarda text-field olmayabilir */ }
+        }
+      }
 
       map.addSource("route-full", {
         type: "geojson",
