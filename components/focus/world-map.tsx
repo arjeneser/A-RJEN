@@ -118,8 +118,23 @@ export function WorldMap({ departure, destination, progress, otherFlights = [], 
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      // OpenFreeMap vector tiles — ücretsiz, API key yok, Türkçe label desteği
-      style: "https://tiles.openfreemap.org/styles/liberty",
+      style: {
+        version: 8,
+        sources: {
+          "carto-voyager": {
+            type: "raster",
+            tiles: [
+              "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+              "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+              "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+            ],
+            tileSize: 256,
+            maxzoom: 6,
+            attribution: "© OpenStreetMap contributors © CARTO",
+          },
+        },
+        layers: [{ id: "carto-voyager-layer", type: "raster", source: "carto-voyager" }],
+      },
       center: [midPos.lng, midPos.lat],
       zoom: 4,
       maxZoom: 6,
@@ -134,20 +149,6 @@ export function WorldMap({ departure, destination, progress, otherFlights = [], 
 
     map.on("load", () => {
       mapLoadedRef.current = true;
-
-      // ── Tüm sembol katmanlarını Türkçeye çevir ────────────────────────────
-      const styleLayers = map.getStyle()?.layers ?? [];
-      for (const layer of styleLayers) {
-        if (layer.type === "symbol") {
-          try {
-            map.setLayoutProperty(layer.id, "text-field", [
-              "coalesce",
-              ["get", "name:tr"],
-              ["get", "name"],
-            ]);
-          } catch { /* bazı katmanlarda text-field olmayabilir */ }
-        }
-      }
 
       map.addSource("route-full", {
         type: "geojson",
