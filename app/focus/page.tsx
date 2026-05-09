@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useCallback, useRef, useState } from "react";
+import { useEffect, useCallback, useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useActiveSession } from "@/store/flight-store";
@@ -235,9 +235,23 @@ export default function FocusPage() {
     ? Math.max(0, Math.ceil((nextBreakMs - elapsedMs) / 60000))
     : null;
 
+  // En yakın havalimanı — canlı hesap (progress/remainingMs değişince güncellenir)
+  const nearestAirportInfo = useMemo(() => {
+    const found = findNearestCityAhead(departure, destination, progress, remainingMs, CITIES);
+    if (found) return found;
+    // Bulunamadıysa varış noktasına kalan süreyi hesapla
+    const minsToDestination = Math.round(remainingMs / 60000);
+    return {
+      city: destination,
+      distanceKm: 0,
+      minutesAway: minsToDestination,
+      isNearby: minsToDestination <= 5,
+      routeT: 1,
+    };
+  }, [departure, destination, progress, remainingMs]);
+
   function handleAbandon() {
-    const nearest = findNearestCityAhead(departure, destination, progress, remainingMs, CITIES);
-    setNearestCity(nearest);
+    setNearestCity(nearestAirportInfo);
     setAbandonModalOpen(true);
   }
 
@@ -464,6 +478,16 @@ export default function FocusPage() {
               {formatDuration(remainingMs)}
             </div>
             <div className="text-slate-500 text-sm mt-2">kalan süre</div>
+
+            {/* En yakın havalimanı */}
+            {!isPaused && nearestAirportInfo && (
+              <div className="text-[11px] text-slate-600 mt-1">
+                {nearestAirportInfo.isNearby
+                  ? <span>🛬 <span className="text-slate-500">{flagEmoji(nearestAirportInfo.city.countryCode)} {nearestAirportInfo.city.name}</span> semalarındasınız</span>
+                  : <span>🛬 <span className="text-slate-500">{flagEmoji(nearestAirportInfo.city.countryCode)} {nearestAirportInfo.city.name}</span> · <span className="text-slate-500">{Math.round(nearestAirportInfo.minutesAway)} dk</span></span>
+                }
+              </div>
+            )}
 
             {/* Sonraki mola bilgisi */}
             {breakIntervalMinutes > 0 && !isPaused && minsUntilBreak !== null && minsUntilBreak > 0 && (
