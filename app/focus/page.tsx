@@ -66,6 +66,8 @@ export default function FocusPage() {
   // ── Abandon modal ────────────────────────────────────────────────────────
   const [abandonModalOpen, setAbandonModalOpen] = useState(false);
   const [nearestCity, setNearestCity]           = useState<NearestCityResult | null>(null);
+  // Acil iniş aktifken: kullanıcı çalışmaya devam eder, hedef süreye ulaşınca tamamlanır
+  const [emergencyTarget, setEmergencyTarget]   = useState<{ city: NearestCityResult["city"]; targetElapsedMs: number } | null>(null);
 
   // ── Break state ───────────────────────────────────────────────────────────
   const [nextBreakMs, setNextBreakMs]       = useState<number | null>(null);
@@ -204,6 +206,17 @@ export default function FocusPage() {
     return () => { unsub(); if (currentUsername) clearFlight(currentUsername); };
   }, [currentUsername]);
 
+  // ── Acil iniş geri sayım — hedef süreye ulaşınca otomatik tamamla ────────
+  useEffect(() => {
+    if (!emergencyTarget || hasCompletedRef.current) return;
+    if (elapsedMs >= emergencyTarget.targetElapsedMs) {
+      hasCompletedRef.current = true;
+      emergencyLand(emergencyTarget.city, elapsedMs);
+      setEmergencyTarget(null);
+      router.push("/success");
+    }
+  }, [elapsedMs, emergencyTarget, emergencyLand, router]);
+
   // ── Guards ────────────────────────────────────────────────────────────────
   useEffect(() => { if (mounted && !session) router.push("/"); }, [session, router, mounted]);
   useEffect(() => {
@@ -260,9 +273,18 @@ export default function FocusPage() {
   function handleEmergencyLand() {
     if (!nearestCity) return;
     setAbandonModalOpen(false);
-    hasCompletedRef.current = true;
-    emergencyLand(nearestCity.city, elapsedMs);
-    router.push("/success");
+    if (nearestCity.minutesAway <= 0) {
+      // Zaten üzerindeyse anında tamamla
+      hasCompletedRef.current = true;
+      emergencyLand(nearestCity.city, elapsedMs);
+      router.push("/success");
+    } else {
+      // Çalışmaya devam et, X dk sonra otomatik tamamla
+      setEmergencyTarget({
+        city: nearestCity.city,
+        targetElapsedMs: elapsedMs + Math.round(nearestCity.minutesAway) * 60_000,
+      });
+    }
   }
 
   function handleForceAbandon() {
@@ -410,6 +432,29 @@ export default function FocusPage() {
                 {minsUntilBreak !== null && minsUntilBreak > 0 && (
                   <span className="text-yellow-500/70">· {minsUntilBreak} dk</span>
                 )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Acil iniş geri sayım pill */}
+          <AnimatePresence>
+            {emergencyTarget && (
+              <motion.div
+                key="emergency-countdown"
+                initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold"
+                style={{
+                  background: "rgba(239,68,68,0.15)",
+                  border: "1px solid rgba(239,68,68,0.4)",
+                  color: "#FCA5A5",
+                }}
+              >
+                🛬 {flagEmoji(emergencyTarget.city.countryCode)} {emergencyTarget.city.name}'ya iniş
+                <span className="text-red-400/80 font-bold">
+                  · {Math.max(0, Math.ceil((emergencyTarget.targetElapsedMs - elapsedMs) / 60_000))} dk kaldı
+                </span>
               </motion.div>
             )}
           </AnimatePresence>
