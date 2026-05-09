@@ -213,6 +213,22 @@ export default function FocusPage() {
     }
   }, [session, router, mounted]);
 
+  // En yakın havalimanı — hooks erken return'den ÖNCE olmalı
+  const nearestAirportInfo = useMemo(() => {
+    if (!session) return null;
+    const { departure, destination } = session;
+    const found = findNearestCityAhead(departure, destination, progress, remainingMs, CITIES);
+    if (found) return found;
+    const minsToDestination = Math.round(remainingMs / 60000);
+    return {
+      city: destination,
+      distanceKm: 0,
+      minutesAway: minsToDestination,
+      isNearby: minsToDestination <= 5,
+      routeT: 1 as const,
+    };
+  }, [session, progress, remainingMs]);
+
   if (!mounted || !session) return null;
 
   const { departure, destination, durationMs, seat } = session;
@@ -234,21 +250,6 @@ export default function FocusPage() {
   const minsUntilBreak = nextBreakMs !== null
     ? Math.max(0, Math.ceil((nextBreakMs - elapsedMs) / 60000))
     : null;
-
-  // En yakın havalimanı — canlı hesap (progress/remainingMs değişince güncellenir)
-  const nearestAirportInfo = useMemo(() => {
-    const found = findNearestCityAhead(departure, destination, progress, remainingMs, CITIES);
-    if (found) return found;
-    // Bulunamadıysa varış noktasına kalan süreyi hesapla
-    const minsToDestination = Math.round(remainingMs / 60000);
-    return {
-      city: destination,
-      distanceKm: 0,
-      minutesAway: minsToDestination,
-      isNearby: minsToDestination <= 5,
-      routeT: 1,
-    };
-  }, [departure, destination, progress, remainingMs]);
 
   function handleAbandon() {
     setNearestCity(nearestAirportInfo);
