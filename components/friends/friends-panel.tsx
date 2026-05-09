@@ -2491,8 +2491,8 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                   })()}
 
                   {/* Tam Profili Aç butonu */}
-                  <Link
-                    href={`/profile/${activeFriend}`}
+                  <button
+                    onClick={() => { onClose(); router.push(`/profile/${activeFriend}`); }}
                     className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95"
                     style={{
                       background: "linear-gradient(135deg, rgba(14,165,233,0.18), rgba(109,40,217,0.18))",
@@ -2500,139 +2500,7 @@ export function FriendsPanel({ open, onClose, onNotificationCount }: FriendsPane
                     }}
                   >
                     Tam Profili Aç <span className="text-base">→</span>
-                  </Link>
-
-                  {/* Uçuş detay istatistikleri */}
-                  <div>
-                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">
-                      Uçuş Performansı
-                    </div>
-
-                    {Object.keys(profileStats).length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-10 text-slate-700">
-                        <span className="text-3xl mb-2">📊</span>
-                        <p className="text-xs text-center">
-                          Henüz kayıtlı uçuş istatistiği yok.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2.5">
-                        {Object.entries(profileStats)
-                          .sort(([a], [b]) => parseInt(a) - parseInt(b))
-                          .map(([key, stat]) => {
-                            const avgPauses = stat.completions > 0
-                              ? (stat.totalPauses / stat.completions).toFixed(1)
-                              : "0";
-                            const avgActualHrs = stat.completions > 0
-                              ? stat.totalActualMs / stat.completions / 3600000
-                              : 0;
-                            const nominalHrs = parseInt(key.replace("h", ""));
-                            const overRatio = avgActualHrs > 0 && nominalHrs > 0
-                              ? ((avgActualHrs - nominalHrs) / nominalHrs * 100).toFixed(0)
-                              : null;
-
-                            function fmtHrs(ms: number) {
-                              const h = Math.floor(ms / 3600000);
-                              const m = Math.round((ms % 3600000) / 60000);
-                              if (h === 0) return `${m}dk`;
-                              if (m === 0) return `${h}sa`;
-                              return `${h}sa ${m}dk`;
-                            }
-
-                            return (
-                              <motion.div
-                                key={key}
-                                initial={{ opacity: 0, y: 6 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="p-3.5 rounded-2xl space-y-3"
-                                style={{
-                                  background: "rgba(255,255,255,0.025)",
-                                  border: "1px solid rgba(255,255,255,0.07)",
-                                }}
-                              >
-                                {/* Başlık satırı */}
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <div
-                                      className="px-2.5 py-1 rounded-lg text-xs font-bold"
-                                      style={{
-                                        background: "rgba(59,130,246,0.15)",
-                                        border: "1px solid rgba(59,130,246,0.3)",
-                                        color: "#60A5FA",
-                                      }}
-                                    >
-                                      {stat.durationLabel}
-                                    </div>
-                                    <span className="text-[10px] text-slate-600">
-                                      {stat.completions}× tamamlandı
-                                    </span>
-                                  </div>
-                                  {overRatio !== null && parseInt(overRatio) > 0 && (
-                                    <span className="text-[10px] text-amber-500/70">
-                                      +%{overRatio} fazla
-                                    </span>
-                                  )}
-                                </div>
-
-                                {/* Detay satırları */}
-                                <div className="grid grid-cols-2 gap-2">
-                                  {/* Ortalama duraklama */}
-                                  <div
-                                    className="p-2.5 rounded-xl flex flex-col gap-0.5"
-                                    style={{
-                                      background: "rgba(239,68,68,0.06)",
-                                      border: "1px solid rgba(239,68,68,0.15)",
-                                    }}
-                                  >
-                                    <span className="text-[10px] text-slate-600">Ortalama Mola</span>
-                                    <span className="text-lg font-bold" style={{ color: "#F87171", fontFamily: "Space Grotesk" }}>
-                                      {avgPauses}×
-                                    </span>
-                                    <span className="text-[9px] text-slate-700">duraksama / uçuş</span>
-                                  </div>
-
-                                  {/* Ortalama gerçek süre */}
-                                  <div
-                                    className="p-2.5 rounded-xl flex flex-col gap-0.5"
-                                    style={{
-                                      background: "rgba(59,130,246,0.06)",
-                                      border: "1px solid rgba(59,130,246,0.15)",
-                                    }}
-                                  >
-                                    <span className="text-[10px] text-slate-600">Ort. Bitiş Süresi</span>
-                                    <span className="text-sm font-bold" style={{ color: "#60A5FA", fontFamily: "Space Grotesk" }}>
-                                      {fmtHrs(stat.totalActualMs / stat.completions)}
-                                    </span>
-                                    <span className="text-[9px] text-slate-700">
-                                      hedef: {stat.durationLabel.toLowerCase()}
-                                    </span>
-                                  </div>
-                                </div>
-
-                                {/* İlerleme çubuğu — gerçek/hedef oranı */}
-                                {nominalHrs > 0 && avgActualHrs > 0 && (
-                                  <div>
-                                    <div className="flex justify-between text-[9px] text-slate-700 mb-1">
-                                      <span>Hedef süre</span>
-                                      <span>Gerçek süre</span>
-                                    </div>
-                                    <div className="relative h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
-                                      <div
-                                        className="absolute top-0 left-0 h-full rounded-full"
-                                        style={{
-                                          width: `${Math.min(100, (nominalHrs / avgActualHrs) * 100)}%`,
-                                          background: "linear-gradient(90deg,#3B82F6,#60A5FA)",
-                                        }}
-                                      />
-                                    </div>
-                                  </div>
-                                )}
-                              </motion.div>
-                            );
-                          })}
-                      </div>
-                    )}
-                  </div>
+                  </button>
                 </motion.div>
               )}
 
