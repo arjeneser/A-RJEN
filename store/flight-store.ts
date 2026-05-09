@@ -129,6 +129,8 @@ interface ActiveSessionState {
   resumeSession: () => void;
   completeSession: () => void;
   abandonSession: () => void;
+  /** Acil iniş — destination'ı değiştirip completed olarak işaretle */
+  emergencyLand: (landingCity: City, elapsedMs: number) => void;
   clearSession: () => void;
 
   /** Elapsed ms accounting for pauses. */
@@ -199,6 +201,19 @@ export const useActiveSession = create<ActiveSessionState>()(
       abandonSession: () => {
         set((s) => ({
           session: s.session ? { ...s.session, status: "abandoned" } : null,
+        }));
+      },
+
+      emergencyLand: (landingCity: City, elapsedMs: number) => {
+        set((s) => ({
+          session: s.session
+            ? {
+                ...s.session,
+                destination: landingCity,
+                durationMs: Math.max(elapsedMs, 60_000), // en az 1dk
+                status: "completed",
+              }
+            : null,
         }));
       },
 

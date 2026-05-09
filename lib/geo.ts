@@ -178,6 +178,79 @@ export function midpoint(from: City, to: City): LatLng {
   };
 }
 
+// ─── Emergency Landing ────────────────────────────────────────────────────────
+
+export interface NearestCityResult {
+  city: City;
+  distanceKm: number;  // mesafe uçak pozisyonundan
+  minutesAway: number; // 0 = şu an üzerinde, >0 = X dakika sonra
+  isNearby: boolean;   // < 200km → "semalarındasınız"
+  routeT: number;      // rota üzerindeki t değeri (0-1)
+}
+
+/**
+ * Rota üzerinde ilerleyen uçağa en yakın şehri bulur.
+ * Kalkış ve varış hariç, rota yakınındaki (< 400km) şehirler arasından seçer.
+ */
+export function findNearestCityAhead(
+  departure: City,
+  destination: City,
+  progress: number,
+  remainingMs: number,
+  allCities: City[]
+): NearestCityResult | null {
+  const planePos = greatCircleInterpolate(departure, destination, progress);
+  const NEARBY_KM      = 200;  // bu mesafede "semalarındasınız"
+  const MAX_ROUTE_DIST = 400;  // rotadan max sapma (km)
+  const QUICK_SKIP     = 2500; // hızlı eleme eşiği (km)
+
+  const results: NearestCityResult[] = [];
+
+  for (const city of allCities) {
+    if (city.id === departure.id || city.id === destination.id) continue;
+
+    // Hızlı eleme: uçak pozisyonundan çok uzak şehirleri atla
+    const distFromPlane = calculateDistanceKm(planePos, city);
+    if (distFromPlane > QUICK_SKIP) continue;
+
+    // Rota üzerinde bu şehre en yakın t değerini bul (current → 1.0)
+    let bestT = progress;
+    let bestDist = Infinity;
+    const SAMPLES = 80;
+    for (let i = 0; i <= SAMPLES; i++) {
+      const t = progress + (i / SAMPLES) * (1 - progress);
+      const pt = greatCircleInterpolate(departure, destination, t);
+      const d = calculateDistanceKm(city, pt);
+      if (d < bestDist) { bestDist = d; bestT = t; }
+    }
+
+    if (bestDist > MAX_ROUTE_DIST) continue;
+    if (bestT <= progress + 0.005) continue; // geride kalan şehirleri atla
+
+    const minutesAway = distFromPlane < NEARBY_KM
+      ? 0
+      : ((bestT - progress) / Math.max(0.001, 1 - progress)) * (remainingMs / 60000);
+
+    results.push({
+      city,
+      distanceKm: distFromPlane,
+      minutesAway,
+      isNearby: distFromPlane < NEARBY_KM,
+      routeT: bestT,
+    });
+  }
+
+  if (results.length === 0) return null;
+
+  // Önce yakındakiler, sonra rota mesafesine göre sırala
+  results.sort((a, b) => {
+    if (a.isNearby !== b.isNearby) return a.isNearby ? -1 : 1;
+    return a.distanceKm - b.distanceKm;
+  });
+
+  return results[0];
+}
+
 /**
  * Suggest a map zoom level that comfortably fits both endpoints.
  * Calibrated for a ~375px-wide viewport (mobile-first).
