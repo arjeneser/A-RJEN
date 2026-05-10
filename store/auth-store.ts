@@ -2,6 +2,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { UserProfile, CompletedFlight, Stamp } from "@/types";
+import { usernameExistsInCloud } from "@/lib/user-sync";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -115,7 +116,11 @@ export const useAuthStore = create<AuthState>()(
       register: async (username, password, securityQuestion, securityAnswer) => {
         const { credentials } = get();
         const key = username.trim().toLowerCase();
+        // Yerel kontrolü yap
         if (credentials[key]) return "taken";
+        // Firebase kontrolü — başka cihazda aynı isimle hesap açılmış mı?
+        const cloudTaken = await usernameExistsInCloud(key);
+        if (cloudTaken) return "taken";
         const hashed = await hashPassword(password);
         set((s) => ({
           credentials: {

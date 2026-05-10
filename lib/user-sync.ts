@@ -52,3 +52,19 @@ export async function loadUserSnapshot(
     return null;
   }
 }
+
+/**
+ * Firebase'de bu kullanıcı adı var mı?
+ * Kayıt sırasında çakışmayı önlemek için kullanılır.
+ * Sadece lastUpdated alanını çeker — tam snapshot yüklenmez.
+ */
+export async function usernameExistsInCloud(username: string): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false; // Firebase yoksa izin ver (offline mod)
+  try {
+    const snap = await get(ref(db, `userSnapshots/${username}/lastUpdated`));
+    return snap.exists();
+  } catch {
+    return false; // Ağ hatası → izin ver (kayıt engellenmesin)
+  }
+}
