@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useSnapshotStore } from "@/store/auth-store";
 import { useUserStore } from "@/store/user-store";
 import { registerPresence } from "@/lib/friends";
 import { requestNotificationPermission } from "@/lib/notifications";
@@ -16,7 +16,8 @@ import { loadUserSnapshot, saveUserSnapshot } from "@/lib/user-sync";
  * • useUserStore değişimlerinde localStorage + Firebase'e otomatik kaydeder.
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { currentUsername, getSnapshot, saveSnapshot, setCurrentUser, credentials } = useAuthStore();
+  const { currentUsername, setCurrentUser } = useAuthStore();
+  const { getSnapshot, saveSnapshot } = useSnapshotStore();
   const { loadSnapshot, exportSnapshot, resetToDefault } = useUserStore();
   const loadedRef    = useRef<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -33,8 +34,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.getItem("airjen-session") ||
       sessionStorage.getItem("airjen-session");
 
-    if (saved && credentials[saved]) {
-      setCurrentUser(saved);
+    if (saved) {
+      // getState() yerine closure kullanmak stale olabilir — her zaman güncel state oku
+      const { credentials } = useAuthStore.getState();
+      if (credentials[saved]) {
+        setCurrentUser(saved);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -70,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // CRITICAL: Firebase yanıtı geldiğinde en güncel local snapshot'ı kullan.
       // Başlangıçta yakalanan `localSnap` bu sürede güncellenmiş olabilir
       // (örn. başarı sayfasından yeni uçuş kaydedilmiş olabilir).
-      const currentLocalSnap = useAuthStore.getState().getSnapshot(currentUsername);
+      const currentLocalSnap = useSnapshotStore.getState().getSnapshot(currentUsername);
       const localUpdated = (currentLocalSnap as any)?.lastUpdated ?? 0;
       const cloudUpdated = cloudSnap.lastUpdated ?? 0;
 

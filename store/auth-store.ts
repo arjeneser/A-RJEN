@@ -26,15 +26,32 @@ type RegisterResult = "ok" | "taken";
 interface AuthState {
   currentUsername: string | null;
   credentials: Record<string, UserCredential | string>; // string = eski format
-  snapshots:   Record<string, UserSnapshot>;
 
   login:          (username: string, password: string) => Promise<LoginResult>;
   register:       (username: string, password: string, securityQuestion: string, securityAnswer: string) => Promise<RegisterResult>;
   logout:         () => void;
   setCurrentUser: (username: string | null) => void;
-  saveSnapshot:   (username: string, snap: UserSnapshot) => void;
-  getSnapshot:    (username: string) => UserSnapshot | null;
 }
+
+// ─── Snapshot Store (ayrı key — büyük veri auth'u bozmasın) ──────────────────
+
+interface SnapshotState {
+  snapshots: Record<string, UserSnapshot>;
+  saveSnapshot: (username: string, snap: UserSnapshot) => void;
+  getSnapshot:  (username: string) => UserSnapshot | null;
+}
+
+export const useSnapshotStore = create<SnapshotState>()(
+  persist(
+    (set, get) => ({
+      snapshots: {},
+      saveSnapshot: (username, snap) =>
+        set((s) => ({ snapshots: { ...s.snapshots, [username]: snap } })),
+      getSnapshot: (username) => get().snapshots[username] ?? null,
+    }),
+    { name: "airjen-snapshots" }
+  )
+);
 
 // ─── Password hashing ─────────────────────────────────────────────────────────
 
@@ -63,7 +80,6 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       currentUsername: null,
       credentials: {},
-      snapshots: {},
 
       // ── login ──────────────────────────────────────────────────────────────
       login: async (username, password) => {
@@ -126,20 +142,15 @@ export const useAuthStore = create<AuthState>()(
 
       // ── setCurrentUser ─────────────────────────────────────────────────────
       setCurrentUser: (username) => set({ currentUsername: username }),
-
-      // ── saveSnapshot ───────────────────────────────────────────────────────
-      saveSnapshot: (username, snap) =>
-        set((s) => ({
-          snapshots: { ...s.snapshots, [username]: snap },
-        })),
-
-      // ── getSnapshot ────────────────────────────────────────────────────────
-      getSnapshot: (username) => get().snapshots[username] ?? null,
     }),
     {
       name: "airjen-auth",
-      // currentUsername, credentials ve snapshots persist edilir.
-      // Oturum kalıcılığı ayrıca airjen-session (localStorage/sessionStorage) ile yönetilir.
+      // Sadece kimlik doğrulama verisi (küçük, kritik) persist edilir.
+      // Snapshot'lar airjen-snapshots key'inde ayrıca saklanır — büyük veri auth'u bozmasın.
+      partialize: (s) => ({
+        currentUsername: s.currentUsername,
+        credentials: s.credentials,
+      }),
     }
   )
 );
