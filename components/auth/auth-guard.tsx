@@ -4,19 +4,18 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const router   = useRouter();
+  const router          = useRouter();
   const currentUsername = useAuthStore((s) => s.currentUsername);
   const [checked, setChecked] = useState(false);
 
+  // 1. Oturum key'ini oku — yoksa anında login'e yönlendir
   useEffect(() => {
-    // airjen-session'ı oku (localStorage = beni hatırla, sessionStorage = geçici)
     try {
       const session =
         localStorage.getItem("airjen-session") ||
         sessionStorage.getItem("airjen-session");
 
       if (!session) {
-        // Oturum yok → hemen login'e yönlendir
         router.replace("/login");
         setChecked(true);
         return;
@@ -27,17 +26,23 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Oturum var → Zustand store'un hydrate olması için kısa bekleme
-    const t = setTimeout(() => setChecked(true), 40);
+    // Oturum var → AuthProvider'ın currentUsername'i restore etmesini bekle.
+    // currentUsername gelince aşağıdaki effect hemen devreye girer.
+    // 300ms fallback: yine de boş kalmaz.
+    const t = setTimeout(() => setChecked(true), 300);
     return () => clearTimeout(t);
   }, [router]);
 
-  // Zustand hydrate olduktan sonra da kontrol et
+  // 2. currentUsername set olunca beklemeyi bitir (timeout'u bekleme)
+  useEffect(() => {
+    if (currentUsername) setChecked(true);
+  }, [currentUsername]);
+
+  // 3. 300ms geçti, hâlâ username yok → login
   useEffect(() => {
     if (checked && !currentUsername) router.replace("/login");
   }, [checked, currentUsername, router]);
 
-  // Yükleniyor — spinner göster (boş ekran yok)
   if (!checked || !currentUsername) {
     return (
       <div className="min-h-screen bg-[#070918] flex items-center justify-center">
