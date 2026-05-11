@@ -101,7 +101,6 @@ export interface CompletedFlight {
   durationMinutes: number;
   completedAt: string; // ISO
   xpEarned: number;
-  notes?: string; // uçuş sırasında alınan notlar
 }
 
 // ─── Achievement ──────────────────────────────────────────────────────────────

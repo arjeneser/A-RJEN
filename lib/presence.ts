@@ -1,4 +1,4 @@
-import { ref, set, onValue, off, onDisconnect } from "firebase/database";
+import { ref, set, onValue, off, onDisconnect, serverTimestamp } from "firebase/database";
 import { getDb } from "./firebase";
 
 export interface UserPresence {
@@ -18,19 +18,32 @@ export function initPresence(username: string): () => void {
   const presRef = ref(db, `presence/${username}`);
   const connRef = ref(db, ".info/connected");
 
+  let intervalId: ReturnType<typeof setInterval> | null = null;
+
   const handler = (snap: { val: () => boolean | null }) => {
     if (!snap.val()) return;
     onDisconnect(presRef)
-      .set({ online: false, lastSeen: Date.now() })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .set({ online: false, lastSeen: serverTimestamp() as any })
       .catch(() => {});
-    set(presRef, { online: true, lastSeen: Date.now() }).catch(() => {});
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    set(presRef, { online: true, lastSeen: serverTimestamp() as any }).catch(() => {});
+
+    // Her 60 saniyede bir presence'ı güncelle — max 60s sapma
+    if (intervalId) clearInterval(intervalId);
+    intervalId = setInterval(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      set(presRef, { online: true, lastSeen: serverTimestamp() as any }).catch(() => {});
+    }, 60_000);
   };
 
   onValue(connRef, handler);
 
   return () => {
     off(connRef, "value", handler as Parameters<typeof off>[2]);
-    set(presRef, { online: false, lastSeen: Date.now() }).catch(() => {});
+    if (intervalId) clearInterval(intervalId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    set(presRef, { online: false, lastSeen: serverTimestamp() as any }).catch(() => {});
   };
 }
 

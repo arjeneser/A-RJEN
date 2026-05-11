@@ -9,14 +9,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    // localStorage'ı doğrudan oku → giriş yoksa anında yönlendir
+    // airjen-session'ı oku (localStorage = beni hatırla, sessionStorage = geçici)
     try {
-      const raw    = localStorage.getItem("airjen-auth");
-      const parsed = raw ? JSON.parse(raw) : null;
-      const username: string | null = parsed?.state?.currentUsername ?? null;
+      const session =
+        localStorage.getItem("airjen-session") ||
+        sessionStorage.getItem("airjen-session");
 
-      if (!username) {
-        // Giriş yok → hemen login'e yönlendir
+      if (!session) {
+        // Oturum yok → hemen login'e yönlendir
         router.replace("/login");
         setChecked(true);
         return;
@@ -27,7 +27,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Giriş var → Zustand store'un hydrate olması için kısa bekleme
+    // Oturum var → Zustand store'un hydrate olması için kısa bekleme
     const t = setTimeout(() => setChecked(true), 40);
     return () => clearTimeout(t);
   }, [router]);

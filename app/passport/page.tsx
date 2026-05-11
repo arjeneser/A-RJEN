@@ -605,18 +605,6 @@ export default function PassportPage() {
                               +{flight.xpEarned} XP
                             </div>
                           </div>
-                          {/* Flight notes */}
-                          {flight.notes && (
-                            <div
-                              className="px-3.5 pb-3 flex items-start gap-2"
-                              style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
-                            >
-                              <span className="text-yellow-500/60 text-xs mt-0.5 shrink-0">📝</span>
-                              <p className="text-xs text-slate-500 leading-relaxed italic">
-                                {flight.notes}
-                              </p>
-                            </div>
-                          )}
                         </motion.div>
                       );
                     })

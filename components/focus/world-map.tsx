@@ -217,6 +217,11 @@ export function WorldMap({ departure, destination, progress, otherFlights = [], 
       outerEl.addEventListener("mouseleave", () => {
         if (crewBadgeElRef.current) crewBadgeElRef.current.style.display = "none";
       });
+      outerEl.addEventListener("click", () => {
+        const badge = crewBadgeElRef.current;
+        if (!badge || badge.dataset.count === "0") return;
+        badge.style.display = badge.style.display === "block" ? "none" : "block";
+      });
 
       const innerEl = document.createElement("div");
       // will-change: transform → GPU kompozisyon katmanına alır, JS tread'ini rahatlatır

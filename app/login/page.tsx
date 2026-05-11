@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/store/auth-store";
 
-type Mode = "login" | "register";
+type Mode = "login" | "register" | "forgot";
 
 const SECURITY_QUESTIONS = [
   "Evcil hayvanınızın adı nedir?",
@@ -26,7 +26,7 @@ const INPUT_BLUR   = "rgba(255,255,255,0.1)";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, register, currentUsername } = useAuthStore();
+  const { login, register, resetPassword, currentUsername } = useAuthStore();
 
   const [mode, setMode]                       = useState<Mode>("login");
   const [username, setUsername]               = useState("");
@@ -37,6 +37,15 @@ export default function LoginPage() {
   const [error, setError]                     = useState("");
   const [loading, setLoading]                 = useState(false);
   const [remember, setRemember]               = useState(false);
+
+  // Forgot password state
+  const [forgotStep, setForgotStep]           = useState<"username" | "answer" | "newpass">("username");
+  const [forgotUsername, setForgotUsername]   = useState("");
+  const [forgotQuestion, setForgotQuestion]   = useState("");
+  const [forgotAnswer, setForgotAnswer]       = useState("");
+  const [newPassword, setNewPassword]         = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
+  const [successMsg, setSuccessMsg]           = useState("");
 
   // Kayıtlı kullanıcı adını yükle (beni hatırla seçiliyse)
   useEffect(() => {
@@ -99,9 +108,57 @@ export default function LoginPage() {
   function switchMode(m: Mode) {
     setMode(m);
     setError("");
+    setSuccessMsg("");
     setConfirm("");
     setSecurityAnswer("");
     setSecurityQuestion(SECURITY_QUESTIONS[0]);
+    if (m === "forgot") {
+      setForgotStep("username");
+      setForgotUsername("");
+      setForgotQuestion("");
+      setForgotAnswer("");
+      setNewPassword("");
+      setNewPasswordConfirm("");
+    }
+  }
+
+  // ── Forgot password handlers ───────────────────────────────────────────────
+  function handleForgotCheckUser() {
+    setError("");
+    const key = forgotUsername.trim().toLowerCase();
+    if (!key) { setError("Kullanıcı adı girin."); return; }
+    const { credentials } = useAuthStore.getState();
+    const cred = credentials[key];
+    if (!cred) { setError("Kullanıcı bulunamadı."); return; }
+    const q = typeof cred === "string" ? "" : cred.securityQuestion;
+    if (!q) { setError("Bu hesap için güvenlik sorusu tanımlı değil."); return; }
+    setForgotQuestion(q);
+    setForgotStep("answer");
+  }
+
+  function handleForgotVerifyAnswer() {
+    setError("");
+    const key = forgotUsername.trim().toLowerCase();
+    const { credentials } = useAuthStore.getState();
+    const cred = credentials[key];
+    if (!cred || typeof cred === "string") { setError("Hesap bulunamadı."); return; }
+    if (cred.securityAnswer !== forgotAnswer.trim().toLowerCase()) {
+      setError("Cevap yanlış.");
+      return;
+    }
+    setForgotStep("newpass");
+  }
+
+  async function handleForgotResetPassword() {
+    setError("");
+    if (newPassword.length < 4) { setError("Şifre en az 4 karakter olmalı."); return; }
+    if (newPassword !== newPasswordConfirm) { setError("Şifreler eşleşmiyor."); return; }
+    setLoading(true);
+    await resetPassword(forgotUsername.trim().toLowerCase(), newPassword);
+    setLoading(false);
+    setSuccessMsg("Şifreniz güncellendi.");
+    switchMode("login");
+    setTimeout(() => setSuccessMsg(""), 4000);
   }
 
   return (
@@ -129,6 +186,24 @@ export default function LoginPage() {
           <p className="text-slate-500 text-sm mt-1">Odak uçuşlarına hoş geldin</p>
         </div>
 
+        {/* Success message */}
+        <AnimatePresence>
+          {successMsg && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="mb-4 px-4 py-3 rounded-2xl text-sm text-green-400 text-center font-semibold"
+              style={{
+                background: "rgba(34,197,94,0.1)",
+                border: "1px solid rgba(34,197,94,0.25)",
+              }}
+            >
+              {successMsg}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Card */}
         <div
           className="rounded-3xl p-7"
@@ -138,32 +213,211 @@ export default function LoginPage() {
             backdropFilter: "blur(16px)",
           }}
         >
-          {/* Tab switch */}
-          <div
-            className="flex gap-1 p-1 rounded-xl mb-6"
-            style={{ background: "rgba(255,255,255,0.04)" }}
-          >
-            {(["login", "register"] as Mode[]).map((m) => (
-              <button
-                key={m}
-                onClick={() => switchMode(m)}
-                className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all duration-200"
-                style={
-                  mode === m
-                    ? {
-                        background: "linear-gradient(135deg,#3B82F6,#1D4ED8)",
-                        color: "white",
-                        boxShadow: "0 2px 12px rgba(59,130,246,0.3)",
-                      }
-                    : { color: "#64748B" }
-                }
-              >
-                {m === "login" ? "Giriş Yap" : "Kayıt Ol"}
-              </button>
-            ))}
-          </div>
+          {/* Tab switch — gizle forgot modunda */}
+          {mode !== "forgot" && (
+            <div
+              className="flex gap-1 p-1 rounded-xl mb-6"
+              style={{ background: "rgba(255,255,255,0.04)" }}
+            >
+              {(["login", "register"] as Mode[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => switchMode(m)}
+                  className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all duration-200"
+                  style={
+                    mode === m
+                      ? {
+                          background: "linear-gradient(135deg,#3B82F6,#1D4ED8)",
+                          color: "white",
+                          boxShadow: "0 2px 12px rgba(59,130,246,0.3)",
+                        }
+                      : { color: "#64748B" }
+                  }
+                >
+                  {m === "login" ? "Giriş Yap" : "Kayıt Ol"}
+                </button>
+              ))}
+            </div>
+          )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/* ── Şifremi Unuttum formu ───────────────────────────────────────── */}
+          {mode === "forgot" && (
+            <div className="space-y-4">
+              <div className="text-center mb-5">
+                <div className="text-2xl mb-2">🔑</div>
+                <h2 className="text-base font-bold text-white" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                  Şifremi Unuttum
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  {forgotStep === "username" && "Kullanıcı adınızı girin"}
+                  {forgotStep === "answer"   && "Güvenlik sorusunu cevaplayın"}
+                  {forgotStep === "newpass"  && "Yeni şifrenizi belirleyin"}
+                </p>
+              </div>
+
+              {/* Adım 1: Kullanıcı adı */}
+              {forgotStep === "username" && (
+                <>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1.5 font-medium">Kullanıcı Adı</label>
+                    <input
+                      type="text"
+                      value={forgotUsername}
+                      onChange={(e) => setForgotUsername(e.target.value)}
+                      placeholder="pilot123"
+                      autoComplete="username"
+                      className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none transition-all"
+                      style={INPUT_STYLE}
+                      onFocus={(e) => (e.target.style.borderColor = INPUT_FOCUS)}
+                      onBlur={(e)  => (e.target.style.borderColor = INPUT_BLUR)}
+                    />
+                  </div>
+                  <AnimatePresence>
+                    {error && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="px-3 py-2.5 rounded-xl text-sm text-red-400"
+                        style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}
+                      >
+                        {error}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  <motion.button
+                    type="button"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleForgotCheckUser}
+                    className="w-full py-3.5 rounded-xl font-bold text-white text-sm"
+                    style={{ background: "linear-gradient(135deg, #3B82F6, #1D4ED8)", boxShadow: "0 4px 20px rgba(59,130,246,0.35)" }}
+                  >
+                    Güvenlik Sorusunu Göster
+                  </motion.button>
+                </>
+              )}
+
+              {/* Adım 2: Güvenlik sorusu cevabı */}
+              {forgotStep === "answer" && (
+                <>
+                  <div
+                    className="px-4 py-3 rounded-xl text-sm text-slate-300"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  >
+                    {forgotQuestion}
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1.5 font-medium">Cevabınız</label>
+                    <input
+                      type="text"
+                      value={forgotAnswer}
+                      onChange={(e) => setForgotAnswer(e.target.value)}
+                      placeholder="Cevabı girin…"
+                      autoComplete="off"
+                      className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none transition-all"
+                      style={INPUT_STYLE}
+                      onFocus={(e) => (e.target.style.borderColor = INPUT_FOCUS)}
+                      onBlur={(e)  => (e.target.style.borderColor = INPUT_BLUR)}
+                    />
+                  </div>
+                  <AnimatePresence>
+                    {error && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="px-3 py-2.5 rounded-xl text-sm text-red-400"
+                        style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}
+                      >
+                        {error}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  <motion.button
+                    type="button"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleForgotVerifyAnswer}
+                    className="w-full py-3.5 rounded-xl font-bold text-white text-sm"
+                    style={{ background: "linear-gradient(135deg, #3B82F6, #1D4ED8)", boxShadow: "0 4px 20px rgba(59,130,246,0.35)" }}
+                  >
+                    Doğrula
+                  </motion.button>
+                </>
+              )}
+
+              {/* Adım 3: Yeni şifre */}
+              {forgotStep === "newpass" && (
+                <>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1.5 font-medium">Yeni Şifre</label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="new-password"
+                      className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none transition-all"
+                      style={INPUT_STYLE}
+                      onFocus={(e) => (e.target.style.borderColor = INPUT_FOCUS)}
+                      onBlur={(e)  => (e.target.style.borderColor = INPUT_BLUR)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1.5 font-medium">Yeni Şifre Tekrar</label>
+                    <input
+                      type="password"
+                      value={newPasswordConfirm}
+                      onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="new-password"
+                      className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none transition-all"
+                      style={INPUT_STYLE}
+                      onFocus={(e) => (e.target.style.borderColor = INPUT_FOCUS)}
+                      onBlur={(e)  => (e.target.style.borderColor = INPUT_BLUR)}
+                    />
+                  </div>
+                  <AnimatePresence>
+                    {error && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="px-3 py-2.5 rounded-xl text-sm text-red-400"
+                        style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}
+                      >
+                        {error}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  <motion.button
+                    type="button"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    disabled={loading}
+                    onClick={handleForgotResetPassword}
+                    className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-60"
+                    style={{ background: "linear-gradient(135deg, #3B82F6, #1D4ED8)", boxShadow: "0 4px 20px rgba(59,130,246,0.35)" }}
+                  >
+                    {loading ? "⏳ Güncelleniyor..." : "Şifreyi Güncelle"}
+                  </motion.button>
+                </>
+              )}
+
+              {/* Giriş ekranına dön */}
+              <button
+                type="button"
+                onClick={() => switchMode("login")}
+                className="w-full py-2.5 rounded-xl text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+              >
+                ← Giriş ekranına dön
+              </button>
+            </div>
+          )}
+
+          {mode !== "forgot" && <form onSubmit={handleSubmit} className="space-y-4">
             {/* Username */}
             <div>
               <label className="block text-xs text-slate-400 mb-1.5 font-medium">
@@ -339,7 +593,20 @@ export default function LoginPage() {
             >
               {loading ? "⏳ Kontrol ediliyor..." : mode === "login" ? "🛫 Giriş Yap" : "✈ Hesap Oluştur"}
             </motion.button>
-          </form>
+
+            {/* Şifremi Unuttum linki — sadece login modunda */}
+            {mode === "login" && (
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => switchMode("forgot")}
+                  className="text-xs text-slate-600 hover:text-slate-400 transition-colors"
+                >
+                  Şifremi Unuttum
+                </button>
+              </div>
+            )}
+          </form>}
         </div>
 
         <p className="text-center text-slate-600 text-xs mt-4">

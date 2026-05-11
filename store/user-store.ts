@@ -84,16 +84,12 @@ interface UserState {
     destinationId: string;
     durationMinutes: number;
     xpEarned: number;
-    notes?: string;
   }) => void;
 
   addStamp: (stamp: Omit<Stamp, "id">) => void;
 
   /** Yeni başarımları kaydet */
   addAchievements: (newOnes: Achievement[]) => void;
-
-  /** Uçuş notunu sonradan güncelle (history'deki son uçuşa) */
-  updateLastFlightNotes: (notes: string) => void;
 
   /** 20 XP harcayarak 1 streak dondurma hakkı satın al */
   buyStreakFreeze: () => boolean;
@@ -129,17 +125,8 @@ export const useUserStore = create<UserState>()(
           ],
         })),
 
-      // ── updateLastFlightNotes ────────────────────────────────────────────
-      updateLastFlightNotes: (notes) =>
-        set((s) => {
-          if (s.history.length === 0) return s;
-          const updated = [...s.history];
-          updated[0] = { ...updated[0], notes };
-          return { history: updated };
-        }),
-
       // ── recordFlight ─────────────────────────────────────────────────────
-      recordFlight: ({ departureId, destinationId, durationMinutes, xpEarned, notes }) => {
+      recordFlight: ({ departureId, destinationId, durationMinutes, xpEarned }) => {
         set((s) => {
           const today = todayISO();
           const last = s.profile.lastFlightDate;
@@ -177,7 +164,6 @@ export const useUserStore = create<UserState>()(
             durationMinutes,
             completedAt: new Date().toISOString(),
             xpEarned,
-            ...(notes ? { notes } : {}),
           };
 
           return {

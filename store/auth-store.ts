@@ -32,6 +32,7 @@ interface AuthState {
   register:       (username: string, password: string, securityQuestion: string, securityAnswer: string) => Promise<RegisterResult>;
   logout:         () => void;
   setCurrentUser: (username: string | null) => void;
+  resetPassword:  (username: string, newPassword: string) => Promise<void>;
 }
 
 // ─── Snapshot Store (ayrı key — büyük veri auth'u bozmasın) ──────────────────
@@ -147,13 +148,27 @@ export const useAuthStore = create<AuthState>()(
 
       // ── setCurrentUser ─────────────────────────────────────────────────────
       setCurrentUser: (username) => set({ currentUsername: username }),
+
+      // ── resetPassword ──────────────────────────────────────────────────────
+      resetPassword: async (username, newPassword) => {
+        const key = username.trim().toLowerCase();
+        const hashed = await hashPassword(newPassword);
+        set((s) => {
+          const cred = s.credentials[key];
+          if (!cred) return s;
+          const updated: UserCredential =
+            typeof cred === "string"
+              ? { password: hashed, securityQuestion: "", securityAnswer: "" }
+              : { ...cred, password: hashed };
+          return { credentials: { ...s.credentials, [key]: updated } };
+        });
+      },
     }),
     {
       name: "airjen-auth",
       // Sadece kimlik doğrulama verisi (küçük, kritik) persist edilir.
       // Snapshot'lar airjen-snapshots key'inde ayrıca saklanır — büyük veri auth'u bozmasın.
       partialize: (s) => ({
-        currentUsername: s.currentUsername,
         credentials: s.credentials,
       }),
     }

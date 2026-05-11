@@ -91,7 +91,6 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
   { id: "weekend_warrior", emoji: "🏖️",  name: "Hafta Sonu Savaşçısı", description: "Cumartesi veya Pazar uçuş tamamla",     rarity: "common"    },
 
   // ── Özel ──────────────────────────────────────────────────────────────────
-  { id: "notes_keeper",    emoji: "📝",  name: "Kabin Günlüğü",         description: "5 uçuşu notla tamamla",                 rarity: "rare"      },
   { id: "comeback",        emoji: "💫",  name: "Geri Döndüm",           description: "Seri sıfırlandıktan sonra yeniden başla", rarity: "rare"    },
   { id: "globetrotter",    emoji: "🌍✈", name: "Gezgin Ruh",            description: "Aynı haftada 5 farklı ülkeye uç",       rarity: "epic"      },
 ];
@@ -114,8 +113,6 @@ export function checkNewAchievements(
     ? Math.max(...history.map((h) => h.durationMinutes))
     : 0;
   const hasIntl    = stamps.length > 0;
-  const notedCount = history.filter((h) => h.notes && h.notes.trim().length > 0).length;
-
   // ── Zaman bazlı hesaplamalar ───────────────────────────────────────────────
   let hasNightFlight   = false;
   let hasEarlyFlight   = false;
@@ -202,7 +199,6 @@ export function checkNewAchievements(
     ["early_bird",       hasEarlyFlight],
     ["weekend_warrior",  hasWeekendFlight],
     // Özel
-    ["notes_keeper",     notedCount >= 5],
     ["comeback",         hasComeback],
     ["globetrotter",     hasGlobetrotter],
   ];

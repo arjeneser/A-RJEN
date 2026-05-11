@@ -13,7 +13,6 @@ interface FlightSetupState {
   destination: City | null;
   seat: string | null;
   passengerName: string;
-  notes: string; // uçuş sırasında alınan notlar
   isContinuation: boolean; // true = coming from a previous flight
   lockedDestination: boolean; // true = joining a friend's flight (destination pre-set)
   journeyLeg: number;      // 1 = first flight, 2 = second, ...
@@ -28,7 +27,6 @@ interface FlightSetupState {
   setDestination: (city: City) => void;
   setSeat: (seat: string) => void;
   setPassengerName: (name: string) => void;
-  setNotes: (notes: string) => void;
   setBreakSettings: (intervalMinutes: number, durationMinutes: number) => void;
   /** Continue journey from arrived destination — skips departure step */
   continueJourney: (fromCity: City, passengerName: string) => void;
@@ -44,7 +42,6 @@ export const useFlightSetup = create<FlightSetupState>((set) => ({
   destination: null,
   seat: null,
   passengerName: "FOCUS PILOT",
-  notes: "",
   isContinuation: false,
   lockedDestination: false,
   journeyLeg: 1,
@@ -63,7 +60,6 @@ export const useFlightSetup = create<FlightSetupState>((set) => ({
   setDestination: (city) => set({ destination: city, step: 4 }),
   setSeat: (seat) => set({ seat, step: 5 }),
   setPassengerName: (passengerName) => set({ passengerName }),
-  setNotes: (notes) => set({ notes }),
   setBreakSettings: (intervalMinutes, durationMinutes) =>
     set({ breakIntervalMinutes: intervalMinutes, breakDurationMinutes: durationMinutes }),
 
@@ -102,7 +98,6 @@ export const useFlightSetup = create<FlightSetupState>((set) => ({
       destination: null,
       seat: null,
       passengerName: "FOCUS PILOT",
-      notes: "",
       isContinuation: false,
       lockedDestination: false,
       journeyLeg: 1,

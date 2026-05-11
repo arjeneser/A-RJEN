@@ -194,7 +194,7 @@ export default function FocusPage() {
   useEffect(() => {
     if (!session || !currentUsername) return;
     const id = setInterval(() => {
-      const prog = session ? Math.min(1, (Date.now() - session.startTime) / session.durationMs) : 0;
+      const prog = useActiveSession.getState().getProgress();
       broadcastFlight(currentUsername, session.departure, session.destination, prog);
     }, 5000);
     return () => clearInterval(id);

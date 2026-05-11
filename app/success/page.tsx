@@ -56,7 +56,7 @@ export default function SuccessPage() {
       recordedRef.current = true;
       if (typeof window !== "undefined") sessionStorage.setItem(storageKey, "1");
       const durationMinutes = Math.round(session.durationMs / 60000);
-      const xpEarned = Math.round(durationMinutes / 5);
+      const xpEarned = Math.round(durationMinutes / 3);
       recordFlight({
         departureId: session.departure.id,
         destinationId: session.destination.id,
@@ -196,7 +196,7 @@ export default function SuccessPage() {
   if (!mounted || !session) return null;
 
   const { departure, destination, durationMs } = session;
-  const xpEarned = Math.round(durationMs / 60000 / 5); // display purposes
+  const xpEarned = Math.round(durationMs / 60000 / 3); // display purposes
   const level = getLevel(profile.totalFlights);
   const levelProg = getLevelProgress(profile.totalFlights);
   const toNext = flightsToNextLevel(profile.totalFlights);
