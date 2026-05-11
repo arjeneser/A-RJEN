@@ -915,8 +915,7 @@ export default function FocusPage() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
             className="fixed inset-0 flex items-center justify-center"
-            style={{ zIndex: 155 }}
-            style={{ background: "rgba(7,9,24,0.88)", backdropFilter: "blur(8px)" }}
+            style={{ zIndex: 155, background: "rgba(7,9,24,0.88)", backdropFilter: "blur(8px)" }}
           >
             <motion.div
               initial={{ scale: 0.88, y: 20 }}
@@ -996,8 +995,7 @@ export default function FocusPage() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
             className="fixed inset-0 flex items-center justify-center"
-            style={{ zIndex: 155 }}
-            style={{ background: "rgba(7,9,24,0.88)", backdropFilter: "blur(8px)" }}
+            style={{ zIndex: 155, background: "rgba(7,9,24,0.88)", backdropFilter: "blur(8px)" }}
           >
             <motion.div
               initial={{ scale: 0.88, y: 20 }}
@@ -1066,8 +1064,7 @@ export default function FocusPage() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="fixed inset-0 flex items-center justify-center px-4"
-            style={{ zIndex: 200 }}
-            style={{ background: "rgba(7,9,24,0.92)", backdropFilter: "blur(10px)" }}
+            style={{ zIndex: 200, background: "rgba(7,9,24,0.92)", backdropFilter: "blur(10px)" }}
           >
             <motion.div
               initial={{ scale: 0.88, y: 24 }}
