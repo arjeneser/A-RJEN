@@ -64,7 +64,8 @@ function BreakVoteOverlay({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.25 }}
-        className="fixed inset-0 z-[110] flex items-center justify-center px-4"
+        className="fixed inset-0 flex items-center justify-center px-4"
+        style={{ zIndex: 210 }}
         style={{ background: "rgba(7,9,24,0.88)", backdropFilter: "blur(10px)" }}
       >
         <motion.div
@@ -456,7 +457,10 @@ export default function FocusPage() {
   }, [session, progress, elapsedMs, remainingMs]);
 
 
-  if (!mounted || !session) return null;
+  // Henüz mount olmadı veya session yüklenmedi — siyah flash yerine koyu arka plan
+  if (!mounted || !session) {
+    return <div className="fixed inset-0 bg-[#070918]" style={{ zIndex: 100 }} />;
+  }
 
   const { departure, destination, durationMs, seat } = session;
   const breakIntervalMinutes = session.breakIntervalMinutes ?? 0;
@@ -523,23 +527,33 @@ export default function FocusPage() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      <div className="fixed inset-0 bg-[#070918] flex flex-col pointer-events-none">
+      {/*
+        z-[100] → Navbar (z-50) ve diğer tüm layout elemanlarının üstünde.
+        fixed + explicit z-index → kendi stacking context'ini oluşturur.
+        İçindeki tüm z-index'ler (map z-0, vignette z-5…20) bu context'e göredir.
+      */}
+      <div className="fixed inset-0 bg-[#070918] flex flex-col pointer-events-none" style={{ zIndex: 100 }}>
 
-        {/* World Map — z-0 + isolate: MapLibre iç z-index'leri bu stacking context içinde kalır */}
-        <div className="absolute inset-0 pointer-events-none z-0" style={{ isolation: "isolate" }}>
+        {/*
+          WorldMap — absolute z-0 yeterli; position:absolute + z-index:0 stacking context
+          oluşturur, MapLibre'nin iç z-index'leri (200-600) bu context içinde kalır.
+          isolation:isolate KALDIRILDI — bazı GPU'larda siyah compositing bug'a yol açıyordu.
+        */}
+        {/* zIndex:0 + position:absolute → stacking context oluşturur, MapLibre z-200/400/600 içeride kalır */}
+        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0, position: "absolute" }}>
           <WorldMap departure={departure} destination={destination} progress={effectiveProgress} otherFlights={differentRoutes} crewmates={crewmates} emergencyMode={abandonModalOpen} />
         </div>
 
-        {/* Vignette */}
-        <div className="absolute top-0 left-0 right-0 h-32 pointer-events-none z-10"
-          style={{ background: "linear-gradient(to bottom, rgba(7,9,24,0.92) 0%, transparent 100%)" }} />
-        <div className="absolute bottom-0 left-0 right-0 h-64 pointer-events-none z-[15]"
-          style={{ background: "linear-gradient(to top, rgba(7,9,24,0.97) 0%, transparent 100%)" }} />
-        <div className="absolute inset-0 pointer-events-none z-[5]"
-          style={{ background: "rgba(7,9,24,0.35)" }} />
+        {/* Vignette — z-index'ler inline; Tailwind JIT bazen override edebilir */}
+        <div className="absolute top-0 left-0 right-0 h-32 pointer-events-none"
+          style={{ zIndex: 10, background: "linear-gradient(to bottom, rgba(7,9,24,0.92) 0%, transparent 100%)" }} />
+        <div className="absolute bottom-0 left-0 right-0 h-64 pointer-events-none"
+          style={{ zIndex: 15, background: "linear-gradient(to top, rgba(7,9,24,0.97) 0%, transparent 100%)" }} />
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ zIndex: 5, background: "rgba(7,9,24,0.35)" }} />
 
         {/* Top HUD */}
-        <div className="relative z-20 p-3 pt-safe sm:p-4 sm:pt-6 flex items-start justify-between pointer-events-auto gap-2">
+        <div className="relative p-3 pt-safe sm:p-4 sm:pt-6 flex items-start justify-between pointer-events-auto gap-2" style={{ zIndex: 20 }}>
           {/* Route chip */}
           <motion.div
             initial={{ opacity: 0, y: -16 }}
@@ -598,7 +612,7 @@ export default function FocusPage() {
         </div>
 
         {/* Status pill */}
-        <div className="relative z-20 flex justify-center mt-2 flex-col items-center gap-2 pointer-events-auto">
+        <div className="relative flex justify-center mt-2 flex-col items-center gap-2 pointer-events-auto" style={{ zIndex: 20 }}>
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -686,10 +700,10 @@ export default function FocusPage() {
 
       </div>
 
-      {/* ── Mola zamanı pill — fixed, pointer-events-auto, root dışında ─────── */}
+      {/* ── Mola zamanı pill — z-[160] (main container z-100'ün üstünde) ──── */}
       <AnimatePresence>
         {breakModalOpen && (
-          <div className="fixed left-1/2 -translate-x-1/2 z-[60] w-[92vw] sm:w-auto flex justify-center" style={{ top: "118px", pointerEvents: "auto" }}>
+          <div className="fixed left-1/2 -translate-x-1/2 w-[92vw] sm:w-auto flex justify-center" style={{ top: "118px", zIndex: 160, pointerEvents: "auto" }}>
           <motion.div
             key="break-pill"
             initial={{ opacity: 0, y: 12, scale: 0.95 }}
@@ -726,8 +740,8 @@ export default function FocusPage() {
         )}
       </AnimatePresence>
 
-      {/* ── Bottom Timer Panel ─────────────────────────────────────────────────── */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-safe-focus pointer-events-none">
+      {/* ── Bottom Timer Panel — z-[110] (main container z-100'ün üstünde) ─── */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 pb-safe-focus pointer-events-none" style={{ zIndex: 110 }}>
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: "linear-gradient(to top, rgba(7,9,24,1) 0%, rgba(7,9,24,0.85) 60%, transparent 100%)" }} />
 
@@ -901,7 +915,8 @@ export default function FocusPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="fixed inset-0 z-[55] flex items-center justify-center"
+            className="fixed inset-0 flex items-center justify-center"
+            style={{ zIndex: 155 }}
             style={{ background: "rgba(7,9,24,0.88)", backdropFilter: "blur(8px)" }}
           >
             <motion.div
@@ -981,7 +996,8 @@ export default function FocusPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="fixed inset-0 z-[55] flex items-center justify-center"
+            className="fixed inset-0 flex items-center justify-center"
+            style={{ zIndex: 155 }}
             style={{ background: "rgba(7,9,24,0.88)", backdropFilter: "blur(8px)" }}
           >
             <motion.div
@@ -1050,7 +1066,8 @@ export default function FocusPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center px-4"
+            className="fixed inset-0 flex items-center justify-center px-4"
+            style={{ zIndex: 200 }}
             style={{ background: "rgba(7,9,24,0.92)", backdropFilter: "blur(10px)" }}
           >
             <motion.div

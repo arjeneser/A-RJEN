@@ -111,6 +111,9 @@ export function Navbar() {
 
   const showTimer = (isFlightActive || isCompleted) && pathname !== "/focus";
 
+  // Focus sayfasında Navbar tamamen gizlenir — fokus UI kendi z-stack'ini yönetir
+  if (pathname === "/focus") return null;
+
   return (
     <>
       <header className="fixed top-0 left-0 right-0 z-50">
