@@ -13,6 +13,8 @@ import {
   startLobby,
   sendLobbyMessage,
   subscribeToLobbyMessages,
+  updateBreakSettings,
+  approveBreakSettings,
   type Lobby,
   type LobbyMessage,
 } from "@/lib/lobby";
@@ -59,10 +61,14 @@ export default function LobbyPage() {
   const { currentUsername }                   = useAuthStore();
   const { joinFlight, setSeat, setBreakSettings } = useFlightSetup();
 
-  const [lobby, setLobby]         = useState<Lobby | null>(null);
-  const [loading, setLoading]     = useState(true);
-  const [countdown, setCountdown] = useState<number | null>(null);
+  const [lobby, setLobby]           = useState<Lobby | null>(null);
+  const [loading, setLoading]       = useState(true);
+  const [countdown, setCountdown]   = useState<number | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+
+  // Mola ayarı düzenleme (sadece kurucu)
+  const [editInterval, setEditInterval]   = useState<number>(50);
+  const [editDuration, setEditDuration]   = useState<number>(10);
 
   // Chat
   const [messages, setMessages]   = useState<LobbyMessage[]>([]);
@@ -112,6 +118,15 @@ export default function LobbyPage() {
     prevReadyRef.current = currentReady;
   }, [lobby, currentUsername]);
 
+  // Lobby yüklenince editInterval/editDuration'u güncelle (sadece bir kere)
+  const settingsInitedRef = useRef(false);
+  useEffect(() => {
+    if (!lobby || settingsInitedRef.current) return;
+    settingsInitedRef.current = true;
+    setEditInterval(lobby.breakIntervalMinutes ?? 50);
+    setEditDuration(lobby.breakDurationMinutes ?? 10);
+  }, [lobby]);
+
   // ── Uçuş başlayınca geri sayım başlat ────────────────────────────────────
   useEffect(() => {
     if (!lobby || startedRef.current) return;
@@ -120,9 +135,14 @@ export default function LobbyPage() {
       const mySeat = currentUsername ? lobby.members[currentUsername]?.seat ?? null : null;
       // Uçuş verilerini hemen set et (geri sayım bitmeden hazır olsun)
       joinFlight(lobby.departure, lobby.destination, lobby.durationOption);
-      setBreakSettings(0, 0); // lobi uçuşlarında mola yok (sonradan ayarlanabilir)
+      setBreakSettings(
+        lobby.breakIntervalMinutes ?? 0,
+        lobby.breakDurationMinutes ?? 0
+      );
       if (mySeat) setSeat(mySeat);
       playLaunchSound();
+      // Shared flight lobbyId'sini kaydet
+      localStorage.setItem("airjen-shared-lobby-id", lobbyId);
       setCountdown(3);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -195,6 +215,12 @@ export default function LobbyPage() {
   const readyCount   = members.filter(([, i]) => i.ready).length;
   const unreadCount  = chatOpen ? 0 : messages.length;
 
+  // Mola ayarları onayı
+  const approvals           = lobby.breakSettingsApprovals ?? {};
+  const approvalCount       = Object.keys(approvals).length;
+  const allApprovedBreakSettings = approvalCount >= members.length;
+  const myApproval          = currentUsername ? !!approvals[currentUsername] : false;
+
   async function handleSeatClick(id: string) {
     if (!currentUsername) return;
     if (takenByOthers.has(id)) return;
@@ -209,8 +235,26 @@ export default function LobbyPage() {
   }
 
   async function handleStart() {
-    if (!isCreator || !allReady || !allHaveSeats) return;
-    await startLobby(lobbyId);
+    if (!isCreator || !allReady || !allHaveSeats || !allApprovedBreakSettings) return;
+    await startLobby(
+      lobbyId,
+      lobby.breakIntervalMinutes ?? 50,
+      lobby.breakDurationMinutes ?? 10,
+      memberNames,
+      (lobby.durationOption.minutes ?? 0) * 60 * 1000
+    );
+  }
+
+  async function handleUpdateBreakSettings() {
+    if (!currentUsername) return;
+    const interval = Math.min(120, Math.max(1, editInterval));
+    const duration = Math.min(120, Math.max(1, editDuration));
+    await updateBreakSettings(lobbyId, currentUsername, interval, duration);
+  }
+
+  async function handleApproveBreakSettings() {
+    if (!currentUsername) return;
+    await approveBreakSettings(lobbyId, currentUsername);
   }
 
   return (
@@ -424,6 +468,110 @@ export default function LobbyPage() {
             </div>
           </div>
 
+          {/* ── Mola Ayarları ───────────────────────────────────────────── */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl p-4 space-y-3"
+            style={{
+              background: "rgba(245,158,11,0.06)",
+              border: "1px solid rgba(245,158,11,0.2)",
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-base">☕</span>
+                <span className="text-sm font-semibold text-amber-300">Mola Ayarları</span>
+              </div>
+              <span className="text-[11px] text-slate-500">
+                {approvalCount}/{members.length} onayladı
+              </span>
+            </div>
+
+            {isCreator ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <div className="text-[11px] text-slate-500 mb-1">Mola aralığı (dk)</div>
+                    <input
+                      type="number"
+                      min={1}
+                      max={120}
+                      value={editInterval}
+                      onChange={(e) => setEditInterval(Number(e.target.value))}
+                      className="w-full px-3 py-1.5 rounded-xl text-sm text-white outline-none"
+                      style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-[11px] text-slate-500 mb-1">Mola süresi (dk)</div>
+                    <input
+                      type="number"
+                      min={1}
+                      max={120}
+                      value={editDuration}
+                      onChange={(e) => setEditDuration(Number(e.target.value))}
+                      className="w-full px-3 py-1.5 rounded-xl text-sm text-white outline-none"
+                      style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
+                    />
+                  </div>
+                  <button
+                    onClick={handleUpdateBreakSettings}
+                    className="mt-5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-all"
+                    style={{ background: "rgba(245,158,11,0.2)", border: "1px solid rgba(245,158,11,0.35)", color: "#FCD34D" }}
+                  >
+                    Güncelle
+                  </button>
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  Her <span className="text-amber-300">{lobby.breakIntervalMinutes ?? 50} dk</span> çalışmadan sonra <span className="text-amber-300">{lobby.breakDurationMinutes ?? 10} dk</span> mola
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="text-sm text-slate-300">
+                  Her <span className="text-amber-300 font-semibold">{lobby.breakIntervalMinutes ?? 50} dk</span> çalışmadan sonra{" "}
+                  <span className="text-amber-300 font-semibold">{lobby.breakDurationMinutes ?? 10} dk</span> mola
+                </div>
+              </div>
+            )}
+
+            {/* Onay butonu — kendisi henüz onaylamamışsa göster */}
+            {!myApproval && (
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={handleApproveBreakSettings}
+                className="w-full py-2 rounded-xl text-sm font-semibold transition-all"
+                style={{
+                  background: "rgba(245,158,11,0.15)",
+                  border: "1px solid rgba(245,158,11,0.35)",
+                  color: "#FCD34D",
+                }}
+              >
+                ✓ Ayarları Onayla
+              </motion.button>
+            )}
+            {myApproval && (
+              <div className="text-center text-xs text-amber-600">✓ Onayladın</div>
+            )}
+
+            {/* Onay listesi */}
+            <div className="flex flex-wrap gap-1.5">
+              {memberNames.map((name) => (
+                <div
+                  key={name}
+                  className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                  style={approvals[name]
+                    ? { background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.4)", color: "#FCD34D" }
+                    : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#475569" }
+                  }
+                >
+                  {approvals[name] ? "✓ " : ""}{name === currentUsername ? "Sen" : name}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
           {/* ── Actions ─────────────────────────────────────────────────── */}
           <div className="space-y-3 pt-1">
             <motion.button
@@ -448,19 +596,23 @@ export default function LobbyPage() {
                   exit={{ opacity: 0, y: 8 }}
                   whileTap={{ scale: 0.97 }}
                   onClick={handleStart}
-                  disabled={!allReady || !allHaveSeats}
+                  disabled={!allReady || !allHaveSeats || !allApprovedBreakSettings}
                   className="w-full py-3 rounded-2xl font-bold text-white transition-all disabled:opacity-35"
                   style={{
-                    background: allReady && allHaveSeats
+                    background: allReady && allHaveSeats && allApprovedBreakSettings
                       ? "linear-gradient(135deg, #7C3AED, #5B21B6)"
                       : "rgba(124,58,237,0.12)",
                     border: "1px solid rgba(124,58,237,0.35)",
-                    boxShadow: allReady && allHaveSeats ? "0 4px 20px rgba(124,58,237,0.45)" : "none",
+                    boxShadow: allReady && allHaveSeats && allApprovedBreakSettings ? "0 4px 20px rgba(124,58,237,0.45)" : "none",
                   }}
                 >
-                  {allReady && allHaveSeats
-                    ? "✈ Uçuşu Başlat"
-                    : `Bekleniyor (${readyCount}/${members.length} hazır)`}
+                  {!allReady
+                    ? `Bekleniyor (${readyCount}/${members.length} hazır)`
+                    : !allHaveSeats
+                      ? "Herkes koltuk seçmeli"
+                      : !allApprovedBreakSettings
+                        ? `Mola onayı bekleniyor (${approvalCount}/${members.length})`
+                        : "✈ Uçuşu Başlat"}
                 </motion.button>
               )}
             </AnimatePresence>

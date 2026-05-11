@@ -1,5 +1,6 @@
 import { ref, set, update, onValue, push } from "firebase/database";
 import { getDb } from "./firebase";
+import { createSharedFlight } from "./shared-flight";
 import type { City, FlightDurationOption } from "@/types";
 
 // ─── Lobi sohbet mesajı ────────────────────────────────────────────────────────
@@ -26,6 +27,9 @@ export interface Lobby {
   members: Record<string, LobbyMember>;
   status: "waiting" | "starting";
   startTime?: number;
+  breakIntervalMinutes: number;      // default 50
+  breakDurationMinutes: number;      // default 10
+  breakSettingsApprovals: Record<string, true>;  // her üyenin onayı
 }
 
 /** Lobi oluştur, oluşturanı üye olarak ekle */
@@ -51,6 +55,9 @@ export async function createLobby(
     members: {
       [createdBy]: { joinedAt: now, seat: null, ready: false },
     },
+    breakIntervalMinutes: 50,
+    breakDurationMinutes: 10,
+    breakSettingsApprovals: { [createdBy]: true },
   });
   return id;
 }
@@ -80,13 +87,55 @@ export async function setLobbyReady(lobbyId: string, username: string, ready: bo
   await update(ref(db, `lobbies/${lobbyId}/members/${username}`), { ready });
 }
 
-/** Uçuşu başlat (tüm üyelere "starting" sinyali) */
-export async function startLobby(lobbyId: string): Promise<void> {
+/** Uçuşu başlat — SharedFlight oluşturur ve tüm üyelere "starting" sinyali verir */
+export async function startLobby(
+  lobbyId: string,
+  breakIntervalMinutes: number,
+  breakDurationMinutes: number,
+  members: string[],
+  durationMs: number
+): Promise<void> {
   const db = getDb();
   if (!db) return;
+
+  await createSharedFlight(lobbyId, {
+    durationMs,
+    breakIntervalMs: breakIntervalMinutes * 60 * 1000,
+    breakDurationMs: breakDurationMinutes * 60 * 1000,
+    members,
+  });
+
   await update(ref(db, `lobbies/${lobbyId}`), {
     status: "starting",
     startTime: Date.now(),
+  });
+}
+
+/** Mola ayarlarını güncelle — proposer hariç onayları sıfırla */
+export async function updateBreakSettings(
+  lobbyId: string,
+  username: string,
+  intervalMinutes: number,
+  durationMinutes: number
+): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  await update(ref(db, `lobbies/${lobbyId}`), {
+    breakIntervalMinutes: intervalMinutes,
+    breakDurationMinutes: durationMinutes,
+    breakSettingsApprovals: { [username]: true },
+  });
+}
+
+/** Mola ayarlarını onayla */
+export async function approveBreakSettings(
+  lobbyId: string,
+  username: string
+): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  await update(ref(db, `lobbies/${lobbyId}/breakSettingsApprovals`), {
+    [username]: true,
   });
 }
 

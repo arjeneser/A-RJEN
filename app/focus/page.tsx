@@ -12,12 +12,142 @@ import { flagEmoji, CITIES } from "@/data/cities";
 import { broadcastFlight, clearFlight, subscribeToFlights, type LiveFlight } from "@/lib/flight-sync";
 import { useWeatherPair } from "@/hooks/use-weather";
 import { findNearestAirport, type NearestCityResult } from "@/lib/geo";
+import {
+  subscribeToSharedFlight,
+  setActiveMember,
+  initiateBreakVote,
+  castBreakVote,
+  resolveBreakVote,
+  castResumeVote,
+  resolveResume,
+  completeSharedFlight,
+  getSharedElapsedMs,
+  type SharedFlight,
+} from "@/lib/shared-flight";
 
 // ── Map is client-only ────────────────────────────────────────────────────────
 const WorldMap = dynamic(
   () => import("@/components/focus/world-map").then((m) => m.WorldMap),
   { ssr: false, loading: () => <div className="w-full h-full bg-[#070918]" /> }
 );
+
+// ── Break Vote Overlay (shared mod) ──────────────────────────────────────────
+function BreakVoteOverlay({
+  bv,
+  activeMembers,
+  currentUsername,
+  sharedFlightId,
+}: {
+  bv: { initiatedBy: string; initiatedAt: number; votes: Record<string, "yes" | "no"> };
+  activeMembers: Record<string, true>;
+  currentUsername: string;
+  sharedFlightId: string;
+}) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(id);
+  }, []);
+
+  const votedUsers   = Object.keys(bv.votes ?? {});
+  const totalMembers = Object.keys(activeMembers).length;
+  const myVote       = bv.votes?.[currentUsername];
+  const elapsed      = now - bv.initiatedAt;
+  const remaining    = Math.max(0, 20000 - elapsed);
+  const countdownPct = (remaining / 20000) * 100;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        key="break-vote-overlay"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.25 }}
+        className="fixed inset-0 z-[110] flex items-center justify-center px-4"
+        style={{ background: "rgba(7,9,24,0.88)", backdropFilter: "blur(10px)" }}
+      >
+        <motion.div
+          initial={{ scale: 0.88, y: 24 }}
+          animate={{ scale: 1, y: 0 }}
+          exit={{ scale: 0.88, y: 24 }}
+          transition={{ type: "spring", stiffness: 340, damping: 28 }}
+          className="w-full max-w-sm rounded-3xl p-6 flex flex-col gap-5"
+          style={{
+            background: "linear-gradient(160deg, rgba(30,40,80,0.98) 0%, rgba(10,14,40,0.99) 100%)",
+            border: "1px solid rgba(239,68,68,0.3)",
+            boxShadow: "0 24px 80px rgba(0,0,0,0.7)",
+          }}
+        >
+          <div className="text-center">
+            <div className="text-3xl mb-2">🛑</div>
+            <div className="text-lg font-bold text-white mb-1" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+              {bv.initiatedBy} acil mola istiyor
+            </div>
+            <div className="text-sm text-slate-400">Oylama sonucunu bekleyin</div>
+          </div>
+
+          {/* Geri sayım progress bar */}
+          <div className="space-y-1">
+            <div className="flex justify-between text-[11px] text-slate-500">
+              <span>Kalan süre</span>
+              <span>{Math.ceil(remaining / 1000)}s</span>
+            </div>
+            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${countdownPct}%`, background: "linear-gradient(90deg, #EF4444, #F59E0B)" }}
+              />
+            </div>
+          </div>
+
+          {/* Oy durumu */}
+          <div className="text-center text-sm text-slate-400">
+            {votedUsers.length}/{totalMembers} oy verildi
+          </div>
+
+          {/* Evet / Hayır butonları */}
+          <div className="flex gap-3">
+            <button
+              disabled={!!myVote}
+              onClick={() => castBreakVote(sharedFlightId, currentUsername, "yes")}
+              className="flex-1 py-3 rounded-2xl font-bold transition-all disabled:opacity-40"
+              style={{
+                background: myVote === "yes"
+                  ? "linear-gradient(135deg, #16A34A, #15803D)"
+                  : "rgba(34,197,94,0.15)",
+                border: "1px solid rgba(34,197,94,0.4)",
+                color: "#4ADE80",
+              }}
+            >
+              ✅ Evet
+            </button>
+            <button
+              disabled={!!myVote}
+              onClick={() => castBreakVote(sharedFlightId, currentUsername, "no")}
+              className="flex-1 py-3 rounded-2xl font-bold transition-all disabled:opacity-40"
+              style={{
+                background: myVote === "no"
+                  ? "linear-gradient(135deg, #DC2626, #991B1B)"
+                  : "rgba(239,68,68,0.15)",
+                border: "1px solid rgba(239,68,68,0.4)",
+                color: "#F87171",
+              }}
+            >
+              ❌ Hayır
+            </button>
+          </div>
+
+          {myVote && (
+            <div className="text-center text-xs text-slate-500">
+              Oyunuzu kullandınız · sonuç bekleniyor…
+            </div>
+          )}
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
 
 // ── Kronometre (sıfırdan sayar) ───────────────────────────────────────────────
 function Stopwatch({ label, color = "#F87171", bg = "rgba(220,38,38,0.1)", border = "rgba(220,38,38,0.25)" }: {
@@ -63,6 +193,13 @@ export default function FocusPage() {
   const [mounted, setMounted]               = useState(false);
   const [otherFlights, setOtherFlights]     = useState<LiveFlight[]>([]);
 
+  // ── Shared flight state ──────────────────────────────────────────────────
+  const [sharedFlightId] = useState<string | null>(() =>
+    typeof window !== "undefined" ? localStorage.getItem("airjen-shared-lobby-id") : null
+  );
+  const [sharedFlight, setSharedFlight]     = useState<SharedFlight | null>(null);
+  const isShared                            = !!sharedFlightId;
+
   // ── Abandon modal ────────────────────────────────────────────────────────
   const [abandonModalOpen, setAbandonModalOpen] = useState(false);
   const [nearestCity, setNearestCity]           = useState<NearestCityResult | null>(null);
@@ -79,6 +216,17 @@ export default function FocusPage() {
   const suppressWarnUntilRef               = useRef<number>(0);
 
   useEffect(() => { setMounted(true); }, []);
+
+  // ── SharedFlight subscribe + active member ────────────────────────────────
+  useEffect(() => {
+    if (!sharedFlightId || !currentUsername) return;
+    setActiveMember(sharedFlightId, currentUsername, true);
+    const unsub = subscribeToSharedFlight(sharedFlightId, setSharedFlight);
+    return () => {
+      unsub();
+      setActiveMember(sharedFlightId, currentUsername, false);
+    };
+  }, [sharedFlightId, currentUsername]);
 
   // ── Weather (session null olsa da hook her zaman çalışmalı) ──────────────
   const { departure: depWeather, destination: dstWeather } = useWeatherPair(
@@ -217,6 +365,70 @@ export default function FocusPage() {
     }
   }, [elapsedMs, emergencyTarget, emergencyLand, router]);
 
+  // ── Shared: lokal timer'ı Firebase durumuyla senkronize et ───────────────
+  useEffect(() => {
+    if (!isShared || !sharedFlight) return;
+    if (sharedFlight.status === "on_break" && session?.status === "running") {
+      pause();
+      setIsOnBreak(true);
+    } else if (sharedFlight.status === "flying" && session?.status === "paused") {
+      setIsOnBreak(false);
+      resume();
+    } else if (sharedFlight.status === "completed" && !hasCompletedRef.current) {
+      hasCompletedRef.current = true;
+      localStorage.removeItem("airjen-shared-lobby-id");
+      router.push("/success");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sharedFlight?.status]);
+
+  // ── Shared: break_vote sonuç kontrolü ────────────────────────────────────
+  // JSON stringify ile oy değişikliğini güvenilir şekilde izle
+  const breakVotesKey = sharedFlight?.breakVote
+    ? JSON.stringify(sharedFlight.breakVote.votes ?? {})
+    : null;
+  useEffect(() => {
+    if (!isShared || !sharedFlight?.breakVote || !currentUsername) return;
+    const { votes } = sharedFlight.breakVote;
+    const memberCount = Object.keys(sharedFlight.activeMembers ?? {}).length;
+    if (memberCount === 0) return;
+    const yesCount = Object.values(votes).filter((v) => v === "yes").length;
+    const noCount  = Object.values(votes).filter((v) => v === "no").length;
+    if (yesCount > memberCount / 2) {
+      resolveBreakVote(sharedFlightId!, memberCount);
+    } else if (noCount >= Math.ceil(memberCount / 2)) {
+      resolveBreakVote(sharedFlightId!, memberCount);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [breakVotesKey]);
+
+  // ── Shared: 20s break_vote timeout ───────────────────────────────────────
+  useEffect(() => {
+    if (!isShared || !sharedFlight?.breakVote) return;
+    const elapsed   = Date.now() - sharedFlight.breakVote.initiatedAt;
+    const remaining = Math.max(0, 20000 - elapsed);
+    const mc        = Object.keys(sharedFlight.activeMembers ?? {}).length;
+    const t = setTimeout(() => {
+      resolveBreakVote(sharedFlightId!, mc);
+    }, remaining);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sharedFlight?.breakVote?.initiatedAt]);
+
+  // ── Shared: uçuş tamamlanma — progress >= 1 ──────────────────────────────
+  useEffect(() => {
+    if (!isShared || !sharedFlight || hasCompletedRef.current) return;
+    const sElapsed = getSharedElapsedMs(sharedFlight);
+    if (sElapsed >= sharedFlight.durationMs) {
+      hasCompletedRef.current = true;
+      completeSharedFlight(sharedFlightId!).then(() => {
+        localStorage.removeItem("airjen-shared-lobby-id");
+        router.push("/success");
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sharedFlight, isShared]);
+
   // ── Guards ────────────────────────────────────────────────────────────────
   useEffect(() => { if (mounted && !session) router.push("/"); }, [session, router, mounted]);
   useEffect(() => {
@@ -243,11 +455,22 @@ export default function FocusPage() {
     };
   }, [session, progress, elapsedMs, remainingMs]);
 
+
   if (!mounted || !session) return null;
 
   const { departure, destination, durationMs, seat } = session;
   const breakIntervalMinutes = session.breakIntervalMinutes ?? 0;
   const breakDurationMinutes = session.breakDurationMinutes ?? 0;
+
+  // ── Shared timer overrides ────────────────────────────────────────────────
+  const sharedElapsedMs      = sharedFlight ? getSharedElapsedMs(sharedFlight) : 0;
+  const effectiveElapsedMs   = isShared ? sharedElapsedMs : elapsedMs;
+  const effectiveProgress    = isShared && sharedFlight
+    ? Math.min(1, sharedElapsedMs / (sharedFlight.durationMs ?? durationMs))
+    : progress;
+  const effectiveRemainingMs = isShared && sharedFlight
+    ? Math.max(0, sharedFlight.durationMs - sharedElapsedMs)
+    : remainingMs;
 
   // Aynı rotada uçanlar → tek uçakta göster; farklı rotadakiler → ayrı uçak
   const crewFlights      = otherFlights.filter(
@@ -258,11 +481,11 @@ export default function FocusPage() {
     (f) => !(f.departure.id === departure.id && f.destination.id === destination.id)
   );
 
-  const percent = Math.round(progress * 100);
+  const percent = Math.round(effectiveProgress * 100);
 
   // Kalan mola süresini göstermek için (bilgi amaçlı)
   const minsUntilBreak = nextBreakMs !== null
-    ? Math.max(0, Math.ceil((nextBreakMs - elapsedMs) / 60000))
+    ? Math.max(0, Math.ceil((nextBreakMs - effectiveElapsedMs) / 60000))
     : null;
 
   function handleAbandon() {
@@ -304,7 +527,7 @@ export default function FocusPage() {
 
         {/* World Map */}
         <div className="absolute inset-0 pointer-events-none">
-          <WorldMap departure={departure} destination={destination} progress={progress} otherFlights={differentRoutes} crewmates={crewmates} emergencyMode={abandonModalOpen} />
+          <WorldMap departure={departure} destination={destination} progress={effectiveProgress} otherFlights={differentRoutes} crewmates={crewmates} emergencyMode={abandonModalOpen} />
         </div>
 
         {/* Vignette */}
@@ -522,7 +745,7 @@ export default function FocusPage() {
               className="text-6xl sm:text-7xl font-bold text-white tracking-tight leading-none"
               style={{ fontFamily: "Space Grotesk, sans-serif" }}
             >
-              {formatDuration(remainingMs)}
+              {formatDuration(effectiveRemainingMs)}
             </div>
             <div className="text-slate-500 text-sm mt-2">kalan süre</div>
 
@@ -590,7 +813,7 @@ export default function FocusPage() {
           >
             <div className="text-center">
               <div className="text-xs text-slate-500 uppercase tracking-widest mb-0.5">Geçen Süre</div>
-              <div className="text-sm font-semibold text-white">{formatDuration(elapsedMs)}</div>
+              <div className="text-sm font-semibold text-white">{formatDuration(effectiveElapsedMs)}</div>
             </div>
             <div className="w-px h-8 bg-white/[0.07]" />
             <div className="text-center">
@@ -623,8 +846,8 @@ export default function FocusPage() {
               {isPaused ? "▶ Devam Et" : "⏹ Durdur"}
             </motion.button>
 
-            {/* Acil Mola butonu */}
-            {!isPaused && (
+            {/* Acil Mola butonu — solo mod */}
+            {!isPaused && !isShared && (
               <button
                 onClick={handleEmergencyBreak}
                 className="flex flex-col items-center gap-1 px-4 py-2.5 rounded-2xl transition-all"
@@ -637,6 +860,23 @@ export default function FocusPage() {
               >
                 <span className="text-lg leading-none">☕</span>
                 <span className="text-[10px] font-semibold leading-none">Acil Mola</span>
+              </button>
+            )}
+
+            {/* Acil Mola İste — shared mod */}
+            {isShared && sharedFlight?.status === "flying" && (
+              <button
+                onClick={() => initiateBreakVote(sharedFlightId!, currentUsername!)}
+                className="flex flex-col items-center gap-1 px-4 py-2.5 rounded-2xl transition-all"
+                style={{
+                  background: "rgba(239,68,68,0.1)",
+                  border: "1px solid rgba(239,68,68,0.25)",
+                  color: "#FCA5A5",
+                }}
+                title="Acil mola oyu başlat"
+              >
+                <span className="text-lg leading-none">🛑</span>
+                <span className="text-[10px] font-semibold leading-none">Acil Mola İste</span>
               </button>
             )}
 
@@ -705,10 +945,23 @@ export default function FocusPage() {
                 </div>
               )}
 
+              {/* Shared modda resume vote sayısını göster */}
+              {isShared && sharedFlight?.status === "on_break" && (
+                <div className="text-xs text-slate-500 text-center">
+                  {Object.keys(sharedFlight.resumeVotes ?? {}).length}/{Object.keys(sharedFlight.activeMembers ?? {}).length} devam etmek istiyor
+                </div>
+              )}
+
               <motion.button
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.96 }}
-                onClick={handleResumeFromBreak}
+                onClick={isShared && sharedFlight?.status === "on_break"
+                  ? async () => {
+                      await castResumeVote(sharedFlightId!, currentUsername!);
+                      const mc = Object.keys(sharedFlight?.activeMembers ?? {}).length;
+                      await resolveResume(sharedFlightId!, mc);
+                    }
+                  : handleResumeFromBreak}
                 className="w-full py-3.5 rounded-2xl font-bold text-white text-base"
                 style={{ background: "linear-gradient(135deg, #22C55E, #16A34A)", boxShadow: "0 4px 20px rgba(34,197,94,0.4)" }}
               >
@@ -777,6 +1030,16 @@ export default function FocusPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Shared: Break Vote Overlay ────────────────────────────────────── */}
+      {isShared && sharedFlight?.status === "break_vote" && sharedFlight.breakVote && (
+        <BreakVoteOverlay
+          bv={sharedFlight.breakVote}
+          activeMembers={sharedFlight.activeMembers ?? {}}
+          currentUsername={currentUsername ?? ""}
+          sharedFlightId={sharedFlightId!}
+        />
+      )}
 
       {/* ── Acil İniş / Terk Et Modal ──────────────────────────────────────── */}
       <AnimatePresence>
