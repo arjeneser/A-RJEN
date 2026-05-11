@@ -235,7 +235,7 @@ export default function LobbyPage() {
   }
 
   async function handleStart() {
-    if (!isCreator || !allReady || !allHaveSeats || !allApprovedBreakSettings) return;
+    if (!lobby || !isCreator || !allReady || !allHaveSeats || !allApprovedBreakSettings) return;
     await startLobby(
       lobbyId,
       lobby.breakIntervalMinutes ?? 50,
