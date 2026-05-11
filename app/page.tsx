@@ -1,12 +1,23 @@
 "use client";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { useUserStore, getLevel, getLevelProgress, flightsToNextLevel } from "@/store/user-store";
 import { useActiveSession } from "@/store/flight-store";
-import { getCityById, flagEmoji } from "@/data/cities";
+import { useAuthStore } from "@/store/auth-store";
+import { getCityById, flagEmoji, FLIGHT_DURATIONS, getDepartureCities, getReachableDestinations } from "@/data/cities";
 import { formatMinutes } from "@/lib/utils";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { StreakBanner } from "@/components/streak-banner";
+import { createLobby } from "@/lib/lobby";
+import {
+  createAnnouncement,
+  deleteAnnouncement,
+  subscribeToAnnouncements,
+  type Announcement,
+} from "@/lib/announcements";
+import type { City, FlightDurationOption } from "@/types";
 
 const FADE_UP = {
   hidden: { opacity: 0, y: 24 },
@@ -17,15 +28,321 @@ const FADE_UP = {
   }),
 };
 
+// ── Hızlı süre seçenekleri (duyuru modalı için) ───────────────────────────────
+const QUICK_DURATIONS = [
+  FLIGHT_DURATIONS.find((d) => d.key === "30m")!,
+  FLIGHT_DURATIONS.find((d) => d.key === "1h")!,
+  FLIGHT_DURATIONS.find((d) => d.key === "1h30")!,
+  FLIGHT_DURATIONS.find((d) => d.key === "2h")!,
+  FLIGHT_DURATIONS.find((d) => d.key === "3h")!,
+  FLIGHT_DURATIONS.find((d) => d.key === "4h")!,
+].filter(Boolean) as FlightDurationOption[];
+
+// ── Zaman farkı formatı ───────────────────────────────────────────────────────
+function timeAgo(ts: number): string {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "Az önce";
+  if (m < 60) return `${m} dk önce`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} sa önce`;
+  return `${Math.floor(h / 24)} gün önce`;
+}
+
+// ── Duyuru Oluşturma Modalı ───────────────────────────────────────────────────
+function AnnouncementModal({
+  onClose,
+  onCreated,
+  username,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+  username: string;
+}) {
+  const router = useRouter();
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [message, setMessage] = useState("");
+  const [duration, setDuration] = useState<FlightDurationOption | null>(null);
+  const [departure, setDeparture] = useState<City | null>(null);
+  const [depQuery, setDepQuery] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const departureCities = getDepartureCities();
+
+  function trNorm(s: string) {
+    return s.toLocaleLowerCase("tr").normalize("NFC");
+  }
+  const filteredCities = depQuery.trim()
+    ? departureCities.filter((c) => {
+        const q = trNorm(depQuery);
+        return trNorm(c.name).includes(q) || trNorm(c.country).includes(q);
+      })
+    : departureCities;
+
+  const canNext =
+    (step === 1 && message.trim().length >= 5) ||
+    (step === 2 && !!duration) ||
+    (step === 3 && !!departure);
+
+  async function handleCreate() {
+    if (!departure || !duration || !message.trim()) return;
+    setCreating(true);
+    try {
+      // Varış şehri: süreye uygun ilk seçenek
+      const destinations = getReachableDestinations(departure, duration);
+      if (destinations.length === 0) { setCreating(false); return; }
+      const destination = destinations[Math.floor(destinations.length / 2)];
+
+      // Lobi oluştur — mola YOK (breakIntervalMinutes = 0)
+      const lobbyId = await createLobby(departure, destination, duration, username, 0, 0);
+      if (!lobbyId) { setCreating(false); return; }
+
+      // Duyuru oluştur
+      await createAnnouncement(message.trim(), username, departure, destination, duration, lobbyId);
+
+      onCreated();
+      router.push(`/lobby/${lobbyId}`);
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  const STEP_LABELS = ["Mesaj", "Süre", "Nereden"];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center px-4 pb-4 sm:pb-0"
+      style={{ background: "rgba(7,9,24,0.88)", backdropFilter: "blur(12px)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <motion.div
+        initial={{ y: 60, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 60, opacity: 0 }}
+        transition={{ type: "spring", stiffness: 320, damping: 28 }}
+        className="w-full max-w-md rounded-3xl overflow-hidden"
+        style={{
+          background: "linear-gradient(160deg, rgba(20,16,40,0.99) 0%, rgba(8,10,28,0.99) 100%)",
+          border: "1px solid rgba(124,58,237,0.25)",
+          boxShadow: "0 24px 80px rgba(0,0,0,0.6)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4"
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <div>
+            <div className="text-base font-bold text-white" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+              📣 Uçuş Duyurusu Yap
+            </div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Molasız — herkes katılabilir</div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-500 hover:text-white transition-colors"
+            style={{ background: "rgba(255,255,255,0.05)" }}>✕</button>
+        </div>
+
+        {/* Step indicators */}
+        <div className="flex items-center gap-0 px-6 pt-4">
+          {STEP_LABELS.map((label, i) => (
+            <div key={label} className="flex items-center flex-1">
+              <div className="flex flex-col items-center">
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all"
+                  style={
+                    step === i + 1
+                      ? { background: "#7C3AED", borderColor: "#7C3AED", color: "white" }
+                      : step > i + 1
+                      ? { background: "rgba(124,58,237,0.15)", borderColor: "rgba(124,58,237,0.4)", color: "#A78BFA" }
+                      : { background: "transparent", borderColor: "rgba(255,255,255,0.1)", color: "#475569" }
+                  }
+                >
+                  {step > i + 1 ? "✓" : i + 1}
+                </div>
+                <span className="text-[9px] mt-1 transition-colors"
+                  style={{ color: step === i + 1 ? "#A78BFA" : "#334155" }}>
+                  {label}
+                </span>
+              </div>
+              {i < 2 && (
+                <div className="flex-1 h-0.5 mb-4 mx-1 transition-all"
+                  style={{ background: step > i + 1 ? "rgba(124,58,237,0.4)" : "rgba(255,255,255,0.05)" }} />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Step content */}
+        <div className="px-6 pb-6 pt-4">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step}
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -16 }}
+              transition={{ duration: 0.18 }}
+            >
+
+              {/* Step 1: Mesaj */}
+              {step === 1 && (
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-sm font-semibold text-white mb-1">Duyuru Mesajın</div>
+                    <div className="text-xs text-slate-500 mb-3">Diğer kullanıcıların ana sayfasında görünecek</div>
+                    <textarea
+                      autoFocus
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value.slice(0, 120))}
+                      placeholder="Bu gece 2 saat çalışacağız, sen de katılır mısın? 🚀"
+                      rows={3}
+                      className="w-full px-4 py-3 rounded-2xl text-sm text-white placeholder-slate-600 outline-none resize-none"
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+                    />
+                    <div className="text-right text-[10px] text-slate-600 mt-1">{message.length}/120</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: Süre */}
+              {step === 2 && (
+                <div className="space-y-3">
+                  <div className="text-sm font-semibold text-white mb-1">Uçuş Süresi</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {QUICK_DURATIONS.map((opt) => {
+                      const sel = duration?.key === opt.key;
+                      return (
+                        <button
+                          key={opt.key}
+                          onClick={() => setDuration(opt)}
+                          className="py-3 px-2 rounded-2xl text-center transition-all"
+                          style={sel
+                            ? { background: "linear-gradient(135deg,#4C1D95,#3B0764)", border: "1px solid rgba(124,58,237,0.6)", boxShadow: "0 0 16px rgba(124,58,237,0.3)" }
+                            : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }
+                          }
+                        >
+                          <div className="text-lg mb-0.5">{opt.icon}</div>
+                          <div className="text-xs font-semibold" style={{ color: sel ? "#E9D5FF" : "#94A3B8" }}>{opt.label}</div>
+                          <div className="text-[9px] mt-0.5" style={{ color: sel ? "#A78BFA" : "#475569" }}>+{opt.xpReward} XP</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Nereden */}
+              {step === 3 && (
+                <div className="space-y-3">
+                  <div className="text-sm font-semibold text-white mb-1">Kalkış Şehri</div>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm">🔍</span>
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="Şehir ara..."
+                      value={depQuery}
+                      onChange={(e) => setDepQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm text-white placeholder-slate-500 outline-none"
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
+                    {filteredCities.map((city) => {
+                      const sel = departure?.id === city.id;
+                      return (
+                        <button
+                          key={city.id}
+                          onClick={() => setDeparture(city)}
+                          className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-left transition-all"
+                          style={sel
+                            ? { background: "linear-gradient(135deg,rgba(76,29,149,0.4),rgba(124,58,237,0.2))", border: "1px solid rgba(124,58,237,0.5)" }
+                            : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }
+                          }
+                        >
+                          <span className="text-xl shrink-0">{flagEmoji(city.countryCode)}</span>
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold truncate" style={{ color: sel ? "white" : "#CBD5E1" }}>{city.name}</div>
+                            <div className="text-[9px] text-slate-600 truncate">{city.country}</div>
+                          </div>
+                          {sel && <span className="ml-auto text-violet-400 shrink-0">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Navigation */}
+          <div className="flex items-center justify-between mt-5 pt-4"
+            style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            <button
+              onClick={() => step > 1 ? setStep((step - 1) as 1 | 2 | 3) : onClose()}
+              className="px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", color: "#64748B" }}
+            >
+              {step > 1 ? "← Geri" : "İptal"}
+            </button>
+
+            {step < 3 ? (
+              <button
+                onClick={() => setStep((step + 1) as 2 | 3)}
+                disabled={!canNext}
+                className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40"
+                style={{
+                  background: canNext ? "linear-gradient(135deg,#7C3AED,#5B21B6)" : "rgba(255,255,255,0.06)",
+                  boxShadow: canNext ? "0 4px 16px rgba(124,58,237,0.35)" : "none",
+                }}
+              >
+                Devam →
+              </button>
+            ) : (
+              <button
+                onClick={handleCreate}
+                disabled={!canNext || creating}
+                className="px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-40 flex items-center gap-2"
+                style={{
+                  background: "linear-gradient(135deg,#7C3AED,#5B21B6)",
+                  boxShadow: "0 4px 16px rgba(124,58,237,0.35)",
+                }}
+              >
+                {creating ? "⏳ Oluşturuluyor…" : "📣 Duyuruyu Yayınla"}
+              </button>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Home Page
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function HomePage() {
+  const router = useRouter();
   const { profile, history } = useUserStore();
   const { session } = useActiveSession();
+  const { currentUsername } = useAuthStore();
   const level = getLevel(profile.totalFlights);
   const levelProgress = getLevelProgress(profile.totalFlights);
   const toNext = flightsToNextLevel(profile.totalFlights);
 
   const isFlightActive =
     session?.status === "running" || session?.status === "paused";
+
+  // ── Duyurular ──────────────────────────────────────────────────────────────
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [annModalOpen, setAnnModalOpen] = useState(false);
+
+  useEffect(() => {
+    return subscribeToAnnouncements(setAnnouncements);
+  }, []);
 
   return (
     <AuthGuard>
@@ -136,6 +453,19 @@ export default function HomePage() {
                 </span>
               </button>
             </Link>
+            <button
+              onClick={() => setAnnModalOpen(true)}
+              className="group relative px-8 py-4 rounded-2xl font-semibold text-white overflow-hidden transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+              style={{
+                background: "linear-gradient(135deg, #7C3AED, #5B21B6)",
+                boxShadow: "0 8px 32px rgba(124,58,237,0.3)",
+              }}
+            >
+              <span className="relative flex items-center gap-2">
+                <span>📣</span>
+                Ortak Uçuş Duyur
+              </span>
+            </button>
             <Link href="/passport">
               <button className="px-8 py-4 rounded-2xl font-semibold text-slate-300 glass hover:bg-white/[0.08] transition-colors">
                 Pasaportu Görüntüle
@@ -143,6 +473,155 @@ export default function HomePage() {
             </Link>
           </motion.div>
         </div>
+
+        {/* ── Uçuş Duyuruları ──────────────────────────────────────── */}
+        <AnimatePresence>
+          {announcements.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="mb-10"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">📣</span>
+                  <span className="text-sm font-semibold text-white" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                    Uçuş Duyuruları
+                  </span>
+                  <span
+                    className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style={{ background: "rgba(124,58,237,0.2)", border: "1px solid rgba(124,58,237,0.3)", color: "#A78BFA" }}
+                  >
+                    {announcements.length}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {announcements.map((ann, i) => {
+                  const isOwn = ann.createdBy === currentUsername;
+                  return (
+                    <motion.div
+                      key={ann.id}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.04 }}
+                      className="rounded-2xl p-4"
+                      style={{
+                        background: isOwn
+                          ? "linear-gradient(135deg, rgba(124,58,237,0.08), rgba(91,33,182,0.04))"
+                          : "rgba(255,255,255,0.025)",
+                        border: isOwn
+                          ? "1px solid rgba(124,58,237,0.25)"
+                          : "1px solid rgba(255,255,255,0.07)",
+                      }}
+                    >
+                      <div className="flex items-start gap-3">
+                        {/* Avatar */}
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
+                          style={{
+                            background: "linear-gradient(135deg, rgba(124,58,237,0.3), rgba(59,130,246,0.2))",
+                            border: "1px solid rgba(124,58,237,0.3)",
+                            color: "#C4B5FD",
+                          }}
+                        >
+                          {ann.createdBy[0].toUpperCase()}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          {/* Creator + time */}
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="text-xs font-semibold text-violet-300">
+                              {isOwn ? "Sen" : ann.createdBy}
+                            </span>
+                            <span className="text-[10px] text-slate-600">{timeAgo(ann.createdAt)}</span>
+                            {/* No-break badge */}
+                            <span
+                              className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                              style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", color: "#FCA5A5" }}
+                            >
+                              Molasız
+                            </span>
+                          </div>
+
+                          {/* Message */}
+                          <p className="text-sm text-slate-200 leading-relaxed mb-2">
+                            {ann.message}
+                          </p>
+
+                          {/* Route + duration chips */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div
+                              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium"
+                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "#94A3B8" }}
+                            >
+                              {flagEmoji(ann.departure.countryCode)} {ann.departure.name}
+                              <span className="text-slate-600">→</span>
+                              {flagEmoji(ann.destination.countryCode)} {ann.destination.name}
+                            </div>
+                            <div
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold"
+                              style={{ background: "rgba(124,58,237,0.12)", border: "1px solid rgba(124,58,237,0.2)", color: "#A78BFA" }}
+                            >
+                              {ann.durationOption.icon} {ann.durationOption.label}
+                            </div>
+                            <div
+                              className="px-2.5 py-1 rounded-full text-[10px] font-semibold"
+                              style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)", color: "#FCD34D" }}
+                            >
+                              +{ann.durationOption.xpReward} XP
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex flex-col gap-2 shrink-0">
+                          {isOwn ? (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => router.push(`/lobby/${ann.lobbyId}`)}
+                                className="px-3 py-2 rounded-xl text-xs font-bold transition-all"
+                                style={{
+                                  background: "linear-gradient(135deg,#7C3AED,#5B21B6)",
+                                  color: "white",
+                                  boxShadow: "0 4px 12px rgba(124,58,237,0.3)",
+                                }}
+                              >
+                                Lobiye Git
+                              </button>
+                              <button
+                                onClick={() => deleteAnnouncement(ann.id)}
+                                className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-600 hover:text-red-400 transition-colors text-sm"
+                                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+                                title="Duyuruyu sil"
+                              >
+                                🗑
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => router.push(`/lobby/${ann.lobbyId}`)}
+                              className="px-4 py-2 rounded-xl text-xs font-bold transition-all hover:scale-[1.02]"
+                              style={{
+                                background: "linear-gradient(135deg,#7C3AED,#5B21B6)",
+                                color: "white",
+                                boxShadow: "0 4px 12px rgba(124,58,237,0.3)",
+                              }}
+                            >
+                              Katıl →
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ── Stats Grid ────────────────────────────────────────────── */}
         <motion.div
@@ -404,6 +883,18 @@ export default function HomePage() {
         </motion.div>
       </div>
     </div>
+
+    {/* ── Duyuru oluşturma modalı ────────────────────────────────────── */}
+    <AnimatePresence>
+      {annModalOpen && currentUsername && (
+        <AnnouncementModal
+          onClose={() => setAnnModalOpen(false)}
+          onCreated={() => setAnnModalOpen(false)}
+          username={currentUsername}
+        />
+      )}
+    </AnimatePresence>
+
     </AuthGuard>
   );
 }

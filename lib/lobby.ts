@@ -37,7 +37,9 @@ export async function createLobby(
   departure: City,
   destination: City,
   durationOption: FlightDurationOption,
-  createdBy: string
+  createdBy: string,
+  breakIntervalMinutes = 50,
+  breakDurationMinutes = 10,
 ): Promise<string> {
   const db = getDb();
   if (!db) return "";
@@ -55,8 +57,8 @@ export async function createLobby(
     members: {
       [createdBy]: { joinedAt: now, seat: null, ready: false },
     },
-    breakIntervalMinutes: 50,
-    breakDurationMinutes: 10,
+    breakIntervalMinutes,
+    breakDurationMinutes,
     breakSettingsApprovals: { [createdBy]: true },
   });
   return id;
