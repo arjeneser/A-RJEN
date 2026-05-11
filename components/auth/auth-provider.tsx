@@ -35,10 +35,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sessionStorage.getItem("airjen-session");
 
     if (saved) {
-      // getState() yerine closure kullanmak stale olabilir — her zaman güncel state oku
+      // Zustand henüz hydrate olmamış olabilir — önce in-memory state'i dene,
+      // sonra localStorage'dan direkt oku (timing güvencesi için)
       const { credentials } = useAuthStore.getState();
       if (credentials[saved]) {
         setCurrentUser(saved);
+      } else {
+        try {
+          const raw = localStorage.getItem("airjen-auth");
+          const parsed = raw ? JSON.parse(raw) : null;
+          const stored = parsed?.state?.credentials ?? {};
+          if (stored[saved]) {
+            // Zustand'ı güncelle ve kullanıcıyı set et
+            useAuthStore.setState({ credentials: stored });
+            setCurrentUser(saved);
+          }
+        } catch {
+          // localStorage okunamazsa sessizce geç
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
