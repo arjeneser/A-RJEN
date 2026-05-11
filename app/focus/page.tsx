@@ -525,8 +525,8 @@ export default function FocusPage() {
     <>
       <div className="fixed inset-0 bg-[#070918] flex flex-col pointer-events-none">
 
-        {/* World Map */}
-        <div className="absolute inset-0 pointer-events-none">
+        {/* World Map — z-0 + isolate: MapLibre iç z-index'leri bu stacking context içinde kalır */}
+        <div className="absolute inset-0 pointer-events-none z-0" style={{ isolation: "isolate" }}>
           <WorldMap departure={departure} destination={destination} progress={effectiveProgress} otherFlights={differentRoutes} crewmates={crewmates} emergencyMode={abandonModalOpen} />
         </div>
 
