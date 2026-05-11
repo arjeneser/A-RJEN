@@ -13,10 +13,11 @@ export interface Announcement {
   departure: City;
   destination: City;
   durationOption: FlightDurationOption;
-  /** status: "open" → görünür, "started" → uçuş başladı, "expired" → süresi doldu */
-  status: "open" | "started" | "expired";
-  /** Unix ms — 24 saat sonra otomatik geçersiz */
+  /** Uçuşun başlayacağı zaman (Unix ms) */
+  scheduledAt: number;
+  /** scheduledAt + durationMs + 5 dk — bu geçince kart kaybolur */
   expiresAt: number;
+  status: "open" | "started" | "expired";
 }
 
 // ─── Create ───────────────────────────────────────────────────────────────────
@@ -28,23 +29,27 @@ export async function createAnnouncement(
   destination: City,
   durationOption: FlightDurationOption,
   lobbyId: string,
+  scheduledAt: number,
 ): Promise<string> {
   const db = getDb();
   if (!db) return "";
   const annRef = push(ref(db, "announcements"));
   const id = annRef.key!;
-  const now = Date.now();
+  const durationMs = durationOption.minutes * 60 * 1000;
+  const expiresAt = scheduledAt + durationMs + 5 * 60 * 1000; // bitiş + 5 dk
+
   const announcement: Announcement = {
     id,
     message: message.trim(),
     createdBy,
-    createdAt: now,
+    createdAt: Date.now(),
     lobbyId,
     departure,
     destination,
     durationOption,
+    scheduledAt,
+    expiresAt,
     status: "open",
-    expiresAt: now + 24 * 60 * 60 * 1000, // 24 saat
   };
   await set(annRef, announcement);
   return id;
@@ -65,8 +70,7 @@ export function subscribeToAnnouncements(
     const result = data
       ? Object.values(data)
           .filter((a) => a.status === "open" && a.expiresAt > now)
-          .sort((a, b) => b.createdAt - a.createdAt)
-          .slice(0, 20)
+          .sort((a, b) => a.scheduledAt - b.scheduledAt) // en yakın önce
       : [];
     callback(result);
   });
@@ -74,7 +78,6 @@ export function subscribeToAnnouncements(
 
 // ─── Delete ───────────────────────────────────────────────────────────────────
 
-/** Kendi duyurusunu sil */
 export async function deleteAnnouncement(announcementId: string): Promise<void> {
   const db = getDb();
   if (!db) return;
@@ -84,7 +87,6 @@ export async function deleteAnnouncement(announcementId: string): Promise<void> 
 
 // ─── Mark started ─────────────────────────────────────────────────────────────
 
-/** Uçuş başlayınca duyuruyu "started" yap */
 export async function markAnnouncementStarted(announcementId: string): Promise<void> {
   const db = getDb();
   if (!db) return;
