@@ -31,8 +31,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (currentUsername) return; // Zustand persist zaten yükledi
 
     const saved =
-      localStorage.getItem("airjen-session") ||
-      sessionStorage.getItem("airjen-session");
+      localStorage.getItem("airjen-user") ||
+      sessionStorage.getItem("airjen-user");
 
     if (saved) {
       // Zustand henüz hydrate olmamış olabilir — önce in-memory state'i dene,

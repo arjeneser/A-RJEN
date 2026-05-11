@@ -77,8 +77,8 @@ export default function LoginPage() {
       setLoading(false);
       if (res === "taken") { setError("Bu kullanıcı adı zaten alınmış."); return; }
       // Yeni kayıt → her zaman kalıcı oturum
-      localStorage.setItem("airjen-session", u.trim().toLowerCase());
-      sessionStorage.removeItem("airjen-session");
+      localStorage.setItem("airjen-user", u.trim().toLowerCase());
+      sessionStorage.removeItem("airjen-user");
       router.replace("/");
       return;
     }
@@ -94,12 +94,12 @@ export default function LoginPage() {
     // Beni hatırla: localStorage (kalıcı) vs sessionStorage (sekme kapanınca sona erer)
     const key = u.trim().toLowerCase();
     if (remember) {
-      localStorage.setItem("airjen-session", key);
+      localStorage.setItem("airjen-user", key);
       localStorage.setItem("airjen-remember", u);
-      sessionStorage.removeItem("airjen-session");
+      sessionStorage.removeItem("airjen-user");
     } else {
-      sessionStorage.setItem("airjen-session", key);
-      localStorage.removeItem("airjen-session");
+      sessionStorage.setItem("airjen-user", key);
+      localStorage.removeItem("airjen-user");
       localStorage.removeItem("airjen-remember");
     }
     router.replace("/");

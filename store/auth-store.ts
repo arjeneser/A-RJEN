@@ -141,8 +141,8 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         set({ currentUsername: null });
         if (typeof window !== "undefined") {
-          localStorage.removeItem("airjen-session");
-          sessionStorage.removeItem("airjen-session");
+          localStorage.removeItem("airjen-user");
+          sessionStorage.removeItem("airjen-user");
         }
       },
 
