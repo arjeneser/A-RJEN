@@ -65,8 +65,7 @@ function BreakVoteOverlay({
         exit={{ opacity: 0 }}
         transition={{ duration: 0.25 }}
         className="fixed inset-0 flex items-center justify-center px-4"
-        style={{ zIndex: 210 }}
-        style={{ background: "rgba(7,9,24,0.88)", backdropFilter: "blur(10px)" }}
+        style={{ zIndex: 210, background: "rgba(7,9,24,0.88)", backdropFilter: "blur(10px)" }}
       >
         <motion.div
           initial={{ scale: 0.88, y: 24 }}
