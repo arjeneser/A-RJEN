@@ -11,14 +11,27 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // 1. Oturum key'ini oku — yoksa anında login'e yönlendir
   useEffect(() => {
     try {
-      const session =
+      // Yeni sistem: airjen-session (localStorage veya sessionStorage)
+      const newSession =
         localStorage.getItem("airjen-session") ||
         sessionStorage.getItem("airjen-session");
 
-      if (!session) {
+      // Eski sistem (geriye dönük uyumluluk): airjen-auth içindeki currentUsername
+      const legacyRaw = localStorage.getItem("airjen-auth");
+      const legacyUsername = legacyRaw
+        ? (JSON.parse(legacyRaw)?.state?.currentUsername ?? null)
+        : null;
+
+      if (!newSession && !legacyUsername) {
+        // Hiç oturum yok → login'e yönlendir
         router.replace("/login");
         setChecked(true);
         return;
+      }
+
+      // Eski sistemden geçiş: airjen-session'ı otomatik oluştur
+      if (!newSession && legacyUsername) {
+        localStorage.setItem("airjen-session", legacyUsername);
       }
     } catch {
       router.replace("/login");
