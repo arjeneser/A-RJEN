@@ -524,35 +524,30 @@ export default function FocusPage() {
   const showPausedOverlay   = isPaused && !isOnBreak;
 
   // ── Render ────────────────────────────────────────────────────────────────
+  // Her katman bağımsız fixed element — iç içe stacking context karmaşası yok.
   return (
     <>
-      {/*
-        z-[100] → Navbar (z-50) ve diğer tüm layout elemanlarının üstünde.
-        fixed + explicit z-index → kendi stacking context'ini oluşturur.
-        İçindeki tüm z-index'ler (map z-0, vignette z-5…20) bu context'e göredir.
-      */}
-      <div className="fixed inset-0 bg-[#070918] flex flex-col pointer-events-none" style={{ zIndex: 100 }}>
+      {/* ── Kat 1: Koyu arka plan ─────────────────────────────────────────── */}
+      <div className="fixed inset-0" style={{ zIndex: 50, backgroundColor: "#070918" }} />
 
-        {/*
-          WorldMap — absolute z-0 yeterli; position:absolute + z-index:0 stacking context
-          oluşturur, MapLibre'nin iç z-index'leri (200-600) bu context içinde kalır.
-          isolation:isolate KALDIRILDI — bazı GPU'larda siyah compositing bug'a yol açıyordu.
-        */}
-        {/* zIndex:0 + position:absolute → stacking context oluşturur, MapLibre z-200/400/600 içeride kalır */}
-        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0, position: "absolute" }}>
-          <WorldMap departure={departure} destination={destination} progress={effectiveProgress} otherFlights={differentRoutes} crewmates={crewmates} emergencyMode={abandonModalOpen} />
-        </div>
+      {/* ── Kat 2: Dünya haritası — kendi fixed stacking context ────────── */}
+      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 51 }}>
+        <WorldMap departure={departure} destination={destination} progress={effectiveProgress} otherFlights={differentRoutes} crewmates={crewmates} emergencyMode={abandonModalOpen} />
+      </div>
 
-        {/* Vignette — z-index'ler inline; Tailwind JIT bazen override edebilir */}
-        <div className="absolute top-0 left-0 right-0 h-32 pointer-events-none"
-          style={{ zIndex: 10, background: "linear-gradient(to bottom, rgba(7,9,24,0.92) 0%, transparent 100%)" }} />
-        <div className="absolute bottom-0 left-0 right-0 h-64 pointer-events-none"
-          style={{ zIndex: 15, background: "linear-gradient(to top, rgba(7,9,24,0.97) 0%, transparent 100%)" }} />
-        <div className="absolute inset-0 pointer-events-none"
-          style={{ zIndex: 5, background: "rgba(7,9,24,0.35)" }} />
+      {/* ── Kat 3: Vinyetler ───────────────────────────────────────────────── */}
+      <div className="fixed inset-0 pointer-events-none"
+        style={{ zIndex: 52, background: "rgba(7,9,24,0.35)" }} />
+      <div className="fixed top-0 left-0 right-0 h-32 pointer-events-none"
+        style={{ zIndex: 52, background: "linear-gradient(to bottom, rgba(7,9,24,0.92) 0%, transparent 100%)" }} />
+      <div className="fixed bottom-0 left-0 right-0 h-64 pointer-events-none"
+        style={{ zIndex: 52, background: "linear-gradient(to top, rgba(7,9,24,0.97) 0%, transparent 100%)" }} />
+
+      {/* ── Kat 4: Üst HUD + Durum — bağımsız fixed katman ─────────────── */}
+      <div className="fixed top-0 left-0 right-0 flex flex-col pointer-events-none" style={{ zIndex: 105 }}>
 
         {/* Top HUD */}
-        <div className="relative p-3 pt-safe sm:p-4 sm:pt-6 flex items-start justify-between pointer-events-auto gap-2" style={{ zIndex: 20 }}>
+        <div className="p-3 pt-safe sm:p-4 sm:pt-6 flex items-start justify-between pointer-events-auto gap-2">
           {/* Route chip */}
           <motion.div
             initial={{ opacity: 0, y: -16 }}
@@ -569,7 +564,6 @@ export default function FocusPage() {
 
           {/* Weather + Abandon */}
           <div className="flex items-center gap-2">
-            {/* Weather chips */}
             {(depWeather.weather || dstWeather.weather) && (
               <motion.div
                 initial={{ opacity: 0, y: -16 }}
@@ -584,9 +578,7 @@ export default function FocusPage() {
                     <span className="text-slate-300 font-semibold">{depWeather.weather.temp}°</span>
                   </span>
                 )}
-                {depWeather.weather && dstWeather.weather && (
-                  <span className="text-slate-700">·</span>
-                )}
+                {depWeather.weather && dstWeather.weather && <span className="text-slate-700">·</span>}
                 {dstWeather.weather && (
                   <span className="flex items-center gap-1">
                     <span>{dstWeather.weather.icon}</span>
@@ -595,8 +587,6 @@ export default function FocusPage() {
                 )}
               </motion.div>
             )}
-
-            {/* Abandon */}
             <motion.button
               initial={{ opacity: 0, y: -16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -604,14 +594,12 @@ export default function FocusPage() {
               className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-white transition-colors"
               style={{ background: "rgba(22,26,53,0.85)", border: "1px solid rgba(255,255,255,0.1)", backdropFilter: "blur(12px)" }}
               title="Uçuşu terk et"
-            >
-              ✕
-            </motion.button>
+            >✕</motion.button>
           </div>
         </div>
 
         {/* Status pill */}
-        <div className="relative flex justify-center mt-2 flex-col items-center gap-2 pointer-events-auto" style={{ zIndex: 20 }}>
+        <div className="flex justify-center mt-2 flex-col items-center gap-2 pointer-events-auto">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -632,24 +620,15 @@ export default function FocusPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
               )}
               <span className={`relative inline-flex rounded-full h-2 w-2 ${
-                showBreakOverlay ? "bg-yellow-500"
-                : showPausedOverlay ? "bg-red-500"
-                : "bg-green-500"
+                showBreakOverlay ? "bg-yellow-500" : showPausedOverlay ? "bg-red-500" : "bg-green-500"
               }`} />
             </span>
-            <span style={{
-              color: showBreakOverlay ? "#F59E0B"
-                : showPausedOverlay ? "#EF4444"
-                : "#22C55E",
-            }}>
-              {showBreakOverlay ? "MOLADA"
-                : showPausedOverlay ? "DURDURULDU"
-                : "ODAK MODU AKTİF"}
+            <span style={{ color: showBreakOverlay ? "#F59E0B" : showPausedOverlay ? "#EF4444" : "#22C55E" }}>
+              {showBreakOverlay ? "MOLADA" : showPausedOverlay ? "DURDURULDU" : "ODAK MODU AKTİF"}
             </span>
             <span className="text-slate-500">· Koltuk {seat}</span>
           </motion.div>
 
-          {/* Mola yaklaşıyor uyarısı */}
           <AnimatePresence>
             {breakWarning && !isPaused && !breakModalOpen && (
               <motion.div
@@ -658,11 +637,7 @@ export default function FocusPage() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold"
-                style={{
-                  background: "rgba(245,158,11,0.15)",
-                  border: "1px solid rgba(245,158,11,0.35)",
-                  color: "#FCD34D",
-                }}
+                style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.35)", color: "#FCD34D" }}
               >
                 ⏰ Mola zamanı yaklaşıyor
                 {minsUntilBreak !== null && minsUntilBreak > 0 && (
@@ -672,7 +647,6 @@ export default function FocusPage() {
             )}
           </AnimatePresence>
 
-          {/* Acil iniş geri sayım pill */}
           <AnimatePresence>
             {emergencyTarget && (
               <motion.div
@@ -681,20 +655,15 @@ export default function FocusPage() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold"
-                style={{
-                  background: "rgba(239,68,68,0.15)",
-                  border: "1px solid rgba(239,68,68,0.4)",
-                  color: "#FCA5A5",
-                }}
+                style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.4)", color: "#FCA5A5" }}
               >
-                🛬 {flagEmoji(emergencyTarget.city.countryCode)} {emergencyTarget.city.name}'ya iniş
+                🛬 {flagEmoji(emergencyTarget.city.countryCode)} {emergencyTarget.city.name}&apos;ya iniş
                 <span className="text-red-400/80 font-bold">
                   · {Math.max(0, Math.ceil((emergencyTarget.targetElapsedMs - elapsedMs) / 60_000))} dk kaldı
                 </span>
               </motion.div>
             )}
           </AnimatePresence>
-
         </div>
 
       </div>
