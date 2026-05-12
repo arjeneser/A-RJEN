@@ -39,7 +39,7 @@ export default function SuccessPage() {
     }
   }, [session, router, mounted]);
 
-  // Record flight once — sessionStorage ile aynı oturumda tekrar kayıt engellenir
+  // Record flight once — localStorage ile tüm sekmelerde ve sayfa yenilemelerinde tekrar kayıt engellenir
   useEffect(() => {
     if (!session || recordedRef.current) return;
     if (
@@ -47,14 +47,18 @@ export default function SuccessPage() {
       session.status === "running" ||  // completed in bg, still "running" in store edge case
       session.status === "paused"       // timer expired while paused (e.g. mobile tab in bg)
     ) {
-      // Aynı uçuş daha önce kaydedilmişse atla (sayfa tekrar mount edilse bile)
+      // localStorage: aynı startTime ile birden fazla sekmede/yenilemede kayıt engellenir
       const storageKey = `airjen_recorded_${session.startTime}`;
-      if (typeof window !== "undefined" && sessionStorage.getItem(storageKey)) {
+      if (typeof window !== "undefined" && localStorage.getItem(storageKey)) {
         recordedRef.current = true;
         return;
       }
       recordedRef.current = true;
-      if (typeof window !== "undefined") sessionStorage.setItem(storageKey, "1");
+      if (typeof window !== "undefined") {
+        localStorage.setItem(storageKey, "1");
+        // 48 saat sonra anahtarı temizle — localStorage birikmesi önlenir
+        setTimeout(() => localStorage.removeItem(storageKey), 48 * 60 * 60 * 1000);
+      }
       const durationMinutes = Math.round(session.durationMs / 60000);
       const xpEarned = Math.round(durationMinutes / 3);
       recordFlight({

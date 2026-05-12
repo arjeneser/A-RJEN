@@ -127,6 +127,17 @@ export const useUserStore = create<UserState>()(
 
       // ── recordFlight ─────────────────────────────────────────────────────
       recordFlight: ({ departureId, destinationId, durationMinutes, xpEarned }) => {
+        // Çift kayıt koruması: son 5 dakika içinde aynı rota + süre varsa atla
+        const existing = get().history;
+        const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+        const isDuplicate = existing.some((f) =>
+          f.departureId === departureId &&
+          f.destinationId === destinationId &&
+          f.durationMinutes === durationMinutes &&
+          new Date(f.completedAt).getTime() > fiveMinAgo
+        );
+        if (isDuplicate) return;
+
         set((s) => {
           const today = todayISO();
           const last = s.profile.lastFlightDate;
