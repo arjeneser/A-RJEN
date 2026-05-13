@@ -187,7 +187,7 @@ function Stopwatch({ label, color = "#F87171", bg = "rgba(220,38,38,0.1)", borde
 
 export default function FocusPage() {
   const router                              = useRouter();
-  const { session, abandonSession, emergencyLand } = useActiveSession();
+  const { session, _hasHydrated, abandonSession, emergencyLand } = useActiveSession();
   const { currentUsername }                 = useAuthStore();
   const hasCompletedRef                     = useRef(false);
   const [mounted, setMounted]               = useState(false);
@@ -430,7 +430,8 @@ export default function FocusPage() {
   }, [sharedFlight, isShared]);
 
   // ── Guards ────────────────────────────────────────────────────────────────
-  useEffect(() => { if (mounted && !session) router.push("/"); }, [session, router, mounted]);
+  // _hasHydrated beklenir — localStorage'dan session yüklenmeden yönlendirme yapılmaz
+  useEffect(() => { if (mounted && _hasHydrated && !session) router.push("/"); }, [session, _hasHydrated, router, mounted]);
   useEffect(() => {
     if (mounted && session?.status === "completed" && !hasCompletedRef.current) {
       hasCompletedRef.current = true;
@@ -456,8 +457,8 @@ export default function FocusPage() {
   }, [session, progress, elapsedMs, remainingMs]);
 
 
-  // Henüz mount olmadı veya session yüklenmedi — siyah flash yerine koyu arka plan
-  if (!mounted || !session) {
+  // Henüz mount olmadı veya Zustand hydration bekleniyor — siyah flash yerine koyu arka plan
+  if (!mounted || !_hasHydrated || !session) {
     return <div className="fixed inset-0 bg-[#070918]" style={{ zIndex: 100 }} />;
   }
 

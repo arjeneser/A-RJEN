@@ -111,6 +111,7 @@ export const useFlightSetup = create<FlightSetupState>((set) => ({
 
 interface ActiveSessionState {
   session: FlightSession | null;
+  _hasHydrated: boolean;
   startSession: (params: {
     departure: City;
     destination: City;
@@ -138,6 +139,7 @@ export const useActiveSession = create<ActiveSessionState>()(
   persist(
     (set, get) => ({
       session: null,
+      _hasHydrated: false,
 
       startSession: ({ departure, destination, durationMs, seat, passengerName, breakIntervalMinutes, breakDurationMinutes }) => {
         const session: FlightSession = {
@@ -237,6 +239,9 @@ export const useActiveSession = create<ActiveSessionState>()(
       name: "airjen-session",
       // Only persist fields needed for restoration
       partialize: (s) => ({ session: s.session }),
+      onRehydrateStorage: () => (state) => {
+        if (state) state._hasHydrated = true;
+      },
     }
   )
 );
