@@ -187,7 +187,9 @@ function Stopwatch({ label, color = "#F87171", bg = "rgba(220,38,38,0.1)", borde
 
 export default function FocusPage() {
   const router                              = useRouter();
-  const { session, _hasHydrated, abandonSession, emergencyLand } = useActiveSession();
+  const { session, _hasHydrated, abandonSession, emergencyLand } = useActiveSession(
+    (s) => ({ session: s.session, _hasHydrated: s._hasHydrated, abandonSession: s.abandonSession, emergencyLand: s.emergencyLand })
+  );
   const { currentUsername }                 = useAuthStore();
   const hasCompletedRef                     = useRef(false);
   const [mounted, setMounted]               = useState(false);

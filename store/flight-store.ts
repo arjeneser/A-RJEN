@@ -112,6 +112,7 @@ export const useFlightSetup = create<FlightSetupState>((set) => ({
 interface ActiveSessionState {
   session: FlightSession | null;
   _hasHydrated: boolean;
+  _setHydrated: () => void;
   startSession: (params: {
     departure: City;
     destination: City;
@@ -140,6 +141,7 @@ export const useActiveSession = create<ActiveSessionState>()(
     (set, get) => ({
       session: null,
       _hasHydrated: false,
+      _setHydrated: () => set({ _hasHydrated: true }),
 
       startSession: ({ departure, destination, durationMs, seat, passengerName, breakIntervalMinutes, breakDurationMinutes }) => {
         const session: FlightSession = {
@@ -240,7 +242,8 @@ export const useActiveSession = create<ActiveSessionState>()(
       // Only persist fields needed for restoration
       partialize: (s) => ({ session: s.session }),
       onRehydrateStorage: () => (state) => {
-        if (state) state._hasHydrated = true;
+        // set() ile React subscriber'ları bilgilendir — direkt mutasyon değil
+        if (state) state._setHydrated();
       },
     }
   )
