@@ -244,6 +244,9 @@ export const useActiveSession = create<ActiveSessionState>()(
 );
 
 // Zustand persist hydration tamamlanınca React subscriber'larını bilgilendir
-useActiveSession.persist.onFinishHydration(() => {
-  useActiveSession.setState({ _hasHydrated: true });
-});
+// SSR sırasında (Node.js) çalışmamalı — window kontrolü zorunlu
+if (typeof window !== "undefined") {
+  useActiveSession.persist.onFinishHydration(() => {
+    useActiveSession.setState({ _hasHydrated: true });
+  });
+}
