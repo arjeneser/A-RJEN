@@ -236,7 +236,17 @@ export function WorldMap({ departure, destination, progress, otherFlights = [], 
       applyOtherFlights(otherFlightsRef.current);
     });
 
+    // Tab geri gelince MapLibre canvas'ı yeniden boyutlandır + yeniden çiz
+    const onVisibility = () => {
+      if (!document.hidden && mapRef.current) {
+        mapRef.current.resize();
+        mapRef.current.triggerRepaint();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
       mapLoadedRef.current = false;
       if (mapRef.current) {
         mapRef.current.remove();

@@ -111,7 +111,6 @@ export const useFlightSetup = create<FlightSetupState>((set) => ({
 
 interface ActiveSessionState {
   session: FlightSession | null;
-  _hasHydrated: boolean;
   startSession: (params: {
     departure: City;
     destination: City;
@@ -139,7 +138,6 @@ export const useActiveSession = create<ActiveSessionState>()(
   persist(
     (set, get) => ({
       session: null,
-      _hasHydrated: false,
 
       startSession: ({ departure, destination, durationMs, seat, passengerName, breakIntervalMinutes, breakDurationMinutes }) => {
         const session: FlightSession = {
@@ -243,10 +241,3 @@ export const useActiveSession = create<ActiveSessionState>()(
   )
 );
 
-// Zustand persist hydration tamamlanınca React subscriber'larını bilgilendir
-// SSR sırasında (Node.js) çalışmamalı — window kontrolü zorunlu
-if (typeof window !== "undefined") {
-  useActiveSession.persist.onFinishHydration(() => {
-    useActiveSession.setState({ _hasHydrated: true });
-  });
-}

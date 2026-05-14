@@ -187,9 +187,13 @@ function Stopwatch({ label, color = "#F87171", bg = "rgba(220,38,38,0.1)", borde
 
 export default function FocusPage() {
   const router                              = useRouter();
-  const { session, _hasHydrated, abandonSession, emergencyLand } = useActiveSession();
+  const { session, abandonSession, emergencyLand } = useActiveSession();
   const { currentUsername }                 = useAuthStore();
   const hasCompletedRef                     = useRef(false);
+  // storeReady: Zustand persist localStorage'dan yüklemeyi bitirdi mi?
+  const [storeReady, setStoreReady]         = useState(
+    () => typeof window !== "undefined" && useActiveSession.persist.hasHydrated()
+  );
   const [mounted, setMounted]               = useState(false);
   const [otherFlights, setOtherFlights]     = useState<LiveFlight[]>([]);
 
@@ -216,6 +220,13 @@ export default function FocusPage() {
   const suppressWarnUntilRef               = useRef<number>(0);
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Zustand henüz hydrate olmadıysa — tamamlanınca bildir
+  useEffect(() => {
+    if (storeReady) return;
+    const unsub = useActiveSession.persist.onFinishHydration(() => setStoreReady(true));
+    return unsub;
+  }, [storeReady]);
 
   // ── SharedFlight subscribe + active member ────────────────────────────────
   useEffect(() => {
@@ -430,8 +441,8 @@ export default function FocusPage() {
   }, [sharedFlight, isShared]);
 
   // ── Guards ────────────────────────────────────────────────────────────────
-  // _hasHydrated beklenir — localStorage'dan session yüklenmeden yönlendirme yapılmaz
-  useEffect(() => { if (mounted && _hasHydrated && !session) router.push("/"); }, [session, _hasHydrated, router, mounted]);
+  // storeReady beklenir — localStorage'dan session yüklenmeden yönlendirme yapılmaz
+  useEffect(() => { if (mounted && storeReady && !session) router.push("/"); }, [session, storeReady, router, mounted]);
   useEffect(() => {
     if (mounted && session?.status === "completed" && !hasCompletedRef.current) {
       hasCompletedRef.current = true;
@@ -458,7 +469,7 @@ export default function FocusPage() {
 
 
   // Henüz mount olmadı veya Zustand hydration bekleniyor — siyah flash yerine koyu arka plan
-  if (!mounted || !_hasHydrated || !session) {
+  if (!mounted || !storeReady || !session) {
     return <div className="fixed inset-0 bg-[#070918]" style={{ zIndex: 100 }} />;
   }
 
